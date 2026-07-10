@@ -47,7 +47,7 @@ function TrollPage() {
         }}>
           <span style={{ fontSize: '1.8rem' }}>💡</span>
         </div>
-        
+
         <div style={{ textAlign: 'center' }}>
           <h2 style={{
             fontSize: '1.4rem',
@@ -79,14 +79,14 @@ function TrollPage() {
           alignItems: 'center',
           justifyContent: 'center'
         }}>
-          <img 
-            src="/vadivelu_meme.png" 
-            alt="வீரம் பல்பு வாங்கிய தருணம்" 
-            style={{ width: '100%', objectFit: 'contain', display: 'block' }} 
+          <img
+            src="/vadivelu_meme.png"
+            alt="வீரம் பல்பு வாங்கிய தருணம்"
+            style={{ width: '100%', objectFit: 'contain', display: 'block' }}
           />
         </div>
 
-        <button 
+        <button
           onClick={() => window.location.replace('/user')}
           className="premium-btn premium-btn-primary"
           style={{
@@ -110,13 +110,13 @@ function TrollPage() {
 function PortalLayout() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
-  
+
   // Auth state
   const [currentUser, setCurrentUser] = useState(() => {
     const saved = localStorage.getItem('whatsbro_user');
     return saved ? JSON.parse(saved) : null;
   });
-  
+
   const [systemSettings, setSystemSettings] = useState({});
 
   useEffect(() => {
@@ -124,14 +124,14 @@ function PortalLayout() {
       if (data) setSystemSettings(data);
     }).catch(err => console.error('Failed to load settings in App.jsx', err));
   }, []);
-  
+
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isRegisterMode, setIsRegisterMode] = useState(false);
-  
+
   // Login form state
   const [loginPhone, setLoginPhone] = useState('');
   const [loginAadharPrefix, setLoginAadharPrefix] = useState('');
-  
+
   // Register form state
   const [regName, setRegName] = useState('');
   const [regPhone, setRegPhone] = useState('');
@@ -140,7 +140,7 @@ function PortalLayout() {
   const [otpSent, setOtpSent] = useState(false);
   const [otpValue, setOtpValue] = useState('');
   const [otpSending, setOtpSending] = useState(false);
-  
+
   // Alerts and loading
   const [authError, setAuthError] = useState('');
   const [authSuccess, setAuthSuccess] = useState('');
@@ -148,7 +148,7 @@ function PortalLayout() {
 
   // Determine if active route is admin or user
   const isAdmin = location.pathname.toLowerCase().startsWith('/tnkpadmin');
-  
+
   // Read active tab, default based on portal type with automatic bounds verification
   const rawTab = searchParams.get('tab');
   const activeTab = isAdmin
@@ -175,16 +175,16 @@ function PortalLayout() {
     setAuthError('');
     setAuthSuccess('');
     setIsLoading(true);
-    
+
     try {
       if (!loginPhone) throw new Error('Please enter your Phone number.');
       if (!loginAadharPrefix || loginAadharPrefix.length !== 4) throw new Error('Please enter the first 4 digits of your Aadhaar number.');
-      
+
       const payload = {
         phone: loginPhone,
         aadhar_prefix: loginAadharPrefix
       };
-      
+
       const user = await loginUser(payload);
       localStorage.setItem('whatsbro_user', JSON.stringify(user));
       setCurrentUser(user);
@@ -207,7 +207,7 @@ function PortalLayout() {
     setAuthError('');
     setAuthSuccess('');
     setIsLoading(true);
-    
+
     try {
       if (!regName) throw new Error('Please enter your full Name.');
       if (!regPhone) throw new Error('Please enter your Phone number.');
@@ -215,20 +215,20 @@ function PortalLayout() {
       if (!regEmail) throw new Error('Please enter your Email ID.');
       if (!otpSent) throw new Error('Please verify your email with OTP first.');
       if (!otpValue) throw new Error('Please enter the OTP sent to your email.');
-      
+
       // Verify OTP first
       const otpResult = await verifyOtp(regEmail, otpValue);
       if (!otpResult || !otpResult.verified) {
         throw new Error('Invalid or expired OTP. Please request a new one.');
       }
-      
+
       const payload = {
         name: regName,
         phone: regPhone,
         aadhar: regAadhar,
         email: regEmail
       };
-      
+
       const user = await registerUser(payload);
       localStorage.setItem('whatsbro_user', JSON.stringify(user));
       setCurrentUser(user);
@@ -275,26 +275,26 @@ function PortalLayout() {
 
   return (
     <div className="layout-viewport-container">
-      
+
       {/* Centered Mobile Container Viewport */}
       <div className="app-mobile-container" style={{ display: 'flex', flexDirection: 'column', position: 'relative' }}>
-        
+
         {/* Header - Fixed at the top */}
-        <Header 
-          currentUser={currentUser} 
-          onLogout={handleLogout} 
-          onLoginTrigger={() => { 
+        <Header
+          currentUser={currentUser}
+          onLogout={handleLogout}
+          onLoginTrigger={() => {
             setAuthError('');
             setAuthSuccess('');
-            setIsRegisterMode(false); 
-            setIsAuthModalOpen(true); 
-          }} 
+            setIsRegisterMode(false);
+            setIsAuthModalOpen(true);
+          }}
           isAdmin={isAdmin}
         />
-        
+
         {/* Scrollable Frame Content (Main Routes) */}
         <div className="mobile-frame-content" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
-          
+
           {/* Main Contents */}
           <main style={{ flex: 1, paddingBottom: '20px' }}>
             <Routes>
@@ -313,42 +313,42 @@ function PortalLayout() {
         {/* Global Bottom Sticky Menu */}
         {isAdmin ? (
           <div className="bottom-nav-bar">
-            <button 
+            <button
               onClick={() => handleTabChange('posts')}
               className={`bottom-nav-item ${activeTab === 'posts' ? 'active' : ''}`}
             >
               <Home className="bottom-nav-icon" size={20} />
               <span>Posts</span>
             </button>
-            <button 
+            <button
               onClick={() => handleTabChange('forms')}
               className={`bottom-nav-item ${activeTab === 'forms' ? 'active' : ''}`}
             >
               <Plus className="bottom-nav-icon" size={20} />
               <span>Templates</span>
             </button>
-            <button 
+            <button
               onClick={() => handleTabChange('users')}
               className={`bottom-nav-item ${activeTab === 'users' ? 'active' : ''}`}
             >
               <Users className="bottom-nav-icon" size={20} />
               <span>Submissions</span>
             </button>
-            <button 
+            <button
               onClick={() => handleTabChange('jobs')}
               className={`bottom-nav-item ${activeTab === 'jobs' ? 'active' : ''}`}
             >
               <Briefcase className="bottom-nav-icon" size={20} />
               <span>Jobs</span>
             </button>
-            <button 
+            <button
               onClick={() => handleTabChange('products')}
               className={`bottom-nav-item ${activeTab === 'products' ? 'active' : ''}`}
             >
               <Package className="bottom-nav-icon" size={20} />
               <span>Products</span>
             </button>
-            <button 
+            <button
               onClick={() => handleTabChange('announcements')}
               className={`bottom-nav-item ${activeTab === 'announcements' ? 'active' : ''}`}
             >
@@ -358,28 +358,28 @@ function PortalLayout() {
           </div>
         ) : (
           <div className="bottom-nav-bar">
-            <button 
+            <button
               onClick={() => handleTabChange('home')}
               className={`bottom-nav-item ${activeTab === 'home' ? 'active' : ''}`}
             >
               <Home className="bottom-nav-icon" size={20} />
               <span>Home</span>
             </button>
-            <button 
+            <button
               onClick={() => handleTabChange('apply')}
               className={`bottom-nav-item ${activeTab === 'apply' ? 'active' : ''}`}
             >
               <FileText className="bottom-nav-icon" size={20} />
               <span>Application</span>
             </button>
-            <button 
+            <button
               onClick={() => handleTabChange('jobs')}
               className={`bottom-nav-item ${activeTab === 'jobs' ? 'active' : ''}`}
             >
               <Briefcase className="bottom-nav-icon" size={20} />
               <span>Job alerts</span>
             </button>
-            <button 
+            <button
               onClick={() => handleTabChange('accessories')}
               className={`bottom-nav-item ${activeTab === 'accessories' ? 'active' : ''}`}
             >
@@ -420,7 +420,7 @@ function PortalLayout() {
               position: 'relative'
             }}>
               {/* Close Button */}
-              <button 
+              <button
                 onClick={() => setIsAuthModalOpen(false)}
                 style={{
                   position: 'absolute',
@@ -464,8 +464,8 @@ function PortalLayout() {
                   {/* Phone Input */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <label style={{ fontSize: '0.75rem', fontWeight: '600', color: '#334155' }}>Phone Number *</label>
-                    <input 
-                      type="tel" 
+                    <input
+                      type="tel"
                       placeholder="Enter registered mobile number"
                       value={loginPhone}
                       onChange={(e) => setLoginPhone(e.target.value)}
@@ -485,8 +485,8 @@ function PortalLayout() {
                   {/* Aadhar First 4 Digits */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <label style={{ fontSize: '0.75rem', fontWeight: '600', color: '#334155' }}>Aadhaar First 4 Digits *</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       maxLength={4}
                       placeholder="Enter first 4 digits of Aadhaar"
                       value={loginAadharPrefix}
@@ -526,11 +526,11 @@ function PortalLayout() {
                   >
                     {isLoading ? 'Verifying...' : 'Login'}
                   </button>
-                  
+
                   {/* Toggle Link */}
                   <div style={{ textAlign: 'center', marginTop: '8px', fontSize: '0.8rem', color: '#64748b' }}>
                     Don't have a profile?{' '}
-                    <span 
+                    <span
                       onClick={() => { setIsRegisterMode(true); setAuthError(''); setAuthSuccess(''); }}
                       style={{ color: '#10b981', cursor: 'pointer', fontWeight: '600' }}
                     >
@@ -544,8 +544,8 @@ function PortalLayout() {
                   {/* Full Name */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <label style={{ fontSize: '0.75rem', fontWeight: '600', color: '#334155' }}>Full Name *</label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       placeholder="Enter full name"
                       value={regName}
                       onChange={(e) => setRegName(e.target.value)}
@@ -564,8 +564,8 @@ function PortalLayout() {
                   {/* Phone */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <label style={{ fontSize: '0.75rem', fontWeight: '600', color: '#334155' }}>Phone Number *</label>
-                    <input 
-                      type="tel" 
+                    <input
+                      type="tel"
                       placeholder="Enter mobile number"
                       value={regPhone}
                       onChange={(e) => setRegPhone(e.target.value)}
@@ -585,8 +585,8 @@ function PortalLayout() {
                   {/* Aadhaar */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <label style={{ fontSize: '0.75rem', fontWeight: '600', color: '#334155' }}>Aadhaar Number * <span style={{ fontSize: '0.6rem', color: '#ef4444' }}>(Permanent - cannot change later)</span></label>
-                    <input 
-                      type="text" 
+                    <input
+                      type="text"
                       maxLength={12}
                       placeholder="Enter 12-digit Aadhaar number"
                       value={regAadhar}
@@ -607,11 +607,11 @@ function PortalLayout() {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                     <label style={{ fontSize: '0.75rem', fontWeight: '600', color: '#334155' }}>Email ID * <span style={{ fontSize: '0.6rem', color: '#ef4444' }}>(Permanent - cannot change later)</span></label>
                     <div style={{ display: 'flex', gap: '6px' }}>
-                      <input 
-                        type="email" 
+                      <input
+                        type="email"
                         placeholder="Enter email address"
                         value={regEmail}
-                        onChange={(e) => { setRegEmail(e.target.value); if(otpSent) { setOtpSent(false); setOtpValue(''); } }}
+                        onChange={(e) => { setRegEmail(e.target.value); if (otpSent) { setOtpSent(false); setOtpValue(''); } }}
                         required
                         disabled={otpSent}
                         style={{
@@ -650,8 +650,8 @@ function PortalLayout() {
                   {otpSent && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                       <label style={{ fontSize: '0.75rem', fontWeight: '600', color: '#334155' }}>Enter OTP *</label>
-                      <input 
-                        type="text" 
+                      <input
+                        type="text"
                         maxLength={6}
                         placeholder="Enter 6-digit OTP from email"
                         value={otpValue}
@@ -692,11 +692,11 @@ function PortalLayout() {
                   >
                     {isLoading ? 'Creating...' : 'Verify OTP & Register'}
                   </button>
-                  
+
                   {/* Toggle Link */}
                   <div style={{ textAlign: 'center', marginTop: '8px', fontSize: '0.8rem', color: '#64748b' }}>
                     Already registered?{' '}
-                    <span 
+                    <span
                       onClick={() => { setIsRegisterMode(false); setAuthError(''); setAuthSuccess(''); }}
                       style={{ color: '#10b981', cursor: 'pointer', fontWeight: '600' }}
                     >
@@ -760,15 +760,15 @@ export default function App() {
           alignItems: 'center',
           gap: '16px'
         }}>
-          <img 
-            src="/whatsbro_logo.png" 
-            alt="Logo" 
-            style={{ 
-              width: '120px', 
-              height: '120px', 
+          <img
+            src="/whatsbro_logo.png"
+            alt="Logo"
+            style={{
+              width: '240px',
+              height: '240px',
               objectFit: 'contain',
               animation: 'pulseScale 2s ease-in-out infinite'
-            }} 
+            }}
           />
           <h1 style={{
             fontSize: '2.5rem',

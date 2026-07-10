@@ -4102,7 +4102,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
                               borderRadius: '20px',
                               fontWeight: '700'
                             }}>
-                              {items.length} {items.length === 1 ? 'item' : 'items'}
+                              100+ items
                             </span>
                           </div>
 
@@ -4157,7 +4157,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
                               borderRadius: '20px',
                               fontWeight: '700'
                             }}>
-                              {items.length} {items.length === 1 ? 'item' : 'items'}
+                              100+ items
                             </span>
                           </div>
 

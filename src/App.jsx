@@ -4,6 +4,7 @@ import Header from './components/Header';
 import Footer from './components/Footer';
 import UserPortal from './pages/UserPortal';
 import AdminPortal from './pages/AdminPortal';
+import OgGenerator from './pages/OgGenerator';
 import { Home, FileText, CheckCircle, Plus, Users, X, Briefcase, MessageSquare, ShoppingBag, Package, Megaphone } from 'lucide-react';
 import { registerUser, loginUser, sendOtp, verifyOtp, getSettings } from './services/db';
 
@@ -300,6 +301,7 @@ function PortalLayout() {
             <Routes>
               <Route path="/user" element={<UserPortal currentUser={currentUser} onUpdateProfile={handleUpdateProfile} onLoginTrigger={(prefillPhone, prefillAadharPrefix) => { setAuthError(''); setAuthSuccess(''); setIsRegisterMode(false); if (prefillPhone) setLoginPhone(prefillPhone); if (prefillAadharPrefix) setLoginAadharPrefix(prefillAadharPrefix); setIsAuthModalOpen(true); }} />} />
               <Route path="/tnkpadmin" element={<AdminPortal />} />
+              <Route path="/admin/og-generator" element={<OgGenerator />} />
               <Route path="/admin" element={<TrollPage />} />
               <Route path="*" element={<Navigate to="/user" replace />} />
             </Routes>

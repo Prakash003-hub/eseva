@@ -1621,6 +1621,23 @@ export default function AdminPortal() {
           >
             Settings
           </button>
+          <button
+            onClick={() => window.open('/admin/og-generator', '_blank')}
+            style={{
+              padding: '8px 12px',
+              borderRadius: '8px',
+              border: '1px solid var(--border-light)',
+              background: 'white',
+              cursor: 'pointer',
+              fontWeight: 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              color: 'var(--primary)'
+            }}
+          >
+            <ExternalLink size={16} /> OG URL Gen
+          </button>
         </div>
         {/* --- TAB 1: MANAGE POSTS --- */}
         {activeTab === 'posts' && (

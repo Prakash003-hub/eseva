@@ -33,6 +33,9 @@ import {
   uploadFormImage,
   uploadFileToDrive,
   verifyAdminLogin,
+  getRedirects,
+  createRedirect,
+  deleteRedirect,
   getAnnouncements,
   createAnnouncement,
   updateAnnouncement,
@@ -69,6 +72,7 @@ import {
   ArrowLeft,
   Download,
   Copy,
+  Link,
   Briefcase,
   MessageSquare,
   Star,
@@ -498,6 +502,21 @@ export default function AdminPortal() {
     notification_content: '',
     notification_enabled: 'false'
   });
+
+  // OG Redirects State
+  const [redirects, setRedirects] = useState([]);
+  const [loadingRedirects, setLoadingRedirects] = useState(false);
+  const [ogTargetUrl, setOgTargetUrl] = useState('');
+  const [ogTitle, setOgTitle] = useState('');
+  const [ogDescription, setOgDescription] = useState('');
+  const [ogSlug, setOgSlug] = useState('');
+  const [ogImageFile, setOgImageFile] = useState(null);
+  const [ogImagePreview, setOgImagePreview] = useState('');
+  const [ogIsGenerating, setOgIsGenerating] = useState(false);
+  const [ogIsGenerated, setOgIsGenerated] = useState(false);
+  const [ogGeneratedUrl, setOgGeneratedUrl] = useState('');
+  const [ogCopied, setOgCopied] = useState(false);
+  const [ogSlugModified, setOgSlugModified] = useState(false);
   
   // Selected user details (Aadhaar click)
   const [selectedUser, setSelectedUser] = useState(null);
@@ -593,6 +612,146 @@ export default function AdminPortal() {
     };
     loadAllData();
   }, [isAuth]);
+
+  // 1b. Lazy Load OG Redirects
+  const handleRefreshRedirects = async () => {
+    setLoadingRedirects(true);
+    try {
+      const data = await getRedirects();
+      setRedirects(data || []);
+    } catch (err) {
+      console.error("Failed to load redirects:", err);
+    } finally {
+      setLoadingRedirects(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === 'og' && isAuth) {
+      handleRefreshRedirects();
+    }
+  }, [activeTab, isAuth]);
+
+  const slugify = (text) => {
+    return text
+      .toLowerCase()
+      .trim()
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/(^-|-$)/g, '');
+  };
+
+  const handleOgTitleChange = (e) => {
+    const val = e.target.value;
+    setOgTitle(val);
+    if (!ogSlugModified) {
+      setOgSlug(slugify(val));
+    }
+  };
+
+  const handleOgSlugChange = (e) => {
+    setOgSlugModified(true);
+    setOgSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''));
+  };
+
+  const handleOgImageChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setOgImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setOgImagePreview(reader.result);
+      };
+      reader.readAsDataURL(file);
+      setOgIsGenerated(false);
+    }
+  };
+
+  const handleOgGenerate = async (e) => {
+    e.preventDefault();
+    if (!ogTargetUrl) {
+      alert("Please enter a Target URL.");
+      return;
+    }
+    if (!ogTitle) {
+      alert("Please enter a Title.");
+      return;
+    }
+    if (!ogSlug) {
+      alert("Please enter a Slug.");
+      return;
+    }
+    if (!ogImageFile) {
+      alert("Please upload an OG Image.");
+      return;
+    }
+
+    let finalTarget = ogTargetUrl.trim();
+    if (!/^https?:\/\//i.test(finalTarget)) {
+      finalTarget = 'https://' + finalTarget;
+      setOgTargetUrl(finalTarget);
+    }
+
+    setOgIsGenerating(true);
+    try {
+      const folderPath = ["WhatsBroTNService_Uploads", "OG_Images"];
+      const driveUrl = await uploadFileToDrive(ogImageFile, folderPath);
+      if (!driveUrl) {
+        throw new Error("Failed to upload image to Google Drive storage.");
+      }
+
+      const payload = {
+        id: ogSlug.trim().toLowerCase(),
+        target_url: finalTarget,
+        title: ogTitle.trim(),
+        description: ogDescription.trim(),
+        img_url: driveUrl
+      };
+
+      await createRedirect(payload);
+
+      const shareUrl = `${window.location.origin}/go/${payload.id}`;
+      setOgGeneratedUrl(shareUrl);
+      setOgIsGenerated(true);
+      
+      // Refresh redirects list
+      handleRefreshRedirects();
+      
+      // Clear form
+      setOgTargetUrl('');
+      setOgTitle('');
+      setOgDescription('');
+      setOgSlug('');
+      setOgImageFile(null);
+      setOgImagePreview('');
+      setOgSlugModified(false);
+      
+      alert("OG Link successfully generated!");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to generate dynamic OG link: " + (err.message || err));
+    } finally {
+      setOgIsGenerating(false);
+    }
+  };
+
+  const handleOgCopyLink = (url) => {
+    navigator.clipboard.writeText(url);
+    alert("Copied short link to clipboard: " + url);
+  };
+
+  const handleDeleteRedirect = async (id) => {
+    if (!window.confirm(`Are you sure you want to delete redirect link '${id}'?`)) return;
+    try {
+      await deleteRedirect(id);
+      alert('Redirect deleted successfully!');
+      handleRefreshRedirects();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete redirect.');
+    }
+  };
 
   const handleAdminLogin = async (e) => {
     e.preventDefault();
@@ -1622,21 +1781,21 @@ export default function AdminPortal() {
             Settings
           </button>
           <button
-            onClick={() => window.open('/admin/og-generator', '_blank')}
+            onClick={() => setActiveTab('og')}
             style={{
               padding: '8px 12px',
               borderRadius: '8px',
-              border: '1px solid var(--border-light)',
-              background: 'white',
+              border: activeTab === 'og' ? '2px solid var(--primary)' : '1px solid var(--border-light)',
+              background: activeTab === 'og' ? 'rgba(16,185,129,0.06)' : 'white',
               cursor: 'pointer',
-              fontWeight: 600,
+              fontWeight: activeTab === 'og' ? 800 : 600,
               display: 'flex',
               alignItems: 'center',
               gap: '6px',
-              color: 'var(--primary)'
+              color: activeTab === 'og' ? 'var(--primary)' : 'var(--text-light-main)'
             }}
           >
-            <ExternalLink size={16} /> OG URL Gen
+            <Link size={16} /> OG Redirects
           </button>
         </div>
         {/* --- TAB 1: MANAGE POSTS --- */}
@@ -3355,6 +3514,365 @@ export default function AdminPortal() {
                 </div>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* --- TAB: OG REDIRECTS --- */}
+        {activeTab === 'og' && (
+          <div className="desktop-grid-2">
+            
+            {/* Create / Form Section */}
+            <div className="premium-card" style={{ borderTop: '6px solid var(--primary)', alignSelf: 'flex-start' }}>
+              <h3 style={{ fontSize: '1.1rem', marginBottom: '20px', color: 'var(--text-light-main)', borderBottom: '1px solid var(--border-light)', paddingBottom: '8px' }}>
+                Create Redirect Link
+              </h3>
+              
+              <form onSubmit={handleOgGenerate} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
+                
+                {/* OG Image Upload */}
+                <div className="premium-input-group" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label className="premium-label" style={{ fontWeight: '700', fontSize: '0.85rem' }}>Upload OG Image *</label>
+                  
+                  <div style={{
+                    border: '2px dashed var(--primary)',
+                    borderRadius: '12px',
+                    padding: '24px 16px',
+                    textAlign: 'center',
+                    cursor: 'pointer',
+                    background: ogImagePreview ? 'rgba(30, 168, 103, 0.02)' : 'var(--bg-light)',
+                    transition: 'all 0.2s',
+                    position: 'relative'
+                  }}>
+                    <input 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={handleOgImageChange}
+                      required={!ogImageFile}
+                      style={{
+                        position: 'absolute',
+                        top: 0,
+                        left: 0,
+                        width: '100%',
+                        height: '100%',
+                        opacity: 0,
+                        cursor: 'pointer'
+                      }}
+                    />
+                    
+                    {!ogImagePreview ? (
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px' }}>
+                        <Upload size={32} style={{ color: 'var(--primary)' }} />
+                        <span style={{ fontSize: '0.85rem', fontWeight: '600', color: 'var(--text-light-main)' }}>Click to upload cover image</span>
+                        <span style={{ fontSize: '0.7rem', color: 'var(--text-light-muted)' }}>PNG, JPG, or WEBP (Recommended: 1200x630px)</span>
+                      </div>
+                    ) : (
+                      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px' }}>
+                        <img 
+                          src={ogImagePreview} 
+                          alt="Cover upload" 
+                          style={{ width: '80px', height: '50px', objectFit: 'cover', borderRadius: '6px', pointerEvents: 'none' }}
+                        />
+                        <div style={{ textAlign: 'left', flex: 1 }}>
+                          <div style={{ fontSize: '0.8rem', fontWeight: '700', color: 'var(--text-light-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', maxWidth: '180px' }}>
+                            {ogImageFile.name}
+                          </div>
+                          <div style={{ fontSize: '0.7rem', color: 'var(--text-light-muted)' }}>
+                            {(ogImageFile.size / 1024).toFixed(1)} KB (Change Image)
+                          </div>
+                        </div>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            setOgImageFile(null);
+                            setOgImagePreview('');
+                            setOgIsGenerated(false);
+                          }}
+                          style={{
+                            background: '#fee2e2',
+                            border: 'none',
+                            color: '#ef4444',
+                            borderRadius: '50%',
+                            width: '28px',
+                            height: '28px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            cursor: 'pointer',
+                            zIndex: 10
+                          }}
+                        >
+                          <X size={14} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Target URL */}
+                <div className="premium-input-group" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label className="premium-label" style={{ fontWeight: '700', fontSize: '0.85rem' }}>Target URL *</label>
+                  <input 
+                    type="text" 
+                    value={ogTargetUrl} 
+                    onChange={(e) => { setOgTargetUrl(e.target.value); setOgIsGenerated(false); }} 
+                    placeholder="https://subionlineservice.vercel.app/user?tab=jobs"
+                    required
+                    className="premium-input"
+                    style={{ padding: '10px 12px', border: '1px solid var(--border-light)', borderRadius: '8px', fontSize: '0.85rem', width: '100%' }}
+                  />
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-light-muted)' }}>The destination website where the user will be redirected.</span>
+                </div>
+
+                {/* Title */}
+                <div className="premium-input-group" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label className="premium-label" style={{ fontWeight: '700', fontSize: '0.85rem' }}>Title *</label>
+                  <input 
+                    type="text" 
+                    value={ogTitle} 
+                    onChange={handleOgTitleChange} 
+                    placeholder="e.g. TNPSC Recruitment"
+                    required
+                    className="premium-input"
+                    style={{ padding: '10px 12px', border: '1px solid var(--border-light)', borderRadius: '8px', fontSize: '0.85rem', width: '100%' }}
+                  />
+                </div>
+
+                {/* Description */}
+                <div className="premium-input-group" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label className="premium-label" style={{ fontWeight: '700', fontSize: '0.85rem' }}>Description</label>
+                  <textarea 
+                    value={ogDescription} 
+                    onChange={(e) => { setOgDescription(e.target.value); setOgIsGenerated(false); }} 
+                    placeholder="Latest updates on TNPSC Recruitment"
+                    className="premium-input"
+                    rows={3}
+                    style={{ padding: '10px 12px', border: '1px solid var(--border-light)', borderRadius: '8px', fontSize: '0.85rem', width: '100%', fontFamily: 'inherit', resize: 'vertical' }}
+                  />
+                </div>
+
+                {/* Slug */}
+                <div className="premium-input-group" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label className="premium-label" style={{ fontWeight: '700', fontSize: '0.85rem' }}>Slug/Custom ID *</label>
+                  <input 
+                    type="text" 
+                    value={ogSlug} 
+                    onChange={handleOgSlugChange} 
+                    placeholder="e.g. tnpsc-2026"
+                    required
+                    className="premium-input"
+                    style={{ padding: '10px 12px', border: '1px solid var(--border-light)', borderRadius: '8px', fontSize: '0.85rem', width: '100%', fontWeight: '600', color: 'var(--primary)' }}
+                  />
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-light-muted)' }}>Unique short code. URL will be: <code>{window.location.origin}/go/{"{slug}"}</code></span>
+                </div>
+
+                {/* Submit button */}
+                <button
+                  type="submit"
+                  disabled={ogIsGenerating}
+                  className="premium-btn premium-btn-primary"
+                  style={{
+                    padding: '12px 18px',
+                    borderRadius: '10px',
+                    border: 'none',
+                    fontWeight: '800',
+                    fontSize: '0.9rem',
+                    cursor: 'pointer',
+                    marginTop: '8px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    opacity: ogIsGenerating ? 0.7 : 1
+                  }}
+                >
+                  {ogIsGenerating ? 'Uploading & Creating Link...' : 'Generate Short Link'}
+                </button>
+              </form>
+            </div>
+
+            {/* Right Column: Preview and Redirects List */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
+              
+              {/* Live WhatsApp Preview Section */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                <h3 style={{ fontSize: '1.05rem', margin: 0, fontWeight: '700', color: 'var(--text-light-main)' }}>
+                  Live WhatsApp Preview
+                </h3>
+                
+                {/* Mock Chat Window */}
+                <div style={{
+                  borderRadius: '16px',
+                  background: '#efeae2', 
+                  backgroundImage: 'url("/bg_pattern.png")',
+                  backgroundSize: '240px',
+                  padding: '20px 16px',
+                  border: '1px solid var(--border-light)',
+                  boxShadow: 'var(--shadow-md)',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: '12px',
+                  minHeight: '260px',
+                  justifyContent: 'flex-end'
+                }}>
+                  
+                  {/* WhatsApp Chat Bubble */}
+                  <div style={{
+                    alignSelf: 'flex-end',
+                    maxWidth: '85%',
+                    background: '#d9fdd3', 
+                    borderRadius: '12px 0px 12px 12px',
+                    padding: '8px',
+                    boxShadow: '0 1px 1px rgba(0, 0, 0, 0.12)',
+                    position: 'relative',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '4px'
+                  }}>
+                    
+                    {/* Link Attachment Card */}
+                    <div style={{
+                      background: '#f0f2f5',
+                      borderRadius: '8px',
+                      overflow: 'hidden',
+                      borderLeft: '4px solid #128c7e', 
+                      cursor: 'pointer'
+                    }}>
+                      
+                      {/* Preview Image */}
+                      {ogImagePreview ? (
+                        <div style={{ width: '100%', height: '160px', overflow: 'hidden' }}>
+                          <img 
+                            src={ogImagePreview} 
+                            alt="Live Preview" 
+                            style={{ width: '100%', height: '100%', objectFit: 'cover', pointerEvents: 'none' }}
+                          />
+                        </div>
+                      ) : (
+                        <div style={{ width: '100%', height: '100px', background: '#cbd5e1', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#94a3b8' }}>
+                          <span style={{ fontSize: '0.8rem', fontWeight: '600' }}>[ No OG Image Selected ]</span>
+                        </div>
+                      )}
+
+                      {/* Metadata Content */}
+                      <div style={{ padding: '8px 12px', display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                        <span style={{ fontSize: '0.7rem', color: '#128c7e', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+                          subionline.in
+                        </span>
+                        <div style={{ fontSize: '0.85rem', fontWeight: '700', color: '#1f2c34', lineHeight: '1.2' }}>
+                          {ogTitle || "Link Title"}
+                        </div>
+                        <div style={{ fontSize: '0.75rem', color: '#667781', lineHeight: '1.2', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {ogDescription || "Link preview description will appear here..."}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Share Link text */}
+                    <div style={{ fontSize: '0.85rem', color: '#1f2c34', wordBreak: 'break-all', padding: '4px 6px 0px 4px' }}>
+                      {window.location.origin}/go/{ogSlug || 'slug'}
+                    </div>
+
+                    {/* Timestamp & double tick */}
+                    <div style={{ alignSelf: 'flex-end', display: 'flex', alignItems: 'center', gap: '4px', fontSize: '0.65rem', color: '#667781', marginTop: '2px' }}>
+                      <span>{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit', hour12: true })}</span>
+                      <span style={{ color: '#53bdeb', fontWeight: 'bold' }}>✓✓</span>
+                    </div>
+
+                  </div>
+                </div>
+              </div>
+
+              {/* Active Redirect Links Section */}
+              <div className="premium-card" style={{ borderTop: '6px solid var(--info)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid var(--border-light)', paddingBottom: '8px' }}>
+                  <h3 style={{ fontSize: '1.05rem', margin: 0, fontWeight: '800' }}>Active Redirect Links ({redirects.length})</h3>
+                  <button 
+                    onClick={handleRefreshRedirects} 
+                    className="premium-btn premium-btn-secondary" 
+                    style={{ width: 'auto', padding: '6px 12px', fontSize: '0.75rem', margin: 0 }}
+                  >
+                    Refresh List
+                  </button>
+                </div>
+
+                {loadingRedirects ? (
+                  <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-light-muted)' }}>Loading redirect links...</div>
+                ) : redirects.length === 0 ? (
+                  <div style={{ textAlign: 'center', padding: '24px', color: 'var(--text-light-muted)' }}>No redirect links created yet.</div>
+                ) : (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', maxHeight: '450px', overflowY: 'auto', paddingRight: '4px' }}>
+                    {redirects.map((red) => {
+                      const redirectUrl = `${window.location.origin}/go/${red.id}`;
+                      return (
+                        <div key={red.id} style={{
+                          display: 'flex',
+                          gap: '12px',
+                          padding: '12px',
+                          border: '1px solid var(--border-light)',
+                          borderRadius: '12px',
+                          background: '#f8fafc',
+                          alignItems: 'center'
+                        }}>
+                          {red.img_url ? (
+                            <img 
+                              src={red.img_url} 
+                              alt={red.title} 
+                              style={{ width: '60px', height: '40px', objectFit: 'cover', borderRadius: '6px', border: '1px solid #cbd5e1' }}
+                            />
+                          ) : (
+                            <div style={{ width: '60px', height: '40px', background: '#cbd5e1', borderRadius: '6px' }} />
+                          )}
+
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <h4 style={{ fontSize: '0.85rem', fontWeight: '800', margin: '0 0 2px 0', color: 'var(--text-light-main)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {red.title || red.id}
+                            </h4>
+                            <div style={{ fontSize: '0.75rem', color: 'var(--primary)', fontWeight: '700', wordBreak: 'break-all' }}>
+                              {redirectUrl}
+                            </div>
+                            <div style={{ fontSize: '0.7rem', color: 'var(--text-light-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              Destination: {red.target_url}
+                            </div>
+                          </div>
+
+                          <div style={{ display: 'flex', gap: '6px' }}>
+                            <button 
+                              onClick={() => handleOgCopyLink(redirectUrl)}
+                              className="premium-btn premium-btn-secondary"
+                              style={{ width: '32px', height: '32px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0 }}
+                              title="Copy URL"
+                            >
+                              <Copy size={14} />
+                            </button>
+                            <a 
+                              href={red.target_url} 
+                              target="_blank" 
+                              rel="noreferrer"
+                              className="premium-btn premium-btn-secondary"
+                              style={{ width: '32px', height: '32px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0, color: 'var(--text-light-main)' }}
+                              title="Visit Destination"
+                            >
+                              <ExternalLink size={14} />
+                            </a>
+                            <button 
+                              onClick={() => handleDeleteRedirect(red.id)}
+                              className="premium-btn premium-btn-danger"
+                              style={{ width: '32px', height: '32px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0 }}
+                              title="Delete Link"
+                            >
+                              <Trash2 size={14} />
+                            </button>
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+            </div>
+
           </div>
         )}
 

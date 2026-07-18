@@ -153,7 +153,7 @@ function PortalLayout() {
   // Read active tab, default based on portal type with automatic bounds verification
   const rawTab = searchParams.get('tab');
   const activeTab = isAdmin
-    ? (['posts', 'forms', 'users', 'jobs', 'products', 'announcements', 'settings'].includes(rawTab) ? rawTab : 'posts')
+    ? (['posts', 'forms', 'users', 'jobs', 'products', 'announcements', 'settings', 'og'].includes(rawTab) ? rawTab : 'posts')
     : (['home', 'apply', 'jobs', 'accessories'].includes(rawTab) ? rawTab : 'home');
 
   const handleTabChange = (tabName) => {

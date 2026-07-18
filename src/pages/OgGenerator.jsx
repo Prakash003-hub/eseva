@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Upload, Download, Copy, ExternalLink, Check, X } from 'lucide-react';
-import { verifyAdminLogin } from '../services/db';
+import { ArrowLeft, Upload, Copy, ExternalLink, Check, X, Link } from 'lucide-react';
+import { verifyAdminLogin, uploadFileToDrive, createRedirect } from '../services/db';
 
 export default function OgGenerator() {
   const navigate = useNavigate();
@@ -19,9 +19,9 @@ export default function OgGenerator() {
   const [slug, setSlug] = useState('');
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
-  const [imageExt, setImageExt] = useState('jpg');
 
   // Generator Output States
+  const [isGenerating, setIsGenerating] = useState(false);
   const [isGenerated, setIsGenerated] = useState(false);
   const [generatedUrl, setGeneratedUrl] = useState('');
   const [copied, setCopied] = useState(false);
@@ -57,9 +57,6 @@ export default function OgGenerator() {
     const file = e.target.files[0];
     if (file) {
       setImageFile(file);
-      const ext = file.name.split('.').pop().toLowerCase();
-      setImageExt(['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext) ? ext : 'jpg');
-      
       const reader = new FileReader();
       reader.onloadend = () => {
         setImagePreview(reader.result);
@@ -70,7 +67,7 @@ export default function OgGenerator() {
   };
 
   // Form submission / Generate Action
-  const handleGenerate = (e) => {
+  const handleGenerate = async (e) => {
     e.preventDefault();
     if (!targetUrl) {
       alert("Please enter a Target URL.");
@@ -96,9 +93,38 @@ export default function OgGenerator() {
       setTargetUrl(finalTarget);
     }
 
-    const shareUrl = `https://subionline.in/og-pages/${slug}.html`;
-    setGeneratedUrl(shareUrl);
-    setIsGenerated(true);
+    setIsGenerating(true);
+    try {
+      // 1. Upload to Google Drive (folder: ["WhatsBroTNService_Uploads", "OG_Images"])
+      const folderPath = ["WhatsBroTNService_Uploads", "OG_Images"];
+      const driveUrl = await uploadFileToDrive(imageFile, folderPath);
+      if (!driveUrl) {
+        throw new Error("Failed to upload image to Google Drive storage.");
+      }
+
+      // 2. Call API to save link configuration to database
+      const payload = {
+        id: slug.trim().toLowerCase(),
+        target_url: finalTarget,
+        title: title.trim(),
+        description: description.trim(),
+        img_url: driveUrl
+      };
+
+      await createRedirect(payload);
+
+      // 3. Form short-link URL using dynamic origin
+      // Wait, if running on local dev it uses http://localhost:5173/go/slug
+      // If deployed on Vercel it uses https://subionlineservice.vercel.app/go/slug
+      const shareUrl = `${window.location.origin}/go/${payload.id}`;
+      setGeneratedUrl(shareUrl);
+      setIsGenerated(true);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to generate dynamic OG link: " + (err.message || err));
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   // Copy Link Action
@@ -107,66 +133,6 @@ export default function OgGenerator() {
     navigator.clipboard.writeText(generatedUrl);
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
-  };
-
-  // Download HTML Action
-  const handleDownloadHtml = () => {
-    const htmlContent = `<!DOCTYPE html>
-<html>
-<head>
-  <meta charset="UTF-8">
-  <title>${title}</title>
-  
-  <!-- Open Graph / Facebook -->
-  <meta property="og:type" content="website">
-  <meta property="og:url" content="https://subionline.in/og-pages/${slug}.html">
-  <meta property="og:title" content="${title}">
-  <meta property="og:description" content="${description || 'Latest news & updates from SUBI Online Service.'}">
-  <meta property="og:image" content="https://subionline.in/og/${slug}.${imageExt}">
-
-  <!-- Twitter -->
-  <meta property="twitter:card" content="summary_large_image">
-  <meta property="twitter:url" content="https://subionline.in/og-pages/${slug}.html">
-  <meta property="twitter:title" content="${title}">
-  <meta property="twitter:description" content="${description || 'Latest news & updates from SUBI Online Service.'}">
-  <meta property="twitter:image" content="https://subionline.in/og/${slug}.${imageExt}">
-
-  <!-- Redirect Fallbacks -->
-  <meta http-equiv="refresh" content="0;url=${targetUrl}">
-  <script type="text/javascript">
-    window.location.replace("${targetUrl}");
-  </script>
-</head>
-<body>
-  <div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; text-align: center; margin-top: 100px;">
-    <h2>Redirecting you to SUBI Online Service...</h2>
-    <p>If you are not redirected automatically, <a href="${targetUrl}">click here</a>.</p>
-  </div>
-</body>
-</html>`;
-
-    const blob = new Blob([htmlContent], { type: 'text/html;charset=utf-8;' });
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${slug}.html`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-  };
-
-  // Download Image Action (renamed on the fly!)
-  const handleDownloadImage = () => {
-    if (!imageFile) return;
-    const url = URL.createObjectURL(imageFile);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `${slug}.${imageExt}`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
   };
 
   // Handle Admin Login Pin code verification
@@ -262,7 +228,7 @@ export default function OgGenerator() {
           </button>
           <div>
             <h2 style={{ fontSize: '1.25rem', margin: 0, fontWeight: '800', color: 'var(--text-light-main)' }}>Dynamic OG URL Generator</h2>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-light-muted)' }}>Create static share links with custom WhatsApp previews</span>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-light-muted)' }}>Generate database-driven short-links with instant previews</span>
           </div>
         </div>
 
@@ -279,7 +245,7 @@ export default function OgGenerator() {
             {/* Form Section */}
             <div className="premium-card" style={{ borderTop: '6px solid var(--primary)', padding: '24px', borderRadius: '16px', background: 'white', boxShadow: 'var(--shadow-md)', border: '1px solid var(--border-light)' }}>
               <h3 style={{ fontSize: '1.1rem', marginBottom: '20px', color: 'var(--text-light-main)', borderBottom: '1px solid var(--border-light)', paddingBottom: '8px' }}>
-                Generator Details
+                Create Redirect Link
               </h3>
               
               <form onSubmit={handleGenerate} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
@@ -371,7 +337,7 @@ export default function OgGenerator() {
                     type="text" 
                     value={targetUrl} 
                     onChange={(e) => { setTargetUrl(e.target.value); setIsGenerated(false); }} 
-                    placeholder="https://example.com/job/tnpsc"
+                    placeholder="https://subionlineservice.vercel.app/user?tab=jobs"
                     required
                     className="premium-input"
                     style={{ padding: '10px 12px', border: '1px solid var(--border-light)', borderRadius: '8px', fontSize: '0.85rem', width: '100%' }}
@@ -408,7 +374,7 @@ export default function OgGenerator() {
 
                 {/* Slug */}
                 <div className="premium-input-group" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label className="premium-label" style={{ fontWeight: '700', fontSize: '0.85rem' }}>Slug *</label>
+                  <label className="premium-label" style={{ fontWeight: '700', fontSize: '0.85rem' }}>Slug/Custom ID *</label>
                   <input 
                     type="text" 
                     value={slug} 
@@ -418,12 +384,13 @@ export default function OgGenerator() {
                     className="premium-input"
                     style={{ padding: '10px 12px', border: '1px solid var(--border-light)', borderRadius: '8px', fontSize: '0.85rem', width: '100%', fontWeight: '600', color: 'var(--primary)' }}
                   />
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-light-muted)' }}>Unique short code. URL will be: <code>https://subionline.in/og-pages/{"{slug}"}.html</code></span>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-light-muted)' }}>Unique short code. URL will be: <code>{window.location.origin}/go/{"{slug}"}</code></span>
                 </div>
 
                 {/* Submit button */}
                 <button
                   type="submit"
+                  disabled={isGenerating}
                   className="premium-btn premium-btn-primary"
                   style={{
                     padding: '12px 18px',
@@ -436,10 +403,11 @@ export default function OgGenerator() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    gap: '8px'
+                    gap: '8px',
+                    opacity: isGenerating ? 0.7 : 1
                   }}
                 >
-                  Generate OG URL
+                  {isGenerating ? 'Uploading & Creating Link...' : 'Generate Short Link'}
                 </button>
               </form>
             </div>
@@ -453,7 +421,7 @@ export default function OgGenerator() {
               {/* Mock Chat Window */}
               <div style={{
                 borderRadius: '16px',
-                background: '#efeae2', // WhatsApp standard doodle back color
+                background: '#efeae2', 
                 backgroundImage: 'url("/bg_pattern.png")',
                 backgroundSize: '240px',
                 padding: '20px 16px',
@@ -470,7 +438,7 @@ export default function OgGenerator() {
                 <div style={{
                   alignSelf: 'flex-end',
                   maxWidth: '85%',
-                  background: '#d9fdd3', // WhatsApp Outgoing bubble color
+                  background: '#d9fdd3', 
                   borderRadius: '12px 0px 12px 12px',
                   padding: '8px',
                   boxShadow: '0 1px 1px rgba(0, 0, 0, 0.12)',
@@ -485,11 +453,11 @@ export default function OgGenerator() {
                     background: '#f0f2f5',
                     borderRadius: '8px',
                     overflow: 'hidden',
-                    borderLeft: '4px solid #128c7e', // Green tab indicator
+                    borderLeft: '4px solid #128c7e', 
                     cursor: 'pointer'
                   }}>
                     
-                    {/* Preview Image (Large/Top aspect) */}
+                    {/* Preview Image */}
                     {imagePreview ? (
                       <div style={{ width: '100%', height: '160px', overflow: 'hidden' }}>
                         <img 
@@ -520,7 +488,7 @@ export default function OgGenerator() {
 
                   {/* Share Link text */}
                   <div style={{ fontSize: '0.85rem', color: '#1f2c34', wordBreak: 'break-all', padding: '4px 6px 0px 4px' }}>
-                    https://subionline.in/og-pages/{slug || 'slug'}.html
+                    {window.location.origin}/go/{slug || 'slug'}
                   </div>
 
                   {/* Timestamp & double tick */}
@@ -559,8 +527,8 @@ export default function OgGenerator() {
               `}</style>
 
               <div>
-                <h3 style={{ fontSize: '1.1rem', margin: '0 0 4px 0', color: '#166534', fontWeight: '800' }}>✓ OG Redirect Link Generated!</h3>
-                <span style={{ fontSize: '0.8rem', color: '#15803d' }}>Download the assets below and add them to your static public directory.</span>
+                <h3 style={{ fontSize: '1.1rem', margin: '0 0 4px 0', color: '#166534', fontWeight: '800' }}>🎉 Dynamic Redirect Link is Active!</h3>
+                <span style={{ fontSize: '0.8rem', color: '#15803d' }}>Your short URL is configured in the database. Share it on WhatsApp to see previews.</span>
               </div>
 
               {/* URL Display Box */}
@@ -604,17 +572,16 @@ export default function OgGenerator() {
               {/* Action Buttons Row */}
               <div style={{
                 display: 'flex',
-                flexWrap: 'wrap',
                 gap: '12px'
               }}>
                 
-                {/* Download HTML */}
-                <button
-                  onClick={handleDownloadHtml}
-                  className="premium-btn premium-btn-primary"
+                {/* Open Preview */}
+                <a
+                  href={generatedUrl}
+                  target="_blank"
+                  rel="noreferrer"
                   style={{
                     flex: 1,
-                    minWidth: '150px',
                     padding: '12px',
                     borderRadius: '8px',
                     display: 'flex',
@@ -625,59 +592,13 @@ export default function OgGenerator() {
                     color: 'white',
                     border: 'none',
                     fontWeight: '800',
-                    cursor: 'pointer'
-                  }}
-                >
-                  <Download size={16} /> Download HTML File
-                </button>
-
-                {/* Download Image */}
-                <button
-                  onClick={handleDownloadImage}
-                  style={{
-                    flex: 1,
-                    minWidth: '150px',
-                    padding: '12px',
-                    borderRadius: '8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    background: '#ffffff',
-                    color: 'var(--primary)',
-                    border: '2px solid var(--primary)',
-                    fontWeight: '800',
                     cursor: 'pointer',
-                    transition: 'background 0.2s'
-                  }}
-                >
-                  <Download size={16} /> Download Renamed Image
-                </button>
-
-                {/* Open Preview */}
-                <a
-                  href={targetUrl}
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{
-                    flex: 1,
-                    minWidth: '130px',
-                    padding: '12px',
-                    borderRadius: '8px',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    background: '#f8fafc',
-                    color: 'var(--text-light-main)',
-                    border: '1px solid #cbd5e1',
                     textDecoration: 'none',
-                    fontWeight: '700',
-                    cursor: 'pointer',
+                    textAlign: 'center',
                     fontSize: '0.85rem'
                   }}
                 >
-                  <ExternalLink size={16} /> Open Target Link
+                  <ExternalLink size={16} /> Test Redirection Link
                 </a>
 
               </div>
@@ -692,26 +613,23 @@ export default function OgGenerator() {
                 color: 'var(--text-light-muted)',
                 lineHeight: '1.5'
               }}>
-                <strong style={{ display: 'block', color: 'var(--text-light-main)', marginBottom: '8px', fontSize: '0.85rem' }}>
-                  📋 Admin Deployment Instructions:
+                <strong style={{ display: 'block', color: 'var(--text-light-main)', marginBottom: '4px', fontSize: '0.85rem' }}>
+                  💡 How it works:
                 </strong>
-                <ol style={{ paddingLeft: '20px', margin: 0, display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <ul style={{ paddingLeft: '20px', margin: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <li>
-                    Click <strong>Download HTML File</strong> to get <code>{slug}.html</code>.
+                    The image was uploaded to Google Drive storage, and metadata is saved to Google Sheets.
                   </li>
                   <li>
-                    Click <strong>Download Renamed Image</strong> to get <code>{slug}.{imageExt}</code>.
+                    When shared on WhatsApp, the Vercel function <code>/api/go</code> returns the Open Graph tags dynamically.
                   </li>
                   <li>
-                    Move the downloaded image file into the project folder: <code style={{ background: '#f1f5f9', padding: '2px 4px', borderRadius: '4px', fontSize: '0.75rem' }}>public/og/</code>
+                    When clicked by users, they are redirected automatically to the target URL.
                   </li>
                   <li>
-                    Move the downloaded HTML redirect file into: <code style={{ background: '#f1f5f9', padding: '2px 4px', borderRadius: '4px', fontSize: '0.75rem' }}>public/og-pages/</code>
+                    <strong>No manual file placements or git pushes are required!</strong>
                   </li>
-                  <li>
-                    Commit and push these new files to your GitHub repository. Vercel will rebuild and deploy instantly.
-                  </li>
-                </ol>
+                </ul>
               </div>
 
             </div>

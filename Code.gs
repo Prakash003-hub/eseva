@@ -132,6 +132,12 @@ function doGet(e) {
       case "getTemperedGlass":
         responseData = getTemperedGlassAction();
         break;
+      case "getRedirects":
+        responseData = getRedirectsAction();
+        break;
+      case "getRedirectById":
+        responseData = getRedirectByIdAction(e.parameter.id);
+        break;
       default:
         return jsonResponse({ success: false, error: "Invalid GET Action: " + action }, 400);
     }
@@ -276,6 +282,15 @@ function doPost(e) {
         break;
       case "createTemperedGlass":
         responseData = createTemperedGlassAction(requestBody.payload);
+        break;
+      case "createRedirect":
+        responseData = createRedirectAction(requestBody.payload);
+        break;
+      case "deleteRedirect":
+        responseData = deleteRedirectAction(requestBody.id);
+        break;
+      case "getRedirects":
+        responseData = getRedirectsAction();
         break;
       case "updateTemperedGlass":
         responseData = updateTemperedGlassAction(requestBody.id, requestBody.payload);
@@ -1620,6 +1635,11 @@ function initSpreadsheet() {
     "BoxNumber", "ModelList"
   ]);
   
+  // 11. REDIRECTS SHEET
+  ensureSheetExists("Redirects", [
+    "id", "target_url", "title", "description", "img_url", "created_at"
+  ]);
+  
   // Add initial mockup posts if Posts sheet is empty
   var postsSheet = getSheet("Posts");
   if (postsSheet.getLastRow() === 1) {
@@ -1991,4 +2011,51 @@ function deleteTemperedGlassAction(boxNumber) {
   if (rowIndex === -1) throw new Error("Tempered Glass entry not found.");
   sheet.deleteRow(rowIndex);
   return { BoxNumber: boxNumber, success: true };
+}
+
+// --- REDIRECTS OPERATIONS ---
+function getRedirectsAction() {
+  return getRowsFromSheet("Redirects");
+}
+
+function getRedirectByIdAction(id) {
+  var sheet = getSheet("Redirects");
+  var rowIndex = findRowIndexByColumn(sheet, "id", id);
+  if (rowIndex === -1) {
+    throw new Error("Redirect not found for ID: " + id);
+  }
+  return getRowObject(sheet, rowIndex);
+}
+
+function createRedirectAction(payload) {
+  var sheet = getSheet("Redirects");
+  var id = (payload.id || "").toString().trim().toLowerCase();
+  if (!id) throw new Error("ID/Slug is required.");
+  
+  var redirectObj = {
+    id: id,
+    target_url: (payload.target_url || "").toString().trim(),
+    title: (payload.title || "").toString().trim(),
+    description: (payload.description || "").toString().trim(),
+    img_url: (payload.img_url || "").toString().trim(),
+    created_at: new Date().toISOString()
+  };
+  
+  var rowIndex = findRowIndexByColumn(sheet, "id", id);
+  if (rowIndex !== -1) {
+    updateRowObject(sheet, rowIndex, redirectObj);
+  } else {
+    appendObjectToSheet(sheet, redirectObj);
+  }
+  SpreadsheetApp.flush();
+  return redirectObj;
+}
+
+function deleteRedirectAction(id) {
+  var sheet = getSheet("Redirects");
+  var rowIndex = findRowIndexByColumn(sheet, "id", id);
+  if (rowIndex === -1) throw new Error("Redirect not found.");
+  sheet.deleteRow(rowIndex);
+  SpreadsheetApp.flush();
+  return { id: id, success: true };
 }

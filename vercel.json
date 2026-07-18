@@ -47,6 +47,10 @@
       "destination": "/api/share?type=product&id=:id"
     },
     {
+      "source": "/go/:id",
+      "destination": "/api/go?id=:id"
+    },
+    {
       "source": "/(.*)",
       "destination": "/index.html"
     }

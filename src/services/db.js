@@ -270,6 +270,18 @@ export const verifyAdminLogin = async (code) => {
   return await callApi("verifyAdminLogin", { payload: { code } });
 };
 
+export const createRedirect = async (payload) => {
+  return await callApi("createRedirect", { payload });
+};
+
+export const deleteRedirect = async (id) => {
+  return await callApi("deleteRedirect", { id });
+};
+
+export const getRedirects = async () => {
+  return await callApi("getRedirects");
+};
+
 export const updateUserProfile = async (userId, profileData) => {
   return await callApi("updateUserProfile", { userId, payload: profileData });
 };
@@ -1107,6 +1119,37 @@ const callMockFallback = (action, payload) => {
       console.log(`[Mock] Simulating Admin Login with code ${payload.payload.code}`);
       if (payload.payload.code === "123456") return { success: true };
       throw new Error("Invalid Admin Code");
+      
+    case "createRedirect": {
+      const list = getMockList('mock_redirects') || [];
+      const id = (payload.payload.id || "").toLowerCase();
+      const newRedirect = {
+        id,
+        target_url: payload.payload.target_url,
+        title: payload.payload.title,
+        description: payload.payload.description,
+        img_url: payload.payload.img_url,
+        created_at: new Date().toISOString()
+      };
+      const existingIdx = list.findIndex(r => r.id === id);
+      if (existingIdx !== -1) {
+        list[existingIdx] = newRedirect;
+      } else {
+        list.push(newRedirect);
+      }
+      saveMockList('mock_redirects', list);
+      return newRedirect;
+    }
+
+    case "deleteRedirect": {
+      const list = getMockList('mock_redirects') || [];
+      const filtered = list.filter(r => r.id !== payload.id);
+      saveMockList('mock_redirects', filtered);
+      return { id: payload.id, success: true };
+    }
+
+    case "getRedirects":
+      return getMockList('mock_redirects') || [];
       
     case "getProducts":
       return getMockList('mock_products');

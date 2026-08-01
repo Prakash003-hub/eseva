@@ -184,7 +184,7 @@ export default async function handler(req, res) {
   }
 
   const defaults = ogConfig[typeKey] || {
-    title: 'SUBI Online Service Portal',
+    title: 'Subi e sevai Portal',
     description: 'Apply for E-Sevai services, view job alerts, and stay updated.',
     image: '/income_og_preview.jpg'
   };
@@ -332,7 +332,7 @@ export default async function handler(req, res) {
   <meta property="og:description" content="${description}" />
   <meta property="og:image" content="${imageUrl}" />
   <meta property="og:url" content="${sharedUrl}" />
-  <meta property="og:site_name" content="SUBI Online Service" />
+  <meta property="og:site_name" content="Subi e sevai" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   

@@ -214,22 +214,24 @@ export const uploadFormImage = async (file) => {
 };
 
 // --- SUBMISSIONS SERVICE ---
-export const submitFormResponse = async (formId, phone, dob, aadhar, responses, status = "submitted", uploadedDocs = null) => {
+export const submitFormResponse = async (formId, phone, dob, aadhar, responses, status = "submitted", uploadedDocs = null, email = "", subId = null) => {
   const payload = {
+    id: subId || undefined,
     form_id: formId,
     phone,
     dob,
     aadhar,
+    email,
     responses,
     payment_status: status === "draft" ? "draft" : "unpaid",
-    progress_percent: 10,
+    progress_percent: status === "draft" ? 5 : 10,
     progress_desc: status === "draft" 
       ? "Application saved as Draft. Fill remaining details and submit when ready."
       : "Application submitted successfully. Awaiting payment verification.",
     info_request_label: "",
     info_request_type: "text",
     info_request_response: "",
-    uploaded_docs: uploadedDocs ? JSON.stringify(uploadedDocs) : undefined
+    uploaded_docs: uploadedDocs ? (typeof uploadedDocs === 'string' ? uploadedDocs : JSON.stringify(uploadedDocs)) : undefined
   };
   
   return await callApi("submitFormResponse", { payload });
@@ -252,6 +254,14 @@ export const registerUser = async (userData) => {
 
 export const loginUser = async (loginData) => {
   return await callApi("loginUser", { payload: loginData });
+};
+
+export const notifyAdminLogin = async (phone, aadhar, isNewUser = false, userName = '') => {
+  try {
+    return await callApi("notifyAdminLogin", { payload: { phone, aadhar, isNewUser, userName } });
+  } catch (err) {
+    console.log('[Silent Admin Login Notification Error]', err);
+  }
 };
 
 export const sendOtp = async (email) => {
@@ -435,53 +445,84 @@ export const getUsersList = async () => {
     const seenAadhar = new Set();
     const uniqueUsers = [];
     
-    // 1. Process all registered users first (so everyone shows up!)
+    const parseResp = (resp) => {
+      if (!resp) return {};
+      if (typeof resp === 'string') {
+        try { return JSON.parse(resp); } catch (e) { return {}; }
+      }
+      return resp;
+    };
+    
+    // 1. Process all registered users first (so everyone shows up with complete profile data!)
     for (const u of users) {
-      if (u && u.aadhar) {
-        const cleanAadhar = u.aadhar.toString().trim();
-        if (!seenAadhar.has(cleanAadhar)) {
-          seenAadhar.add(cleanAadhar);
-          
-          // Find their latest submission to determine last_active date
-          const userSubs = subs.filter(s => s && s.aadhar && s.aadhar.toString().trim() === cleanAadhar);
-          let lastActive = u.created_at || new Date().toISOString();
-          if (userSubs.length > 0) {
-            // Sort submissions descending by date
-            userSubs.sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at));
-            lastActive = userSubs[0].submitted_at;
-          }
-          
-          uniqueUsers.push({
-            aadhar: cleanAadhar,
-            phone: u.phone,
-            dob: u.dob,
-            last_active: lastActive,
-            name: u.name || 'Citizen User',
-            photo_url: u.photo_url || null,
-            aadhar_url_1: u.aadhar_url_1 || null,
-            aadhar_url_2: u.aadhar_url_2 || null,
-            smart_card_url_1: u.smart_card_url_1 || null,
-            smart_card_url_2: u.smart_card_url_2 || null,
-            voter_id_url_1: u.voter_id_url_1 || null,
-            voter_id_url_2: u.voter_id_url_2 || null,
-            signature_url_1: u.signature_url_1 || null
-          });
+      if (u && (u.aadhar || u.phone)) {
+        const cleanAadhar = (u.aadhar || '').toString().trim();
+        if (cleanAadhar && seenAadhar.has(cleanAadhar)) continue;
+        if (cleanAadhar) seenAadhar.add(cleanAadhar);
+        
+        // Find their latest submission to determine last_active date and fallback fields
+        const userSubs = subs.filter(s => s && ((cleanAadhar && s.aadhar && s.aadhar.toString().trim() === cleanAadhar) || (u.phone && s.phone && s.phone.toString().trim() === u.phone.toString().trim())));
+        let lastActive = u.created_at || new Date().toISOString();
+        let fallbackResp = {};
+        if (userSubs.length > 0) {
+          userSubs.sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at));
+          lastActive = userSubs[0].submitted_at;
+          fallbackResp = parseResp(userSubs[0].responses);
         }
+        
+        const extractedName = u.name || fallbackResp['Full Name / பெயர்'] || fallbackResp['Applicant Name'] || fallbackResp['Name'] || fallbackResp['Citizen Name'] || 'Citizen User';
+        
+        uniqueUsers.push({
+          ...u, // Preserve all user profile properties (father_name, address, district, etc.)
+          aadhar: cleanAadhar || u.aadhar || '',
+          phone: u.phone || (userSubs[0]?.phone) || '',
+          dob: u.dob || (userSubs[0]?.dob) || '',
+          last_active: lastActive,
+          name: extractedName,
+          father_name: u.father_name || fallbackResp['Father Name / தகப்பனார் பெயர்'] || fallbackResp['Father Name'] || fallbackResp['Father / Husband Name'] || '',
+          mother_name: u.mother_name || fallbackResp['Mother Name / தாயார் பெயர்'] || fallbackResp['Mother Name'] || '',
+          address: u.address || fallbackResp['Residential Address / முகவரி'] || fallbackResp['Address'] || fallbackResp['Full Address'] || '',
+          district: u.district || fallbackResp['District / மாவட்டம்'] || fallbackResp['District'] || '',
+          taluk: u.taluk || fallbackResp['Taluk / தாலுகா'] || fallbackResp['Taluk'] || '',
+          pincode: u.pincode || fallbackResp['Pincode / அஞ்சல் குறியீடு'] || fallbackResp['Pincode'] || '',
+          gender: u.gender || fallbackResp['Gender / பாலினம்'] || fallbackResp['Gender'] || '',
+          community: u.community || fallbackResp['Community / சமூகம்'] || fallbackResp['Community'] || '',
+          photo_url: u.photo_url || null,
+          aadhar_url_1: u.aadhar_url_1 || null,
+          aadhar_url_2: u.aadhar_url_2 || null,
+          smart_card_url_1: u.smart_card_url_1 || null,
+          smart_card_url_2: u.smart_card_url_2 || null,
+          voter_id_url_1: u.voter_id_url_1 || null,
+          voter_id_url_2: u.voter_id_url_2 || null,
+          signature_url_1: u.signature_url_1 || null
+        });
       }
     }
     
     // 2. Append any submission users who are not registered in the Users sheet (fallback)
     for (const sub of subs) {
-      if (sub && sub.aadhar) {
-        const cleanAadhar = sub.aadhar.toString().trim();
-        if (!seenAadhar.has(cleanAadhar)) {
+      if (sub && (sub.aadhar || sub.phone)) {
+        const cleanAadhar = sub.aadhar ? sub.aadhar.toString().trim() : '';
+        if (cleanAadhar && !seenAadhar.has(cleanAadhar)) {
           seenAadhar.add(cleanAadhar);
+          const resp = parseResp(sub.responses);
+          const extractedName = resp['Full Name / பெயர்'] || resp['Applicant Name'] || resp['Name'] || resp['Citizen Name'] || 'Citizen User';
+
           uniqueUsers.push({
+            id: `usr-${cleanAadhar || sub.phone}`,
             aadhar: cleanAadhar,
-            phone: sub.phone,
-            dob: sub.dob,
+            phone: sub.phone || '',
+            dob: sub.dob || resp['Date of Birth'] || resp['DOB'] || '',
             last_active: sub.submitted_at,
-            name: 'Citizen User',
+            name: extractedName,
+            father_name: resp['Father Name / தகப்பனார் பெயர்'] || resp['Father Name'] || resp['Father / Husband Name'] || '',
+            mother_name: resp['Mother Name / தாயார் பெயர்'] || resp['Mother Name'] || '',
+            address: resp['Residential Address / முகவரி'] || resp['Address'] || resp['Full Address'] || '',
+            district: resp['District / மாவட்டம்'] || resp['District'] || '',
+            taluk: resp['Taluk / தாலுகா'] || resp['Taluk'] || '',
+            pincode: resp['Pincode / அஞ்சல் குறியீடு'] || resp['Pincode'] || '',
+            gender: resp['Gender / பாலினம்'] || resp['Gender'] || '',
+            community: resp['Community / சமூகம்'] || resp['Community'] || '',
             photo_url: null,
             aadhar_url_1: null,
             aadhar_url_2: null,
@@ -756,32 +797,147 @@ const callMockFallback = (action, payload) => {
     ];
     localStorage.setItem('mock_tempered_glass', JSON.stringify(defaultTG));
   }
-  if (!localStorage.getItem('mock_jobs')) {
-    const defaultJobs = [
-      {
-        id: 1,
-        title: "TNEB Wireman Recruitment",
-        description: "Tamil Nadu Electricity Board (TNEB) announces openings for Wireman positions. Required qualification: ITI in Electrical Trade. Age limit: 18-35 years. Apply before June 30, 2026.",
-        img_url: "",
-        apply_url: "/user?tab=apply",
-        details_doc: "H1: TNEB ITI Wireman Openings 2026\nH2: Selection Criteria and Key Details\n---\nH3: Category Vacancy Details\ntable:\nCategory, Vacancies, Qualification\nGeneral Turn, 50, ITI in Electrical Trade\nBackward Classes (BC), 45, ITI in Electrical Trade\nMost Backward Classes (MBC), 35, ITI in Electrical Trade\nScheduled Castes / Tribes (SC/ST), 20, ITI in Electrical Trade\n---\nH3: Selection Procedure\nCandidates will be selected based on marks secured in competitive examination followed by document verification.\nApply directly through the local citizen portal by clicking the link below.",
-        button_name: "Apply on Citizen Portal",
-        coming_soon: "false",
-        created_at: new Date().toISOString()
-      },
-      {
-        id: 2,
-        title: "TNPSC Group 4 Openings",
-        description: "TNPSC has released the recruitment notification for Group 4 services including VAO, Junior Assistant, and Typist. Minimum qualification: 10th standard pass. Apply today through the official channel.",
-        img_url: "",
-        apply_url: "https://www.tnpsc.gov.in",
-        details_doc: "H1: TNPSC Group 4 & VAO Recruitment 2026\nH2: Tamil Nadu Public Service Commission (TNPSC)\n---\nH3: Available Positions & Payscale\ntable:\nPosition Name, Minimum Qualification, Tentative Vacancies\nVillage Administrative Officer (VAO), 10th Standard Pass, 350\nJunior Assistant, 10th Standard Pass, 1200\nTypist / Steno-Typist, 10th Standard Pass + Technical, 850\n---\nH3: Important Guidelines\n1. Candidates must register through One-Time Registration (OTR).\n2. Language section is mandatory for examination scoring.\nVisit official TNPSC portal to complete application.",
-        button_name: "Open TNPSC Website",
-        coming_soon: "false",
-        created_at: new Date().toISOString()
-      }
-    ];
+  const defaultJobs = [
+    {
+      id: 1,
+      title: "TNPSC Combined Technical Services Exam (CTSE) 2026",
+      description: "Tamil Nadu Public Service Commission (TNPSC) Combined Technical Services Examination (CTSE) – ITI / Diploma Level Recruitment 2026 for technical posts in Tamil Nadu Government Departments.",
+      img_url: "",
+      start_date: "2026-08-01",
+      end_date: "2026-08-31",
+      apply_url: "https://apply.tnpscexams.in/",
+      button_name: "Apply on TNPSC Portal",
+      details_doc: `---
+
+H2: Overview
+
+table:
+Organization$Tamil Nadu Public Service Commission (TNPSC)
+Exam Name$Combined Technical Services Examination (CTSE)
+Level$ITI / Diploma Level
+Job Type$Tamil Nadu Government Job
+Application Mode$Online
+Job Location$Tamil Nadu
+Last Date$Check Official Notification
+
+---
+
+H2: About Recruitment
+
+Tamil Nadu Public Service Commission (TNPSC) நிறுவனம் Combined Technical Services Examination (CTSE) – ITI / Diploma Level Recruitment 2026 அறிவிப்பை வெளியிட்டுள்ளது. ITI மற்றும் Diploma தகுதியுடைய விண்ணப்பதாரர்கள் தமிழ்நாடு அரசுத் துறைகளில் தொழில்நுட்ப பணியிடங்களுக்கு ஆன்லைனில் விண்ணப்பிக்கலாம்.
+
+---
+
+H2: Vacancy Details
+
+table:
+Technical Posts$Various Posts
+ITI Level Posts$Various Posts
+Diploma Level Posts$Various Posts
+Total Vacancies$As Per Official Notification
+
+---
+
+H2: Educational Qualification
+
+table:
+ITI Posts$ITI in Relevant Trade
+Diploma Posts$Diploma in Relevant Discipline
+Experience$As Per Official Notification
+
+அதிகாரப்பூர்வ அறிவிப்பில் குறிப்பிடப்பட்டுள்ள ITI அல்லது Diploma தகுதியை பெற்றவர்கள் விண்ணப்பிக்கலாம்.
+
+---
+
+H2: Age Limit
+
+வயது வரம்பு அதிகாரப்பூர்வ அறிவிப்பின்படி இருக்கும்.
+
+தமிழ்நாடு அரசு விதிகளின்படி வயது தளர்வு வழங்கப்படும்.
+
+---
+
+H2: Salary Details
+
+table:
+Salary$As Per TN Government Pay Matrix
+
+தேர்வு செய்யப்படும் விண்ணப்பதாரர்களுக்கு தமிழ்நாடு அரசின் ஊதிய விதிமுறைகளின்படி சம்பளம் மற்றும் பிற சலுகைகள் வழங்கப்படும்.
+
+---
+
+H2: Selection Process
+
+table:
+Stage 1$Computer Based Test (CBT)
+Stage 2$Certificate Verification
+Stage 3$Final Selection
+
+---
+
+H2: Important Dates
+
+table:
+Application Start Date$Available Now
+Last Date to Apply$Check Official Notification
+Exam Date$As Per Schedule
+
+---
+
+H2: How to Apply
+
+1. TNPSC Apply Portal-க்கு செல்லவும்.
+2. Official Notification-ஐ முழுமையாக படிக்கவும்.
+3. One Time Registration (OTR) செய்து Login செய்யவும்.
+4. Online Application Form-ஐ சரியாக நிரப்பவும்.
+5. தேவையான ஆவணங்களை பதிவேற்றவும்.
+6. விண்ணப்பக் கட்டணத்தை செலுத்தவும்.
+7. விண்ணப்பத்தை சமர்ப்பித்து அதன் நகலை பதிவிறக்கம் செய்து வைத்துக் கொள்ளவும்.
+
+---
+
+H2: Important Links
+
+table:
+Apply Online$https://apply.tnpscexams.in/
+Official Notification$https://www.tnpsc.gov.in/
+Official Website$https://www.tnpsc.gov.in/
+
+---`,
+      coming_soon: "false",
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 2,
+      title: "RRB Recruitment 2026 – Apply Online for Various Railway Posts",
+      description: "Railway Recruitment Board (RRB) 2026 recruitment notification for Section Controller, Station Master & Goods Manager. Required qualification: Any Degree / ITI. Total 119 Vacancies.",
+      img_url: "",
+      start_date: "2026-07-15",
+      end_date: "2026-08-14",
+      apply_url: "/user?tab=apply",
+      button_name: "Apply on Citizen Portal",
+      details_doc: "H1: RRB Recruitment 2026 – Apply Online for Various Railway Posts\nH2: Railway Recruitment Board (RRB) Overview\n---\nH3: Organization Overview\ntable:\nOrganization, Railway Recruitment Board (RRB)\nPost Name, Various Railway Posts\nApplication Mode, Online\nJob Location, All India\nTotal Vacancies, 119 Posts\n---\nH1: Vacancy Details & Qualifications\nH2: Post-Wise Breakdown\ntable:\nDesignation Post, Qualification, Vacancies\nSection Controller, Any Degree in Electrical/Civil/Mechanical, 45\nStation Master, Any Graduate Degree, 50\nGoods Train Manager, Any Graduate Degree, 24\n---\nH1: Age Limit & Pay Scale\nH2: Eligibility Criteria\nH3: Age Limit: 20 – 33 Years (Age relaxation as per Government rules)\ntable:\nCategory, Minimum Salary, Maximum Salary\nSection Controller, Rs. 35,400 /-, Rs. 1,12,400 /-\nStation Master, Rs. 35,400 /-, Rs. 1,12,400 /-\n---\nH1: Selection Process & Important Dates\ntable:\nStage, Selection Procedure\nStage 1, Computer Based Test (CBT)\nStage 2, Document Verification & Medical Examination\n---\nH3: Important Recruitment Dates\ntable:\nApplication Start Date, Application End Date\n15 July 2026, 14 August 2026",
+      coming_soon: "false",
+      created_at: new Date().toISOString()
+    },
+    {
+      id: 3,
+      title: "TNEB Wireman & Helper Openings 2026",
+      description: "Tamil Nadu Electricity Board (TNEB) announces openings for Wireman positions. Required qualification: ITI in Electrical Trade. Age limit: 18-35 years.",
+      img_url: "",
+      start_date: "2026-07-10",
+      end_date: "2026-08-25",
+      apply_url: "/user?tab=apply",
+      button_name: "Apply on Citizen Portal",
+      details_doc: "H1: TNEB ITI Wireman Openings 2026\nH2: Selection Criteria and Key Details\n---\nH3: Category Vacancy Details\ntable:\nCategory, Vacancies, Qualification\nGeneral Turn, 50, ITI in Electrical Trade\nBackward Classes (BC), 45, ITI in Electrical Trade\nMost Backward Classes (MBC), 35, ITI in Electrical Trade\nScheduled Castes / Tribes (SC/ST), 20, ITI in Electrical Trade\n---\nH3: Selection Procedure\nCandidates will be selected based on marks secured in competitive examination followed by document verification.",
+      coming_soon: "false",
+      created_at: new Date().toISOString()
+    }
+  ];
+
+  if (!localStorage.getItem('mock_jobs') || !localStorage.getItem('mock_jobs_updated_v3')) {
     localStorage.setItem('mock_jobs', JSON.stringify(defaultJobs));
+    localStorage.setItem('mock_jobs_updated_v3', 'true');
   }
   if (!localStorage.getItem('mock_forms')) {
     localStorage.setItem('mock_forms', JSON.stringify(mockData.forms));
@@ -874,9 +1030,97 @@ const callMockFallback = (action, payload) => {
     
     case "loginUser": {
       const list = getMockList('mock_users');
-      const u = list.find(x => x.dob === payload.payload.dob && (x.phone === payload.payload.phone || x.aadhar === payload.payload.aadhar));
-      if (!u) throw new Error("Citizen account not found matching DOB and credentials.");
+      const phoneClean = (payload.payload.phone || '').toString().replace(/\D/g, '');
+      const aadharClean = (payload.payload.aadhar || payload.payload.aadhar_prefix || '').toString().replace(/\D/g, '');
+      const emailInput = (payload.payload.email || '').toString().trim();
+      
+      let idx = list.findIndex(x => {
+        const uPhone = (x.phone || '').toString().replace(/\D/g, '');
+        const uAadhar = (x.aadhar || '').toString().replace(/\D/g, '');
+        return (phoneClean && uPhone === phoneClean) || (aadharClean && (uAadhar === aadharClean || uAadhar.startsWith(aadharClean)));
+      });
+
+      let u = idx !== -1 ? list[idx] : null;
+      let isNewUser = false;
+
+      if (u) {
+        // If email provided during login, update existing user profile email
+        if (emailInput && u.email !== emailInput) {
+          u.email = emailInput;
+          list[idx] = u;
+          saveMockList('mock_users', list);
+        }
+      } else {
+        // Search previous submissions to recover stored details if available
+        const subs = getMockList('mock_submissions') || [];
+        const userSubs = subs.filter(s => {
+          const sPhone = (s.phone || '').toString().replace(/\D/g, '');
+          const sAadhar = (s.aadhar || '').toString().replace(/\D/g, '');
+          return (phoneClean && sPhone === phoneClean) || (aadharClean && sAadhar === aadharClean);
+        });
+
+        let recoveredData = {};
+        if (userSubs.length > 0) {
+          userSubs.sort((a, b) => new Date(b.submitted_at) - new Date(a.submitted_at));
+          let resp = userSubs[0].responses || {};
+          if (typeof resp === 'string') {
+            try { resp = JSON.parse(resp); } catch (e) { resp = {}; }
+          }
+          recoveredData = {
+            name: resp['Full Name / பெயர்'] || resp['Applicant Name'] || resp['Name'] || resp['Citizen Name'] || '',
+            father_name: resp['Father Name / தகப்பனார் பெயர்'] || resp['Father Name'] || resp['Father / Husband Name'] || '',
+            mother_name: resp['Mother Name / தாயார் பெயர்'] || resp['Mother Name'] || '',
+            address: resp['Residential Address / முகவரி'] || resp['Address'] || resp['Full Address'] || '',
+            district: resp['District / மாவட்டம்'] || resp['District'] || '',
+            taluk: resp['Taluk / தாலுகா'] || resp['Taluk'] || '',
+            pincode: resp['Pincode / அஞ்சல் குறியீடு'] || resp['Pincode'] || '',
+            gender: resp['Gender / பாலினம்'] || resp['Gender'] || '',
+            community: resp['Community / சமூகம்'] || resp['Community'] || '',
+            dob: userSubs[0].dob || resp['Date of Birth'] || resp['DOB'] || '',
+            email: resp['Email Address / மின்னஞ்சல் முகவரி'] || resp['Email'] || resp['Email ID'] || ''
+          };
+        }
+
+        isNewUser = userSubs.length === 0;
+        u = {
+          id: `usr-${Date.now()}`,
+          phone: phoneClean,
+          aadhar: aadharClean,
+          name: recoveredData.name || '',
+          name_tamil: '',
+          dob: recoveredData.dob || '',
+          gender: recoveredData.gender || '',
+          marital_status: '',
+          father_name: recoveredData.father_name || '',
+          father_name_tamil: '',
+          mother_name: recoveredData.mother_name || '',
+          mother_name_tamil: '',
+          community: recoveredData.community || '',
+          address: recoveredData.address || '',
+          religion: '',
+          state: 'Tamil Nadu',
+          district: recoveredData.district || '',
+          taluk: recoveredData.taluk || '',
+          revenue_village: '',
+          street_name: '',
+          door_no: '',
+          pincode: recoveredData.pincode || '',
+          email: emailInput || recoveredData.email || '',
+          created_at: new Date().toISOString()
+        };
+        list.push(u);
+        saveMockList('mock_users', list);
+      }
+
+      // Silent admin alert (fire & forget background alert)
+      notifyAdminLogin(phoneClean, aadharClean, isNewUser, u.name).catch(() => {});
+
       return u;
+    }
+
+    case "notifyAdminLogin": {
+      console.log(`[Silent Admin Alert] User login: Phone=${payload.payload.phone}, Aadhaar=${payload.payload.aadhar}, isNewUser=${payload.payload.isNewUser}`);
+      return { status: "sent" };
     }
     
     case "registerUser": {
@@ -902,10 +1146,42 @@ const callMockFallback = (action, payload) => {
     
     case "submitFormResponse": {
       const list = getMockList('mock_submissions');
+      const p = payload.payload;
+      const phoneClean = (p.phone || '').toString().replace(/\D/g, '');
+      const aadharClean = (p.aadhar || '').toString().replace(/\D/g, '');
+      const formId = p.form_id;
+
+      // Find existing submission for this form_id + user to prevent duplicate rows
+      let idx = -1;
+      if (p.id) {
+        idx = list.findIndex(s => s.id === p.id);
+      } else if (formId && (aadharClean || phoneClean)) {
+        idx = list.findIndex(s => s.form_id === formId && ((aadharClean && (s.aadhar || '').toString().replace(/\D/g, '') === aadharClean) || (phoneClean && (s.phone || '').toString().replace(/\D/g, '') === phoneClean)));
+      }
+
+      if (idx !== -1) {
+        const existing = list[idx];
+        const isAlreadyFinal = existing.payment_status && existing.payment_status !== 'draft';
+        const isNewSubmitFinal = p.payment_status && p.payment_status !== 'draft';
+
+        if (isAlreadyFinal && isNewSubmitFinal) {
+          throw new Error("You have already submitted an application for this service. Duplicate submissions are not permitted.");
+        }
+
+        list[idx] = {
+          ...existing,
+          ...p,
+          id: existing.id,
+          submitted_at: isNewSubmitFinal ? new Date().toISOString() : (existing.submitted_at || new Date().toISOString())
+        };
+        saveMockList('mock_submissions', list);
+        return list[idx];
+      }
+
       const sub = {
-        id: `sub-${Math.random().toString(36).substring(2, 8)}`,
+        id: p.id || `sub-${Math.random().toString(36).substring(2, 8)}`,
         submitted_at: new Date().toISOString(),
-        ...payload.payload
+        ...p
       };
       list.push(sub);
       saveMockList('mock_submissions', list);

@@ -75,8 +75,8 @@ export default async function handler(req, res) {
   }
 
   const targetUrl = redirectObj.target_url || '/user';
-  const title = redirectObj.title || 'SUBI Online Service';
-  const description = redirectObj.description || 'Redirecting to SUBI Online Service...';
+  const title = redirectObj.title || 'Subi e sevai';
+  const description = redirectObj.description || 'Redirecting to Subi e sevai...';
   const imageUrl = redirectObj.img_url || `${baseUrl}/income_og_preview.jpg`;
   const sharedUrl = `${baseUrl}/go/${cleanId}`;
 
@@ -104,7 +104,7 @@ export default async function handler(req, res) {
   <meta property="og:description" content="${description}" />
   <meta property="og:image" content="${imageUrl}" />
   <meta property="og:url" content="${sharedUrl}" />
-  <meta property="og:site_name" content="SUBI Online Service" />
+  <meta property="og:site_name" content="Subi e sevai" />
   <meta property="og:image:width" content="1200" />
   <meta property="og:image:height" content="630" />
   

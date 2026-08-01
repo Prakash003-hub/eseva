@@ -17,7 +17,7 @@ export default function Footer({ systemSettings }) {
               alt="WhatsBro logo" 
               style={{ width: '24px', height: '24px', objectFit: 'contain' }} 
             />
-            <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#ffffff' }}>SUBI Online Service</span>
+            <span style={{ fontWeight: 800, fontSize: '0.95rem', color: '#ffffff' }}>Subi e sevai</span>
             <div style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', background: 'rgba(255,255,255,0.1)', padding: '2px 6px', borderRadius: '12px', fontSize: '0.6rem', fontWeight: 'bold', color: '#ffffff' }}>
               <span style={{ display: 'inline-block', width: '4px', height: '4px', borderRadius: '50%', background: '#4ade80' }}></span>
               Served: {totalCount}+ Users

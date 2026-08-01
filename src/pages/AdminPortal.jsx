@@ -20,11 +20,7 @@ import {
   deleteSubmission,
   deleteUserAndSubmissions,
   uploadPostImage,
-  getJobs,
-  createJob,
-  updateJob,
-  deleteJob,
-  uploadJobImage,
+
   getFeedback,
   deleteFeedback,
   replyFeedback,
@@ -49,7 +45,12 @@ import {
   getTemperedGlass,
   createTemperedGlass,
   updateTemperedGlass,
-  deleteTemperedGlass
+  deleteTemperedGlass,
+  getJobs,
+  createJob,
+  updateJob,
+  deleteJob,
+  uploadJobImage
 } from '../services/db';
 import { 
   Plus, 
@@ -73,12 +74,12 @@ import {
   Download,
   Copy,
   Link,
-  Briefcase,
+
   MessageSquare,
   Star,
   Megaphone,
-  Package,
-  ShoppingBag
+  Briefcase,
+  Package
 } from 'lucide-react';
 
 const safeJsonParse = (str, fallback = []) => {
@@ -373,7 +374,7 @@ export default function AdminPortal() {
   const [posts, setPosts] = useState([]);
   const [forms, setForms] = useState([]);
   const [users, setUsers] = useState([]);
-  const [jobs, setJobs] = useState([]);
+
   const [announcements, setAnnouncements] = useState([]);
   const [editingAnnId, setEditingAnnId] = useState(null);
   const [annForm, setAnnForm] = useState({
@@ -386,6 +387,112 @@ export default function AdminPortal() {
     enabled: 'true'
   });
   const [uploadingAnnImg, setUploadingAnnImg] = useState(false);
+
+  // Jobs State & Handlers
+  const [jobs, setJobs] = useState([]);
+  const [editingJobId, setEditingJobId] = useState(null);
+  const [jobForm, setJobForm] = useState({
+    title: '',
+    description: '',
+    start_date: '',
+    end_date: '',
+    img_url: '',
+    apply_url: '',
+    button_name: '',
+    details_doc: '',
+    coming_soon: false
+  });
+  const [uploadingJobImg, setUploadingJobImg] = useState(false);
+
+  const fetchAdminJobs = async () => {
+    try {
+      const data = await getJobs();
+      setJobs(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('Error fetching jobs:', err);
+    }
+  };
+
+  useEffect(() => {
+    if (isAuth) {
+      fetchAdminJobs();
+    }
+  }, [isAuth]);
+
+  const handleJobImageUpload = async (file) => {
+    if (!file) return;
+    setUploadingJobImg(true);
+    try {
+      const res = await uploadJobImage(file);
+      setJobForm(prev => ({ ...prev, img_url: res.img_url }));
+      alert('Job banner image uploaded successfully!');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to upload job image.');
+    } finally {
+      setUploadingJobImg(false);
+    }
+  };
+
+  const handleJobSubmit = async (e) => {
+    e.preventDefault();
+    if (!jobForm.title.trim()) {
+      alert('Please enter a job title.');
+      return;
+    }
+    try {
+      if (editingJobId) {
+        await updateJob(editingJobId, jobForm);
+        alert('Job alert updated successfully!');
+      } else {
+        await createJob(jobForm);
+        alert('Job alert created successfully!');
+      }
+      setEditingJobId(null);
+      setJobForm({
+        title: '',
+        description: '',
+        start_date: '',
+        end_date: '',
+        img_url: '',
+        apply_url: '',
+        button_name: '',
+        details_doc: '',
+        coming_soon: false
+      });
+      fetchAdminJobs();
+    } catch (err) {
+      console.error(err);
+      alert('Failed to save job alert.');
+    }
+  };
+
+  const startEditJob = (job) => {
+    setEditingJobId(job.id);
+    setJobForm({
+      title: job.title || '',
+      description: job.description || '',
+      start_date: job.start_date || '',
+      end_date: job.end_date || '',
+      img_url: job.img_url || '',
+      apply_url: job.apply_url || '',
+      button_name: job.button_name || '',
+      details_doc: job.details_doc || '',
+      coming_soon: job.coming_soon === true || String(job.coming_soon).toLowerCase() === 'true'
+    });
+  };
+
+  const handleDeleteJob = async (id) => {
+    if (!window.confirm('Are you sure you want to delete this job alert?')) return;
+    try {
+      await deleteJob(id);
+      setJobs(jobs.filter(j => j.id !== id));
+      alert('Job alert deleted.');
+    } catch (err) {
+      console.error(err);
+      alert('Failed to delete job alert.');
+    }
+  };
 
   // Accessories & Tempered Glass States
   const [products, setProducts] = useState([]);
@@ -554,10 +661,7 @@ export default function AdminPortal() {
   const [editingPostId, setEditingPostId] = useState(null);
   const [postForm, setPostForm] = useState({ title: '', description: '', img_url: '', apply_url: '', coming_soon: false });
   
-  // Job Editor states
-  const [editingJobId, setEditingJobId] = useState(null);
-  const [jobForm, setJobForm] = useState({ title: '', description: '', img_url: '', apply_url: '', details_doc: '', button_name: '', coming_soon: false, start_date: '', end_date: '' });
-  const [uploadingJobImg, setUploadingJobImg] = useState(false);
+
   
   // Form Builder states
   const [editingFormId, setEditingFormId] = useState(null);
@@ -594,13 +698,12 @@ export default function AdminPortal() {
     if (!isAuth) return;
     const loadAllData = async () => {
       try {
-        const [postsData, formsData, usersData, jobsData, feedbackData, settingsData, announcementsData, productsData, tgData] = await Promise.all([
-          getPosts(), getForms(), getUsersList(), getJobs(), getFeedback(), getSettings(), getAnnouncements(), getProducts(), getTemperedGlass()
+        const [postsData, formsData, usersData, feedbackData, settingsData, announcementsData, productsData, tgData] = await Promise.all([
+          getPosts(), getForms(), getUsersList(), getFeedback(), getSettings(), getAnnouncements(), getProducts(), getTemperedGlass()
         ]);
         setPosts(postsData);
         setForms(formsData);
         setUsers(usersData);
-        setJobs(jobsData);
         setFeedbackList(feedbackData);
         if (settingsData) setSettings(settingsData);
         if (announcementsData) setAnnouncements(announcementsData);
@@ -642,6 +745,32 @@ export default function AdminPortal() {
       .replace(/(^-|-$)/g, '');
   };
 
+  const [ogAspect, setOgAspect] = useState('landscape');
+  const [ogIsProcessingImg, setOgIsProcessingImg] = useState(false);
+
+  const handleOgTargetUrlChange = (val) => {
+    setOgTargetUrl(val);
+    setOgIsGenerated(false);
+
+    // Auto extract parameter tag or slug (e.g. .../user?tab=jobs:JOB759562)
+    if (val && val.includes(':')) {
+      const parts = val.split(':');
+      const paramSuffix = parts[parts.length - 1].trim();
+      if (paramSuffix && !ogSlugModified) {
+        const cleanSlug = paramSuffix.toLowerCase().replace(/[^a-z0-9-]/g, '');
+        setOgSlug(cleanSlug);
+        if (!ogTitle) {
+          setOgTitle(`Details for ${paramSuffix.toUpperCase()}`);
+        }
+      }
+    } else if (val && val.includes('tab=')) {
+      const match = val.match(/tab=([a-z0-9_-]+)/i);
+      if (match && match[1] && !ogSlugModified && !ogSlug) {
+        setOgSlug(match[1].toLowerCase());
+      }
+    }
+  };
+
   const handleOgTitleChange = (e) => {
     const val = e.target.value;
     setOgTitle(val);
@@ -655,16 +784,63 @@ export default function AdminPortal() {
     setOgSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''));
   };
 
-  const handleOgImageChange = (e) => {
+  // Canvas Image Resizer Helper
+  const resizeOgImage = (file, aspect = 'landscape') => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const targetWidth = aspect === 'square' ? 1024 : 1200;
+        const targetHeight = aspect === 'square' ? 1024 : 630;
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+        const ctx = canvas.getContext('2d');
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, targetWidth, targetHeight);
+
+        const imgRatio = img.width / img.height;
+        const targetRatio = targetWidth / targetHeight;
+        let drawWidth, drawHeight, offsetX, offsetY;
+
+        if (imgRatio > targetRatio) {
+          drawHeight = targetHeight;
+          drawWidth = targetHeight * imgRatio;
+          offsetX = (targetWidth - drawWidth) / 2;
+          offsetY = 0;
+        } else {
+          drawWidth = targetWidth;
+          drawHeight = targetWidth / imgRatio;
+          offsetX = 0;
+          offsetY = (targetHeight - drawHeight) / 2;
+        }
+
+        ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+
+        canvas.toBlob((blob) => {
+          const resizedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", { type: 'image/jpeg', lastModified: Date.now() });
+          const previewUrl = canvas.toDataURL('image/jpeg', 0.92);
+          resolve({ file: resizedFile, preview: previewUrl });
+        }, 'image/jpeg', 0.92);
+      };
+    });
+  };
+
+  const handleOgImageChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      setOgImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setOgImagePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-      setOgIsGenerated(false);
+      setOgIsProcessingImg(true);
+      try {
+        const processed = await resizeOgImage(file, ogAspect);
+        setOgImageFile(processed.file);
+        setOgImagePreview(processed.preview);
+        setOgIsGenerated(false);
+      } catch (err) {
+        console.error('Image resize error:', err);
+      } finally {
+        setOgIsProcessingImg(false);
+      }
     }
   };
 
@@ -828,9 +1004,8 @@ export default function AdminPortal() {
 
   const handleRefreshUsers = async () => {
     try {
-      const [usersData, jobsData] = await Promise.all([getUsersList(), getJobs()]);
+      const usersData = await getUsersList();
       setUsers(usersData);
-      setJobs(jobsData);
       if (selectedUser) {
         const latestUser = usersData.find(u => u.aadhar === selectedUser.aadhar);
         if (latestUser) setSelectedUser(latestUser);
@@ -891,8 +1066,7 @@ export default function AdminPortal() {
       for (let i = 0; i < sorted.length; i++) {
         sorted[i].order_index = i;
         try {
-          if (type === 'post') await updatePost(sorted[i].id, { order_index: i });
-          else if (type === 'job') await updateJob(sorted[i].id, { order_index: i });
+        if (type === 'post') await updatePost(sorted[i].id, { order_index: i });
           else if (type === 'form') await updateForm(sorted[i].id, { order_index: i });
         } catch (err) {
           console.error(`Failed to initialize order_index for ${type} ${sorted[i].id}`, err);
@@ -914,11 +1088,6 @@ export default function AdminPortal() {
         await updatePost(sorted[targetIndex].id, { order_index: sorted[targetIndex].order_index });
         const res = await getPosts();
         setPosts(res);
-      } else if (type === 'job') {
-        await updateJob(sorted[index].id, { order_index: sorted[index].order_index });
-        await updateJob(sorted[targetIndex].id, { order_index: sorted[targetIndex].order_index });
-        const res = await getJobs();
-        setJobs(res);
       } else if (type === 'form') {
         await updateForm(sorted[index].id, { order_index: sorted[index].order_index });
         await updateForm(sorted[targetIndex].id, { order_index: sorted[targetIndex].order_index });
@@ -1261,70 +1430,7 @@ export default function AdminPortal() {
     }
   };
 
-  const handleJobImageUpload = async (file) => {
-    if (!file) return;
-    setUploadingJobImg(true);
-    try {
-      const croppedFile = await cropToSquareImage(file, 600);
-      const res = await uploadJobImage(croppedFile);
-      setJobForm(prev => ({ ...prev, img_url: res.img_url }));
-      alert('Job banner image uploaded successfully!');
-    } catch (err) {
-      console.error(err);
-      alert('Failed to upload image. Please try again.');
-    } finally {
-      setUploadingJobImg(false);
-    }
-  };
 
-  // --- JOBS OPERATIONS ---
-  const handleJobSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      if (editingJobId) {
-        await updateJob(editingJobId, jobForm);
-        alert('Job alert updated successfully!');
-      } else {
-        await createJob(jobForm);
-        alert('New job alert published successfully!');
-      }
-      setJobForm({ title: '', description: '', img_url: '', apply_url: '', details_doc: '', button_name: '', coming_soon: false, start_date: '', end_date: '' });
-      setEditingJobId(null);
-      const jobsData = await getJobs();
-      setJobs(jobsData);
-    } catch (err) {
-      console.error(err);
-      alert('Failed to save job alert.');
-    }
-  };
-
-  const startEditJob = (job) => {
-    setEditingJobId(job.id);
-    setJobForm({
-      title: job.title,
-      description: job.description || '',
-      img_url: job.img_url || '',
-      apply_url: job.apply_url || '',
-      details_doc: job.details_doc || '',
-      button_name: job.button_name || '',
-      coming_soon: job.coming_soon === true || String(job.coming_soon).toLowerCase() === 'true',
-      start_date: job.start_date || '',
-      end_date: job.end_date || ''
-    });
-    document.getElementById('job-editor-form')?.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const handleDeleteJob = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this job alert?')) return;
-    try {
-      await deleteJob(id);
-      setJobs(jobs.filter(j => j.id !== id));
-      alert('Job alert deleted.');
-    } catch (err) {
-      console.error(err);
-      alert('Failed to delete job alert.');
-    }
-  };
 
   const handleFormImageUpload = async (file) => {
     if (!file) return;
@@ -1663,7 +1769,7 @@ export default function AdminPortal() {
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', background: '#0f172a', color: 'white', borderRadius: '12px', margin: '16px 16px 0 16px', boxShadow: '0 4px 6px -1px rgba(0,0,0,0.1)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ width: '8px', height: '8px', borderRadius: '50%', backgroundColor: '#10b981', display: 'inline-block' }}></span>
-          <span style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>SUBI Online Service Admin Terminal</span>
+          <span style={{ fontSize: '0.85rem', fontWeight: 'bold' }}>Subi e sevai Admin Terminal</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <button 
@@ -1797,7 +1903,273 @@ export default function AdminPortal() {
           >
             <Link size={16} /> OG Redirects
           </button>
+          <button
+            onClick={() => setActiveTab('jobs')}
+            style={{
+              padding: '8px 12px',
+              borderRadius: '8px',
+              border: activeTab === 'jobs' ? '2px solid var(--primary)' : '1px solid var(--border-light)',
+              background: activeTab === 'jobs' ? 'rgba(16,185,129,0.06)' : 'white',
+              cursor: 'pointer',
+              fontWeight: activeTab === 'jobs' ? 800 : 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              color: activeTab === 'jobs' ? 'var(--primary)' : 'var(--text-light-main)'
+            }}
+          >
+            <Briefcase size={16} /> Jobs ({jobs.length})
+          </button>
         </div>
+
+        {/* --- TAB: JOBS MANAGER --- */}
+        {activeTab === 'jobs' && (
+          <div className="desktop-grid-2" style={{ gap: '20px' }}>
+            
+            {/* Form: Add / Edit Job Alert */}
+            <div>
+              <div className="premium-card" style={{ padding: '24px', borderTop: '6px solid var(--primary)', background: 'white', borderRadius: '16px' }}>
+                <h3 style={{ fontSize: '1.2rem', fontWeight: 800, marginBottom: '6px' }}>
+                  {editingJobId ? 'Edit Job Alert' : 'Add New Job Alert'}
+                </h3>
+                <p className="text-muted" style={{ fontSize: '0.75rem', marginBottom: '16px' }}>
+                  Publish government and recruitment job alerts for citizens.
+                </p>
+
+                <form onSubmit={handleJobSubmit}>
+                  
+                  {/* Job Title */}
+                  <div className="premium-input-group">
+                    <label className="premium-label">Job Title *</label>
+                    <input
+                      type="text"
+                      value={jobForm.title}
+                      onChange={(e) => setJobForm({ ...jobForm, title: e.target.value })}
+                      placeholder="e.g. TNPSC Group 4 VAO Notification"
+                      className="premium-input"
+                      required
+                    />
+                  </div>
+
+                  {/* Description */}
+                  <div className="premium-input-group">
+                    <label className="premium-label">Description (Requirements / Details) *</label>
+                    <textarea
+                      rows={3}
+                      value={jobForm.description}
+                      onChange={(e) => setJobForm({ ...jobForm, description: e.target.value })}
+                      placeholder="Provide details about the qualification, age limits, pay scale, important dates..."
+                      className="premium-input"
+                      required
+                    />
+                  </div>
+
+                  {/* Start Date & End Date */}
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <div className="premium-input-group" style={{ flex: 1 }}>
+                      <label className="premium-label">Start Date (Optional)</label>
+                      <input
+                        type="date"
+                        value={jobForm.start_date}
+                        onChange={(e) => setJobForm({ ...jobForm, start_date: e.target.value })}
+                        className="premium-input"
+                      />
+                    </div>
+
+                    <div className="premium-input-group" style={{ flex: 1 }}>
+                      <label className="premium-label">End Date (Optional)</label>
+                      <input
+                        type="date"
+                        value={jobForm.end_date}
+                        onChange={(e) => setJobForm({ ...jobForm, end_date: e.target.value })}
+                        className="premium-input"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Job Banner Image */}
+                  <div className="premium-input-group">
+                    <label className="premium-label">Job Banner Image (Optional)</label>
+                    {jobForm.img_url && (
+                      <div style={{ marginBottom: '10px', position: 'relative', width: '100%', height: '140px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-light)' }}>
+                        <img
+                          src={getImageUrl(jobForm.img_url)}
+                          alt="Uploaded banner"
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setJobForm(prev => ({ ...prev, img_url: '' }))}
+                          className="premium-btn premium-btn-danger"
+                          style={{ position: 'absolute', right: '6px', bottom: '6px', width: 'auto', padding: '4px 8px', fontSize: '0.7rem' }}
+                        >
+                          Remove Image
+                        </button>
+                      </div>
+                    )}
+                    <label className="premium-btn premium-btn-secondary" style={{ padding: '12px', fontSize: '0.85rem', display: 'flex', gap: '8px', cursor: 'pointer', background: 'white', border: '1.5px dashed var(--primary)' }}>
+                      <Upload size={16} style={{ color: 'var(--primary)' }} />
+                      {uploadingJobImg ? 'Uploading banner...' : jobForm.img_url ? 'Change Uploaded Image' : 'Upload Local Image File'}
+                      <input
+                        type="file"
+                        accept="image/*"
+                        style={{ display: 'none' }}
+                        disabled={uploadingJobImg}
+                        onChange={(e) => handleJobImageUpload(e.target.files[0])}
+                      />
+                    </label>
+                  </div>
+
+                  {/* Apply URL / Link */}
+                  <div className="premium-input-group">
+                    <label className="premium-label">Apply Link URL (Optional)</label>
+                    <input
+                      type="text"
+                      value={jobForm.apply_url}
+                      onChange={(e) => setJobForm({ ...jobForm, apply_url: e.target.value })}
+                      placeholder="e.g. /user?tab=apply or https://www.tnpsc.gov.in"
+                      className="premium-input"
+                    />
+                    <span style={{ fontSize: '0.65rem', color: '#64748b' }}>
+                      Use local routes (e.g. '/user?tab=apply') or full web links. Leave blank to hide the button.
+                    </span>
+                  </div>
+
+                  {/* Custom Action Button Name */}
+                  <div className="premium-input-group">
+                    <label className="premium-label">Custom Action Button Name (Optional)</label>
+                    <input
+                      type="text"
+                      value={jobForm.button_name}
+                      onChange={(e) => setJobForm({ ...jobForm, button_name: e.target.value })}
+                      placeholder="e.g. Apply Now, Register Online, View PDF"
+                      className="premium-input"
+                    />
+                    <span style={{ fontSize: '0.65rem', color: '#64748b' }}>
+                      Defaults to "Apply Now" if left blank.
+                    </span>
+                  </div>
+
+                  {/* Rich Document Details */}
+                  <div className="premium-input-group">
+                    <label className="premium-label">Rich Document Details (Word-like Markdown Formatting)</label>
+                    <textarea
+                      rows={8}
+                      value={jobForm.details_doc}
+                      onChange={(e) => setJobForm({ ...jobForm, details_doc: e.target.value })}
+                      placeholder="H1: Main Title&#10;H2: Sub-Heading&#10;H3: Paragraph Header&#10;--- (horizontal separator line)&#10;table:&#10;Organization$TNPSC&#10;Post Name$Combined Technical Services&#10;Apply Link$https://apply.tnpscexams.in/"
+                      className="premium-input"
+                      style={{ fontFamily: 'monospace', fontSize: '0.8rem' }}
+                    />
+                    <span style={{ fontSize: '0.68rem', color: '#475569', lineHeight: '1.4', display: 'block', marginTop: '4px' }}>
+                      💡 <strong>Formatting Guide:</strong><br />
+                      • <strong>H1: Title</strong> | <strong>H2: Heading</strong> | <strong>H3: Sub-Heading</strong><br />
+                      • <strong>---</strong> (3 hyphens for horizontal divider line)<br />
+                      • <strong>table:</strong> followed by lines separated by <code>$</code> (or <code>,</code>) for green tables<br />
+                      • URLs starting with <code>https://</code> in tables or text automatically convert into clickable links!
+                    </span>
+                  </div>
+
+                  {/* Mark as Coming Soon Checkbox */}
+                  <div className="premium-input-group" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px' }}>
+                    <input
+                      type="checkbox"
+                      id="job-coming-soon-check"
+                      checked={jobForm.coming_soon}
+                      onChange={(e) => setJobForm({ ...jobForm, coming_soon: e.target.checked })}
+                      style={{ width: '18px', height: '18px', cursor: 'pointer', accentColor: 'var(--primary)' }}
+                    />
+                    <label htmlFor="job-coming-soon-check" className="premium-label" style={{ margin: 0, cursor: 'pointer', fontWeight: 'bold' }}>
+                      Mark as Coming Soon (Upcoming)
+                    </label>
+                  </div>
+
+                  {/* Submit / Cancel Buttons */}
+                  <div style={{ display: 'flex', gap: '10px' }}>
+                    <button type="submit" className="premium-btn premium-btn-primary" style={{ flex: 2 }}>
+                      {editingJobId ? 'Update Job Alert' : 'Publish Job Alert'}
+                    </button>
+                    {editingJobId && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setEditingJobId(null);
+                          setJobForm({
+                            title: '',
+                            description: '',
+                            start_date: '',
+                            end_date: '',
+                            img_url: '',
+                            apply_url: '',
+                            button_name: '',
+                            details_doc: '',
+                            coming_soon: false
+                          });
+                        }}
+                        className="premium-btn premium-btn-secondary"
+                        style={{ flex: 1 }}
+                      >
+                        Cancel
+                      </button>
+                    )}
+                  </div>
+
+                </form>
+              </div>
+            </div>
+
+            {/* List of Published Jobs */}
+            <div>
+              <h4 style={{ fontSize: '0.95rem', margin: '0 0 12px 16px', color: 'var(--text-light-muted)' }}>
+                Active Job Alerts ({jobs.length} Listings)
+              </h4>
+              {jobs.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: '30px', background: 'white', borderRadius: '12px', color: '#94a3b8' }}>
+                  No job alerts published yet. Fill out the form on the left to add your first job alert!
+                </div>
+              ) : (
+                jobs.map((job) => (
+                  <div key={job.id} className="premium-card admin-item-card" style={{ alignItems: 'flex-start', padding: '14px', marginBottom: '12px' }}>
+                    <div style={{ flex: 1 }}>
+                      <h4 style={{ fontSize: '0.95rem', margin: '0 0 4px 0', color: '#1e293b', fontWeight: '800' }}>
+                        {job.title}
+                      </h4>
+                      <p style={{ fontSize: '0.78rem', color: '#64748b', margin: '0 0 6px 0', overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical' }}>
+                        {job.description}
+                      </p>
+                      {job.end_date && (
+                        <span style={{ fontSize: '0.7rem', color: '#ef4444', fontWeight: 'bold' }}>
+                          End: {formatDate(job.end_date)}
+                        </span>
+                      )}
+                    </div>
+
+                    <div style={{ display: 'flex', gap: '6px' }}>
+                      <button
+                        onClick={() => startEditJob(job)}
+                        className="premium-btn premium-btn-secondary"
+                        style={{ width: '32px', height: '32px', padding: 0 }}
+                        title="Edit Job"
+                      >
+                        <Edit size={14} />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteJob(job.id)}
+                        className="premium-btn premium-btn-danger"
+                        style={{ width: '32px', height: '32px', padding: 0 }}
+                        title="Delete Job"
+                      >
+                        <Trash2 size={14} />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+          </div>
+        )}
+
         {/* --- TAB 1: MANAGE POSTS --- */}
         {activeTab === 'posts' && (
           <div className="desktop-grid-2">
@@ -1949,213 +2321,6 @@ export default function AdminPortal() {
           </div>
         )}
 
-        {/* --- TAB 1B: MANAGE JOBS --- */}
-        {activeTab === 'jobs' && (
-          <div className="desktop-grid-2">
-            
-            {/* Job Add/Edit Form */}
-            <div className="premium-card" id="job-editor-form" style={{ borderTop: '6px solid var(--primary)', alignSelf: 'flex-start' }}>
-              <h3 style={{ fontSize: '1.1rem', marginBottom: '12px' }}>
-                {editingJobId ? 'Edit Job Alert Details' : 'Add New Job Alert'}
-              </h3>
-              <form onSubmit={handleJobSubmit}>
-                <div className="premium-input-group">
-                  <label className="premium-label">Job Title</label>
-                  <input 
-                    type="text" 
-                    value={jobForm.title} 
-                    onChange={(e) => setJobForm({ ...jobForm, title: e.target.value })} 
-                    placeholder="e.g. TNPSC Group 4 VAO Notification"
-                    className="premium-input" 
-                    required 
-                  />
-                </div>
-
-                <div className="premium-input-group">
-                  <label className="premium-label">Description (Requirements / Details)</label>
-                  <textarea 
-                    rows={4}
-                    value={jobForm.description} 
-                    onChange={(e) => setJobForm({ ...jobForm, description: e.target.value })} 
-                    placeholder="Provide details about the qualification, age limits, pay scale, important dates..."
-                    className="premium-input" 
-                    required 
-                  />
-                </div>
-
-                <div className="admin-fields-grid" style={{ marginBottom: '16px' }}>
-                  <div className="premium-input-group" style={{ margin: 0 }}>
-                    <label className="premium-label">Start Date (Optional)</label>
-                    <input 
-                      type="date" 
-                      value={jobForm.start_date} 
-                      onChange={(e) => setJobForm({ ...jobForm, start_date: e.target.value })} 
-                      className="premium-input" 
-                    />
-                  </div>
-                  <div className="premium-input-group" style={{ margin: 0 }}>
-                    <label className="premium-label">End Date (Optional)</label>
-                    <input 
-                      type="date" 
-                      value={jobForm.end_date} 
-                      onChange={(e) => setJobForm({ ...jobForm, end_date: e.target.value })} 
-                      className="premium-input" 
-                    />
-                  </div>
-                </div>
-
-                 <div className="premium-input-group">
-                  <label className="premium-label">Job Banner Image (Optional)</label>
-                  
-                  {jobForm.img_url && (
-                    <div style={{ marginBottom: '10px', position: 'relative', width: '140px', height: '140px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-light)' }}>
-                      <img 
-                        src={getImageUrl(jobForm.img_url)} 
-                        alt="Uploaded preview" 
-                        style={{ width: '100%', height: '100%', objectFit: 'cover', background: '#f8fafc' }} 
-                      />
-                      <button 
-                        type="button" 
-                        onClick={() => setJobForm(prev => ({ ...prev, img_url: '' }))} 
-                        className="premium-btn premium-btn-danger"
-                        style={{ position: 'absolute', right: '6px', bottom: '6px', width: 'auto', padding: '4px 8px', fontSize: '0.7rem' }}
-                      >
-                        Remove Image
-                      </button>
-                    </div>
-                  )}
-
-                  <label className="premium-btn premium-btn-secondary" style={{ padding: '12px', fontSize: '0.85rem', display: 'flex', gap: '8px', cursor: 'pointer', background: 'white', border: '1.5px dashed var(--primary)' }}>
-                    <Upload size={16} style={{ color: 'var(--primary)' }} /> 
-                    {uploadingJobImg ? 'Uploading image...' : jobForm.img_url ? 'Change Uploaded Image' : 'Upload Local Image File'}
-                    <input 
-                      type="file" 
-                      accept="image/*"
-                      style={{ display: 'none' }}
-                      disabled={uploadingJobImg}
-                      onChange={(e) => handleJobImageUpload(e.target.files[0])}
-                    />
-                  </label>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-light-muted)', display: 'block', marginTop: '6px' }}>
-                    Select a local PNG or JPG file. Standard web URL inputs are not allowed.
-                  </span>
-                </div>
-
-                <div className="premium-input-group">
-                  <label className="premium-label">Apply Now URL / Routing (Optional)</label>
-                  <input 
-                    type="text" 
-                    value={jobForm.apply_url} 
-                    onChange={(e) => setJobForm({ ...jobForm, apply_url: e.target.value })} 
-                    placeholder="e.g. /user?tab=apply"
-                    className="premium-input" 
-                  />
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-light-muted)' }}>
-                    Use local routes (e.g. `/user?tab=apply`) or full web links. <strong>Leave blank to hide the button on this job.</strong>
-                  </span>
-                </div>
-
-                <div className="premium-input-group">
-                  <label className="premium-label">Custom Action Button Name (Optional)</label>
-                  <input 
-                    type="text" 
-                    value={jobForm.button_name} 
-                    onChange={(e) => setJobForm({ ...jobForm, button_name: e.target.value })} 
-                    placeholder="e.g. Apply Now, Register Online, View PDF"
-                    className="premium-input" 
-                  />
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-light-muted)' }}>
-                    Defaults to "Apply Now" if left blank.
-                  </span>
-                </div>
-
-                <div className="premium-input-group">
-                  <label className="premium-label">Rich Document Details (Word-like Markdown Formatting)</label>
-                  <textarea 
-                    rows={8}
-                    value={jobForm.details_doc} 
-                    onChange={(e) => setJobForm({ ...jobForm, details_doc: e.target.value })} 
-                    placeholder="H1: Main Title&#10;H2: Sub-Heading&#10;H3: Paragraph Header&#10;--- (horizontal separator line)&#10;table:&#10;Header 1, Header 2, Header 3&#10;Row 1 Col 1, Row 1 Col 2, Row 1 Col 3"
-                    className="premium-input" 
-                    style={{ fontFamily: 'monospace', fontSize: '0.85rem' }}
-                  />
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-light-muted)' }}>
-                    Enter headings using <strong>H1:</strong>, <strong>H2:</strong>, <strong>H3:</strong> prefixes. Use <strong>---</strong> for divider lines. Enter a table by typing <strong>table:</strong> followed by comma-separated lines.
-                  </span>
-                </div>
-
-                <div className="premium-input-group" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '16px', marginTop: '10px' }}>
-                  <input 
-                    type="checkbox" 
-                    id="job-coming-soon"
-                    checked={jobForm.coming_soon} 
-                    onChange={(e) => setJobForm({ ...jobForm, coming_soon: e.target.checked })} 
-                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
-                  />
-                  <label htmlFor="job-coming-soon" className="premium-label" style={{ margin: 0, cursor: 'pointer', fontWeight: 'bold' }}>
-                    Mark as Coming Soon (Upcoming)
-                  </label>
-                </div>
-
-                <div style={{ display: 'flex', gap: '10px' }}>
-                  <button type="submit" className="premium-btn premium-btn-primary" style={{ flex: 2 }}>
-                    {editingJobId ? 'Update Job Alert' : 'Publish Job Alert'}
-                  </button>
-                  {editingJobId && (
-                    <button 
-                      type="button" 
-                      onClick={() => { setEditingJobId(null); setJobForm({ title: '', description: '', img_url: '', apply_url: '', details_doc: '', button_name: '', coming_soon: false, start_date: '', end_date: '' }) }} 
-                      className="premium-btn premium-btn-secondary"
-                      style={{ flex: 1 }}
-                    >
-                      Cancel
-                    </button>
-                  )}
-                </div>
-              </form>
-            </div>
-
-            {/* List of existing jobs */}
-            <div>
-              <h4 style={{ fontSize: '0.95rem', margin: '0 0 12px 16px', color: 'var(--text-light-muted)' }}>
-                Active Job Alerts ({jobs.length} Listings)
-              </h4>
-              {sortItems(jobs).map((job, idx) => (
-                <div key={job.id} className="premium-card admin-item-card" style={{ alignItems: 'center' }}>
-                  <div style={{ flex: 1 }}>
-                    <h4 style={{ fontSize: '0.95rem', marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      {job.title}
-                      {(job.coming_soon === true || String(job.coming_soon).toLowerCase() === 'true') && (
-                        <span className="badge badge-warning" style={{ background: '#fffbeb', color: '#d97706', border: '1px solid #fde68a', fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px' }}>Coming Soon</span>
-                      )}
-                    </h4>
-                    <p className="text-muted" style={{ fontSize: '0.8rem', WebkitLineClamp: 2, display: '-webkit-box', WebkitBoxOrient: 'vertical', overflow: 'hidden', marginBottom: '4px' }}>
-                      {job.description}
-                    </p>
-                    {(job.start_date || job.end_date) && (
-                      <div style={{ display: 'flex', gap: '8px', fontSize: '0.7rem', color: '#64748b', marginTop: '4px', alignItems: 'center' }}>
-                        {job.start_date && <span>Start: {formatDate(job.start_date)}</span>}
-                        {job.start_date && job.end_date && <span>|</span>}
-                        {job.end_date && <span style={{ color: '#ef4444', fontWeight: '600' }}>End: {formatDate(job.end_date)}</span>}
-                      </div>
-                    )}
-                  </div>
-                  <div style={{ display: 'flex', gap: '6px' }}>
-                    <button onClick={() => moveItem('job', jobs, idx, 'up')} className="premium-btn premium-btn-secondary" style={{ width: '36px', height: '36px', padding: 0 }} title="Move Up">↑</button>
-                    <button onClick={() => moveItem('job', jobs, idx, 'down')} className="premium-btn premium-btn-secondary" style={{ width: '36px', height: '36px', padding: 0 }} title="Move Down">↓</button>
-                    <button onClick={() => startEditJob(job)} className="premium-btn premium-btn-secondary" style={{ width: '36px', height: '36px', padding: 0 }} title="Edit Job Alert">
-                      <Edit size={16} />
-                    </button>
-                    <button onClick={() => handleDeleteJob(job.id)} className="premium-btn premium-btn-danger" style={{ width: '36px', height: '36px', padding: 0 }} title="Delete Job Alert">
-                      <Trash2 size={16} />
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-          </div>
-        )}
 
         {/* --- TAB: MANAGE ADVERTISEMENTS & POPUPS --- */}
         {activeTab === 'announcements' && (
@@ -2362,15 +2527,17 @@ export default function AdminPortal() {
               
               <form onSubmit={handleFormBuilderSubmit}>
                 <div className="premium-input-group">
-                  <label className="premium-label">Form Title</label>
-                  <input 
-                    type="text" 
+                  <label className="premium-label">Form Title (Supports Multi-line / Line-by-Line)</label>
+                  <textarea 
+                    rows={2}
                     value={formBuilder.title} 
                     onChange={(e) => setFormBuilder({ ...formBuilder, title: e.target.value })} 
-                    placeholder="e.g. New Voter ID Card"
+                    placeholder="e.g. New Voter ID Card&#10;Apply & Corrections"
                     className="premium-input" 
+                    style={{ minHeight: '52px', resize: 'vertical' }}
                     required 
                   />
+                  <span style={{ fontSize: '0.65rem', color: '#64748b' }}>Tip: Press Enter to break long form names into multiple lines.</span>
                 </div>
 
                 <div className="premium-input-group">
@@ -3085,7 +3252,7 @@ export default function AdminPortal() {
                     </button>
                   </div>
                   <span style={{ fontSize: '0.7rem', color: 'var(--text-light-muted)', marginTop: '4px', display: 'block' }}>
-                    If ON, users will see a prompt suggesting they "Add SUBI Online Service to Home Screen".
+                    If ON, users will see a prompt suggesting they "Add Subi e sevai to Home Screen".
                   </span>
                 </form>
 
@@ -3605,19 +3772,35 @@ export default function AdminPortal() {
                     </div>
                   </div>
 
+                  {/* Target Aspect Ratio */}
+                  <div className="premium-input-group" style={{ display: 'flex', flexDirection: 'column', gap: '6px', margin: 0 }}>
+                    <label className="premium-label" style={{ fontWeight: '700', fontSize: '0.85rem' }}>Auto Crop & Resize Format</label>
+                    <select
+                      value={ogAspect}
+                      onChange={(e) => setOgAspect(e.target.value)}
+                      className="premium-input"
+                      style={{ padding: '8px 12px', fontSize: '0.85rem', borderRadius: '8px', border: '1px solid var(--border-light)' }}
+                    >
+                      <option value="landscape">1.91:1 Landscape (1200×630px - Recommended for WhatsApp)</option>
+                      <option value="square">1:1 Square (1024×1024px)</option>
+                    </select>
+                  </div>
+
                   {/* Target URL */}
                   <div className="premium-input-group" style={{ display: 'flex', flexDirection: 'column', gap: '6px', margin: 0 }}>
                     <label className="premium-label" style={{ fontWeight: '700', fontSize: '0.85rem' }}>Target URL *</label>
                     <input 
                       type="text" 
                       value={ogTargetUrl} 
-                      onChange={(e) => { setOgTargetUrl(e.target.value); setOgIsGenerated(false); }} 
-                      placeholder="https://subionlineservice.vercel.app/user?tab=jobs"
+                      onChange={(e) => handleOgTargetUrlChange(e.target.value)} 
+                      placeholder="https://subionlineservice.vercel.app/user?tab=jobs:JOB759562"
                       required
                       className="premium-input"
                       style={{ padding: '10px 12px', border: '1px solid var(--border-light)', borderRadius: '8px', fontSize: '0.85rem', width: '100%' }}
                     />
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-light-muted)' }}>The destination website where the user will be redirected.</span>
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-light-muted)' }}>
+                      Paste your target link (e.g. <code>https://subi-e-sevai.vercel.app/user?tab=jobs:JOB759562</code>). Slugs are extracted automatically!
+                    </span>
                   </div>
 
                   {/* Title */}

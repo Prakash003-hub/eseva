@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { User, LogOut, MessageSquare, X, ChevronDown, Send, ArrowLeft, Star } from 'lucide-react';
 import { submitFeedback, getFeedback } from '../services/db';
 
-export default function Header({ currentUser, onLogout, onLoginTrigger, isAdmin }) {
+export default function Header({ currentUser, onLogout, onLoginTrigger, onInstallApp, isAdmin }) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   useEffect(() => {
@@ -144,13 +144,13 @@ export default function Header({ currentUser, onLogout, onLoginTrigger, isAdmin 
           }}
         />
         <div>
-          <div className="brand-name" style={{ fontSize: '1.4rem', lineHeight: '1.2' }}>SUBI Online Service</div>
-          <div className="brand-subtitle" style={{ fontSize: '0.8rem' }}>Burkitmanagaram</div>
+          <div className="brand-name" style={{ fontSize: '1.4rem', lineHeight: '1.2' }}>Subi - e seva</div>
+          <div className="brand-subtitle" style={{ fontSize: '0.8rem' }}>தமிழ் நாடு முழுவதும் </div>
         </div>
       </div>
 
       {!isAdmin && (
-        <div className="header-auth-section" style={{ display: 'flex', alignItems: 'center', gap: '10px', position: 'relative' }}>
+        <div className="header-auth-section" style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
           {currentUser ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
 

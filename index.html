@@ -7,13 +7,13 @@
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#047857" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SUBI Online Service - Portal</title>
+  <title>Subi e sevai</title>
   <meta name="description"
-    content="SUBI Online Service - Portal. Apply for online services and check products easily." />
+    content="Subi e sevai - Portal. Apply for online services and check products easily." />
 
   <!-- Open Graph / Facebook -->
   <meta property="og:type" content="website" />
-  <meta property="og:title" content="SUBI Online Service - Portal" />
+  <meta property="og:title" content="Subi e sevai" />
   <meta property="og:description" content="Apply for online services and check products easily." />
   <meta property="og:image" content="https://subionlineservice.vercel.app/income_og_preview.jpg" />
   <meta property="og:image:width" content="1200" />
@@ -21,10 +21,18 @@
 
   <!-- Twitter -->
   <meta property="twitter:card" content="summary_large_image" />
-  <meta property="twitter:title" content="SUBI Online Service - Portal" />
+  <meta property="twitter:title" content="Subi e sevai" />
   <meta property="twitter:description"
     content="Apply for Income Certificate, Community Certificate, and other online services easily." />
   <meta property="twitter:image" content="https://subionlineservice.vercel.app/income_og_preview.jpg" />
+  <script>
+    window.deferredPrompt = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault();
+      window.deferredPrompt = e;
+      window.dispatchEvent(new Event('pwa-prompt-ready'));
+    });
+  </script>
 </head>
 
 <body>

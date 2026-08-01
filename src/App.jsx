@@ -1,12 +1,42 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useSearchParams } from 'react-router-dom';
+import { Home, Plus, Users, Package, Megaphone, FileText, CheckCircle, Briefcase, X } from 'lucide-react';
 import Header from './components/Header';
 import Footer from './components/Footer';
+import WhatsAppChatbot from './components/WhatsAppChatbot';
 import UserPortal from './pages/UserPortal';
 import AdminPortal from './pages/AdminPortal';
 import OgGenerator from './pages/OgGenerator';
-import { Home, FileText, CheckCircle, Plus, Users, X, Briefcase, MessageSquare, ShoppingBag, Package, Megaphone } from 'lucide-react';
-import { registerUser, loginUser, sendOtp, verifyOtp, getSettings } from './services/db';
+import InstallPwaBanner from './components/InstallPwaBanner';
+import { registerUser, loginUser, getSettings } from './services/db';
+
+// Web Audio API Synthesizer for Soft Mechanical Keyboard Typing Audio Feedback
+const playTypingSound = () => {
+  try {
+    const AudioContext = window.AudioContext || window.webkitAudioContext;
+    if (!AudioContext) return;
+    const ctx = new AudioContext();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+
+    // Soft warm mechanical key press pitch
+    const pitch = 420 + Math.random() * 90;
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(pitch, ctx.currentTime);
+    osc.frequency.exponentialRampToValueAtTime(160, ctx.currentTime + 0.015);
+
+    gain.gain.setValueAtTime(0.025, ctx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.015);
+
+    osc.connect(gain);
+    gain.connect(ctx.destination);
+
+    osc.start();
+    osc.stop(ctx.currentTime + 0.015);
+  } catch (err) {
+    // Ignore audio policy errors
+  }
+};
 
 function TrollPage() {
   return (
@@ -32,13 +62,14 @@ function TrollPage() {
         flexDirection: 'column',
         alignItems: 'center',
         gap: '20px',
-        animation: 'float-card 4s ease-in-out infinite'
+        animation: 'float-card 4s ease-in-out infinite',
+        borderTop: '6px solid #ef4444'
       }}>
         <div style={{
-          width: '60px',
-          height: '60px',
+          width: '64px',
+          height: '64px',
           borderRadius: '50%',
-          background: '#fee2e2',
+          backgroundColor: '#fef2f2',
           border: '1.5px solid #fca5a5',
           display: 'flex',
           alignItems: 'center',
@@ -112,13 +143,20 @@ function PortalLayout() {
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
 
+  // Auto-scroll window and frame content to top whenever route or search parameters change
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    const frameContent = document.querySelector('.mobile-frame-content');
+    if (frameContent) frameContent.scrollTop = 0;
+  }, [location.pathname, location.search]);
+
   // Auth state
   const [currentUser, setCurrentUser] = useState(() => {
     const saved = localStorage.getItem('whatsbro_user');
     return saved ? JSON.parse(saved) : null;
   });
 
-  const [systemSettings, setSystemSettings] = useState({});
+  const [systemSettings, setSystemSettings] = useState(null);
 
   useEffect(() => {
     getSettings().then(data => {
@@ -126,26 +164,72 @@ function PortalLayout() {
     }).catch(err => console.error('Failed to load settings in App.jsx', err));
   }, []);
 
+
+
+  // Global Keypress Typing Audio Feedback
+  useEffect(() => {
+    const handleGlobalKeydown = (e) => {
+      const isInput = e.target.matches('input, textarea, [contenteditable="true"]');
+      if (isInput && !['Shift', 'Control', 'Alt', 'Meta', 'CapsLock', 'Escape', 'Tab'].includes(e.key)) {
+        playTypingSound();
+      }
+    };
+    window.addEventListener('keydown', handleGlobalKeydown, { capture: true });
+    return () => window.removeEventListener('keydown', handleGlobalKeydown, { capture: true });
+  }, []);
+
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [isRegisterMode, setIsRegisterMode] = useState(false);
 
-  // Login form state
+  // Login form state (Phone + Aadhaar + Email)
   const [loginPhone, setLoginPhone] = useState('');
-  const [loginAadharPrefix, setLoginAadharPrefix] = useState('');
-
-  // Register form state
-  const [regName, setRegName] = useState('');
-  const [regPhone, setRegPhone] = useState('');
-  const [regAadhar, setRegAadhar] = useState('');
-  const [regEmail, setRegEmail] = useState('');
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpValue, setOtpValue] = useState('');
-  const [otpSending, setOtpSending] = useState(false);
+  const [loginAadhar, setLoginAadhar] = useState('');
+  const [loginEmail, setLoginEmail] = useState('');
 
   // Alerts and loading
   const [authError, setAuthError] = useState('');
   const [authSuccess, setAuthSuccess] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState(() => window.deferredPrompt || null);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e) => {
+      e.preventDefault();
+      setDeferredPrompt(e);
+      window.deferredPrompt = e;
+      console.log('[PWA] beforeinstallprompt event captured in App.jsx');
+    };
+    const handleCustomReady = () => {
+      if (window.deferredPrompt) {
+        setDeferredPrompt(window.deferredPrompt);
+      }
+    };
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('pwa-prompt-ready', handleCustomReady);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('pwa-prompt-ready', handleCustomReady);
+    };
+  }, []);
+
+  const handleInstallApp = () => {
+    const promptEvent = window.deferredPrompt || deferredPrompt;
+    if (promptEvent) {
+      try {
+        promptEvent.prompt();
+        if (promptEvent.userChoice) {
+          promptEvent.userChoice.then((choiceResult) => {
+            if (choiceResult && choiceResult.outcome === 'accepted') {
+              setDeferredPrompt(null);
+              window.deferredPrompt = null;
+            }
+          });
+        }
+      } catch (err) {
+        console.error('[PWA] Install prompt error:', err);
+      }
+    }
+  };
 
   // Determine if active route is admin or user
   const isAdmin = location.pathname.toLowerCase().startsWith('/tnkpadmin');
@@ -154,7 +238,7 @@ function PortalLayout() {
   const rawTab = searchParams.get('tab');
   const activeTab = isAdmin
     ? (['posts', 'forms', 'users', 'jobs', 'products', 'announcements', 'settings', 'og'].includes(rawTab) ? rawTab : 'posts')
-    : (['home', 'apply', 'jobs', 'accessories'].includes(rawTab) ? rawTab : 'home');
+    : (['home', 'apply', 'jobs', 'status'].includes(rawTab) ? rawTab : 'home');
 
   const handleTabChange = (tabName) => {
     setSearchParams({ tab: tabName });
@@ -178,112 +262,52 @@ function PortalLayout() {
     setIsLoading(true);
 
     try {
-      if (!loginPhone) throw new Error('Please enter your Phone number.');
-      if (!loginAadharPrefix || loginAadharPrefix.length !== 4) throw new Error('Please enter the first 4 digits of your Aadhaar number.');
+      const cleanP = loginPhone.replace(/\D/g, '');
+      const cleanA = loginAadhar.replace(/\D/g, '');
+      const cleanE = loginEmail.trim();
+
+      if (!cleanP || cleanP.length !== 10) {
+        throw new Error('Please enter a valid 10-digit Phone number.');
+      }
+      if (!cleanA || cleanA.length !== 12) {
+        throw new Error('Please enter a valid 12-digit Aadhaar number.');
+      }
 
       const payload = {
-        phone: loginPhone,
-        aadhar_prefix: loginAadharPrefix
+        phone: cleanP,
+        aadhar: cleanA,
+        email: cleanE
       };
 
       const user = await loginUser(payload);
       localStorage.setItem('whatsbro_user', JSON.stringify(user));
       setCurrentUser(user);
-      setAuthSuccess('Welcome back! Login successful.');
+      setAuthSuccess('Logged in successfully!');
       setTimeout(() => {
         setIsAuthModalOpen(false);
         setLoginPhone('');
-        setLoginAadharPrefix('');
+        setLoginAadhar('');
+        setLoginEmail('');
         setAuthSuccess('');
-      }, 1000);
+      }, 600);
     } catch (err) {
-      setAuthError(err.message || 'Login failed. Please verify your credentials.');
+      setAuthError(err.message || 'Login failed. Please check your details and try again.');
     } finally {
       setIsLoading(false);
-    }
-  };
-
-  const handleRegisterSubmit = async (e) => {
-    e.preventDefault();
-    setAuthError('');
-    setAuthSuccess('');
-    setIsLoading(true);
-
-    try {
-      if (!regName) throw new Error('Please enter your full Name.');
-      if (!regPhone) throw new Error('Please enter your Phone number.');
-      if (!regAadhar || regAadhar.length !== 12) throw new Error('Please enter a valid 12-digit Aadhaar number.');
-      if (!regEmail) throw new Error('Please enter your Email ID.');
-      if (!otpSent) throw new Error('Please verify your email with OTP first.');
-      if (!otpValue) throw new Error('Please enter the OTP sent to your email.');
-
-      // Verify OTP first
-      const otpResult = await verifyOtp(regEmail, otpValue);
-      if (!otpResult || !otpResult.verified) {
-        throw new Error('Invalid or expired OTP. Please request a new one.');
-      }
-
-      const payload = {
-        name: regName,
-        phone: regPhone,
-        aadhar: regAadhar,
-        email: regEmail
-      };
-
-      const user = await registerUser(payload);
-      localStorage.setItem('whatsbro_user', JSON.stringify(user));
-      setCurrentUser(user);
-      setAuthSuccess('Registration successful! Profile created.');
-      setTimeout(() => {
-        setIsAuthModalOpen(false);
-        setRegName('');
-        setRegPhone('');
-        setRegAadhar('');
-        setRegEmail('');
-        setOtpSent(false);
-        setOtpValue('');
-        setAuthSuccess('');
-      }, 1000);
-    } catch (err) {
-      setAuthError(err.message || 'Registration failed.');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  const handleSendOtp = async () => {
-    if (!regEmail) {
-      setAuthError('Please enter your Email ID first.');
-      return;
-    }
-    // Basic email validation
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(regEmail)) {
-      setAuthError('Please enter a valid email address.');
-      return;
-    }
-    setOtpSending(true);
-    setAuthError('');
-    try {
-      await sendOtp(regEmail);
-      setOtpSent(true);
-      setAuthSuccess('OTP sent to ' + regEmail + '. Please check your inbox.');
-    } catch (err) {
-      setAuthError(err.message || 'Failed to send OTP. Please try again.');
-    } finally {
-      setOtpSending(false);
     }
   };
 
   return (
     <div className="layout-viewport-container">
+      <InstallPwaBanner />
 
       {/* Centered Mobile Container Viewport */}
       <div className="app-mobile-container" style={{ display: 'flex', flexDirection: 'column', position: 'relative' }}>
-
-        {/* Header - Fixed at the top */}
+        {/* Fixed Header */}
         <Header
           currentUser={currentUser}
           onLogout={handleLogout}
+          onInstallApp={handleInstallApp}
           onLoginTrigger={() => {
             setAuthError('');
             setAuthSuccess('');
@@ -291,6 +315,14 @@ function PortalLayout() {
             setIsAuthModalOpen(true);
           }}
           isAdmin={isAdmin}
+          onLoginClick={() => {
+            setAuthError('');
+            setAuthSuccess('');
+            setIsAuthModalOpen(true);
+          }}
+          onLogoutClick={handleLogout}
+          onUpdateProfile={handleUpdateProfile}
+          systemSettings={systemSettings}
         />
 
         {/* Scrollable Frame Content (Main Routes) */}
@@ -299,9 +331,12 @@ function PortalLayout() {
           {/* Main Contents */}
           <main style={{ flex: 1, paddingBottom: '20px' }}>
             <Routes>
-              <Route path="/user" element={<UserPortal currentUser={currentUser} onUpdateProfile={handleUpdateProfile} onLoginTrigger={(prefillPhone, prefillAadharPrefix) => { setAuthError(''); setAuthSuccess(''); setIsRegisterMode(false); if (prefillPhone) setLoginPhone(prefillPhone); if (prefillAadharPrefix) setLoginAadharPrefix(prefillAadharPrefix); setIsAuthModalOpen(true); }} />} />
-              <Route path="/tnkpadmin" element={<AdminPortal />} />
-              <Route path="/admin/og-generator" element={<OgGenerator />} />
+              <Route path="/" element={<Navigate to="/user" replace />} />
+              <Route path="/user" element={<UserPortal currentUser={currentUser} onUpdateProfile={handleUpdateProfile} onLoginTrigger={(prefillPhone, prefillAadhar) => { setAuthError(''); setAuthSuccess(''); setIsRegisterMode(false); if (prefillPhone) setLoginPhone(prefillPhone); if (prefillAadhar) setLoginAadhar(prefillAadhar); setIsAuthModalOpen(true); }} systemSettings={systemSettings} />} />
+              <Route path="/tnkpadmin" element={<AdminPortal systemSettings={systemSettings} />} />
+              <Route path="/admin/og-generator" element={<OgGenerator systemSettings={systemSettings} />} />
+              <Route path="/form/:formId" element={<UserPortal currentUser={currentUser} onLoginTrigger={() => setIsAuthModalOpen(true)} systemSettings={systemSettings} />} />
+              <Route path="/post/:postId" element={<UserPortal currentUser={currentUser} onLoginTrigger={() => setIsAuthModalOpen(true)} systemSettings={systemSettings} />} />
               <Route path="/admin" element={<TrollPage />} />
               <Route path="*" element={<Navigate to="/user" replace />} />
             </Routes>
@@ -309,8 +344,8 @@ function PortalLayout() {
 
         </div>
 
-        {/* Footer - Fixed at the bottom above bottom nav */}
-        <Footer systemSettings={systemSettings} />
+        {/* 24/7 WhatsApp Floating Support Chatbot */}
+        <WhatsAppChatbot systemSettings={systemSettings} />
 
         {/* Global Bottom Sticky Menu */}
         {isAdmin ? (
@@ -336,6 +371,7 @@ function PortalLayout() {
               <Users className="bottom-nav-icon" size={20} />
               <span>Submissions</span>
             </button>
+
             <button
               onClick={() => handleTabChange('jobs')}
               className={`bottom-nav-item ${activeTab === 'jobs' ? 'active' : ''}`}
@@ -343,6 +379,7 @@ function PortalLayout() {
               <Briefcase className="bottom-nav-icon" size={20} />
               <span>Jobs</span>
             </button>
+
             <button
               onClick={() => handleTabChange('products')}
               className={`bottom-nav-item ${activeTab === 'products' ? 'active' : ''}`}
@@ -379,14 +416,14 @@ function PortalLayout() {
               className={`bottom-nav-item ${activeTab === 'jobs' ? 'active' : ''}`}
             >
               <Briefcase className="bottom-nav-icon" size={20} />
-              <span>Job alerts</span>
+              <span>Job Alerts</span>
             </button>
             <button
-              onClick={() => handleTabChange('accessories')}
-              className={`bottom-nav-item ${activeTab === 'accessories' ? 'active' : ''}`}
+              onClick={() => handleTabChange('status')}
+              className={`bottom-nav-item ${activeTab === 'status' ? 'active' : ''}`}
             >
-              <ShoppingBag className="bottom-nav-icon" size={20} />
-              <span>Accessories</span>
+              <CheckCircle className="bottom-nav-icon" size={20} />
+              <span>Status Check</span>
             </button>
           </div>
         )}
@@ -440,10 +477,10 @@ function PortalLayout() {
               {/* Title Header */}
               <div style={{ textAlign: 'center', marginBottom: '8px' }}>
                 <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: '#1e293b', margin: 0 }}>
-                  {isRegisterMode ? 'Register Profile' : 'User Verification'}
+                  Citizen Portal Entry
                 </h3>
                 <p style={{ fontSize: '0.8rem', color: '#64748b', marginTop: '6px', marginBottom: 0, lineHeight: '1.4' }}>
-                  {isRegisterMode ? 'Create a profile to easily apply for certificates' : 'Sign in to access your stored applications & prefill forms'}
+                  Enter your Phone Number & Aadhaar Number to access your account or create a new profile.
                 </p>
               </div>
 
@@ -459,254 +496,92 @@ function PortalLayout() {
                 </div>
               )}
 
-              {/* Form Content */}
-              {!isRegisterMode ? (
-                // Login Form
-                <form onSubmit={handleLoginSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {/* Phone Input */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: '600', color: '#334155' }}>Phone Number *</label>
-                    <input
-                      type="tel"
-                      placeholder="Enter registered mobile number"
-                      value={loginPhone}
-                      onChange={(e) => setLoginPhone(e.target.value)}
-                      required
-                      maxLength={10}
-                      style={{
-                        padding: '10px',
-                        borderRadius: '8px',
-                        border: '1px solid #cbd5e1',
-                        backgroundColor: '#ffffff',
-                        color: '#1e293b',
-                        fontSize: '0.85rem'
-                      }}
-                    />
-                  </div>
-
-                  {/* Aadhar First 4 Digits */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: '600', color: '#334155' }}>Aadhaar First 4 Digits *</label>
-                    <input
-                      type="text"
-                      maxLength={4}
-                      placeholder="Enter first 4 digits of Aadhaar"
-                      value={loginAadharPrefix}
-                      onChange={(e) => setLoginAadharPrefix(e.target.value.replace(/\D/g, ''))}
-                      required
-                      style={{
-                        padding: '10px',
-                        borderRadius: '8px',
-                        border: '1px solid #cbd5e1',
-                        backgroundColor: '#ffffff',
-                        color: '#1e293b',
-                        fontSize: '0.85rem',
-                        letterSpacing: '4px',
-                        textAlign: 'center',
-                        fontWeight: '700'
-                      }}
-                    />
-                    <span style={{ fontSize: '0.65rem', color: '#94a3b8' }}>For security, only the first 4 digits are needed</span>
-                  </div>
-
-                  {/* Submit Button */}
-                  <button
-                    type="submit"
-                    disabled={isLoading}
+              {/* Direct Login Form (Phone + Aadhaar) */}
+              <form onSubmit={handleLoginSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {/* Phone Input */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: '600', color: '#334155' }}>Phone Number *</label>
+                  <input
+                    type="tel"
+                    placeholder="Enter 10-digit mobile number"
+                    value={loginPhone}
+                    onChange={(e) => setLoginPhone(e.target.value.replace(/\D/g, ''))}
+                    required
+                    maxLength={10}
                     style={{
-                      padding: '12px',
+                      padding: '10px',
                       borderRadius: '8px',
-                      border: 'none',
-                      backgroundColor: '#10b981',
-                      color: '#ffffff',
-                      fontWeight: '600',
-                      fontSize: '0.85rem',
-                      cursor: 'pointer',
-                      marginTop: '8px',
-                      transition: 'background-color 0.2s'
+                      border: '1px solid #cbd5e1',
+                      backgroundColor: '#ffffff',
+                      color: '#1e293b',
+                      fontSize: '0.85rem'
                     }}
-                  >
-                    {isLoading ? 'Verifying...' : 'Login'}
-                  </button>
+                  />
+                </div>
 
-                  {/* Toggle Link */}
-                  <div style={{ textAlign: 'center', marginTop: '8px', fontSize: '0.8rem', color: '#64748b' }}>
-                    Don't have a profile?{' '}
-                    <span
-                      onClick={() => { setIsRegisterMode(true); setAuthError(''); setAuthSuccess(''); }}
-                      style={{ color: '#10b981', cursor: 'pointer', fontWeight: '600' }}
-                    >
-                      Register Now
-                    </span>
-                  </div>
-                </form>
-              ) : (
-                // Register Form
-                <form onSubmit={handleRegisterSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {/* Full Name */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: '600', color: '#334155' }}>Full Name *</label>
-                    <input
-                      type="text"
-                      placeholder="Enter full name"
-                      value={regName}
-                      onChange={(e) => setRegName(e.target.value)}
-                      required
-                      style={{
-                        padding: '10px',
-                        borderRadius: '8px',
-                        border: '1px solid #cbd5e1',
-                        backgroundColor: '#ffffff',
-                        color: '#1e293b',
-                        fontSize: '0.85rem'
-                      }}
-                    />
-                  </div>
-
-                  {/* Phone */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: '600', color: '#334155' }}>Phone Number *</label>
-                    <input
-                      type="tel"
-                      placeholder="Enter mobile number"
-                      value={regPhone}
-                      onChange={(e) => setRegPhone(e.target.value)}
-                      required
-                      maxLength={10}
-                      style={{
-                        padding: '10px',
-                        borderRadius: '8px',
-                        border: '1px solid #cbd5e1',
-                        backgroundColor: '#ffffff',
-                        color: '#1e293b',
-                        fontSize: '0.85rem'
-                      }}
-                    />
-                  </div>
-
-                  {/* Aadhaar */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: '600', color: '#334155' }}>Aadhaar Number * <span style={{ fontSize: '0.6rem', color: '#ef4444' }}>(Permanent - cannot change later)</span></label>
-                    <input
-                      type="text"
-                      maxLength={12}
-                      placeholder="Enter 12-digit Aadhaar number"
-                      value={regAadhar}
-                      onChange={(e) => setRegAadhar(e.target.value.replace(/\D/g, ''))}
-                      required
-                      style={{
-                        padding: '10px',
-                        borderRadius: '8px',
-                        border: '1px solid #cbd5e1',
-                        backgroundColor: '#ffffff',
-                        color: '#1e293b',
-                        fontSize: '0.85rem'
-                      }}
-                    />
-                  </div>
-
-                  {/* Email + OTP */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                    <label style={{ fontSize: '0.75rem', fontWeight: '600', color: '#334155' }}>Email ID * <span style={{ fontSize: '0.6rem', color: '#ef4444' }}>(Permanent - cannot change later)</span></label>
-                    <div style={{ display: 'flex', gap: '6px' }}>
-                      <input
-                        type="email"
-                        placeholder="Enter email address"
-                        value={regEmail}
-                        onChange={(e) => { setRegEmail(e.target.value); if (otpSent) { setOtpSent(false); setOtpValue(''); } }}
-                        required
-                        disabled={otpSent}
-                        style={{
-                          padding: '10px',
-                          borderRadius: '8px',
-                          border: '1px solid #cbd5e1',
-                          backgroundColor: otpSent ? '#f1f5f9' : '#ffffff',
-                          color: '#1e293b',
-                          fontSize: '0.85rem',
-                          flex: 1
-                        }}
-                      />
-                      <button
-                        type="button"
-                        onClick={handleSendOtp}
-                        disabled={otpSending || otpSent}
-                        style={{
-                          padding: '10px 14px',
-                          borderRadius: '8px',
-                          border: 'none',
-                          backgroundColor: otpSent ? '#10b981' : '#3b82f6',
-                          color: '#ffffff',
-                          fontWeight: '700',
-                          fontSize: '0.7rem',
-                          cursor: otpSent ? 'default' : 'pointer',
-                          whiteSpace: 'nowrap',
-                          transition: 'all 0.2s'
-                        }}
-                      >
-                        {otpSending ? '...' : otpSent ? '✓ Sent' : 'Send OTP'}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* OTP Input - only shown after OTP sent */}
-                  {otpSent && (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                      <label style={{ fontSize: '0.75rem', fontWeight: '600', color: '#334155' }}>Enter OTP *</label>
-                      <input
-                        type="text"
-                        maxLength={6}
-                        placeholder="Enter 6-digit OTP from email"
-                        value={otpValue}
-                        onChange={(e) => setOtpValue(e.target.value.replace(/\D/g, ''))}
-                        required
-                        style={{
-                          padding: '10px',
-                          borderRadius: '8px',
-                          border: '1px solid #10b981',
-                          backgroundColor: '#f0fdf4',
-                          color: '#1e293b',
-                          fontSize: '0.85rem',
-                          letterSpacing: '6px',
-                          textAlign: 'center',
-                          fontWeight: '700'
-                        }}
-                      />
-                      <span style={{ fontSize: '0.65rem', color: '#10b981' }}>OTP sent to {regEmail}. Valid for 5 minutes.</span>
-                    </div>
-                  )}
-
-                  {/* Submit Button */}
-                  <button
-                    type="submit"
-                    disabled={isLoading || !otpSent}
+                {/* Aadhaar Input */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: '600', color: '#334155' }}>Aadhaar Number *</label>
+                  <input
+                    type="text"
+                    maxLength={12}
+                    placeholder="Enter 12-digit Aadhaar number"
+                    value={loginAadhar}
+                    onChange={(e) => setLoginAadhar(e.target.value.replace(/\D/g, ''))}
+                    required
                     style={{
-                      padding: '12px',
+                      padding: '10px',
                       borderRadius: '8px',
-                      border: 'none',
-                      backgroundColor: (!otpSent) ? '#94a3b8' : '#10b981',
-                      color: '#ffffff',
-                      fontWeight: '600',
+                      border: '1px solid #cbd5e1',
+                      backgroundColor: '#ffffff',
+                      color: '#1e293b',
                       fontSize: '0.85rem',
-                      cursor: (!otpSent) ? 'not-allowed' : 'pointer',
-                      marginTop: '8px',
-                      transition: 'background-color 0.2s'
+                      letterSpacing: '2px',
+                      fontWeight: '600'
                     }}
-                  >
-                    {isLoading ? 'Creating...' : 'Verify OTP & Register'}
-                  </button>
+                  />
+                </div>
 
-                  {/* Toggle Link */}
-                  <div style={{ textAlign: 'center', marginTop: '8px', fontSize: '0.8rem', color: '#64748b' }}>
-                    Already registered?{' '}
-                    <span
-                      onClick={() => { setIsRegisterMode(false); setAuthError(''); setAuthSuccess(''); }}
-                      style={{ color: '#10b981', cursor: 'pointer', fontWeight: '600' }}
-                    >
-                      Login Now
-                    </span>
-                  </div>
-                </form>
-              )}
+                {/* Email Input */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                  <label style={{ fontSize: '0.75rem', fontWeight: '600', color: '#334155' }}>Email Address (For E-Receipt)</label>
+                  <input
+                    type="email"
+                    placeholder="Enter email address (e.g. name@gmail.com)"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
+                    style={{
+                      padding: '10px',
+                      borderRadius: '8px',
+                      border: '1px solid #cbd5e1',
+                      backgroundColor: '#ffffff',
+                      color: '#1e293b',
+                      fontSize: '0.85rem'
+                    }}
+                  />
+                  <span style={{ fontSize: '0.65rem', color: '#64748b' }}>E-Receipts for your submitted applications will be sent to this email.</span>
+                </div>
+
+                {/* Submit Button */}
+                <button
+                  type="submit"
+                  disabled={isLoading}
+                  style={{
+                    padding: '12px',
+                    borderRadius: '8px',
+                    border: 'none',
+                    backgroundColor: '#10b981',
+                    color: '#ffffff',
+                    fontWeight: '700',
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    marginTop: '8px',
+                    transition: 'background-color 0.2s'
+                  }}
+                >
+                  {isLoading ? 'Signing in...' : 'Login / Enter Portal'}
+                </button>
+              </form>
             </div>
           </div>
         )}
@@ -779,7 +654,7 @@ export default function App() {
             margin: 0,
             letterSpacing: '-1px'
           }}>
-            SUBI Online Service
+            Subi e sevai
           </h1>
           <p style={{ color: '#64748b', fontSize: '1rem', fontWeight: '600', margin: 0 }}>
             Online Service Portal

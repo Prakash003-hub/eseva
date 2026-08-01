@@ -19,6 +19,8 @@ export default function OgGenerator() {
   const [slug, setSlug] = useState('');
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
+  const [aspectRatio, setAspectRatio] = useState('landscape'); // 'landscape' (1200x630) or 'square' (1024x1024)
+  const [isProcessingImg, setIsProcessingImg] = useState(false);
 
   // Generator Output States
   const [isGenerating, setIsGenerating] = useState(false);
@@ -31,14 +33,37 @@ export default function OgGenerator() {
     return text
       .toLowerCase()
       .trim()
-      .replace(/[^a-z0-9\s-]/g, '') // remove non-alphanumeric chars
-      .replace(/\s+/g, '-')         // replace spaces with hyphens
-      .replace(/-+/g, '-')           // remove multiple consecutive hyphens
-      .replace(/(^-|-$)/g, '');      // trim leading/trailing hyphens
+      .replace(/[^a-z0-9\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/(^-|-$)/g, '');
   };
 
-  // Sync title with slug (if not customized manually yet)
   const [slugModified, setSlugModified] = useState(false);
+  
+  const handleTargetUrlChange = (val) => {
+    setTargetUrl(val);
+    setIsGenerated(false);
+
+    // Auto extract slug and title from URL format (e.g. .../user?tab=jobs:JOB759562 or .../user?tab=apply:FORM123)
+    if (val && val.includes(':')) {
+      const parts = val.split(':');
+      const paramSuffix = parts[parts.length - 1].trim();
+      if (paramSuffix && !slugModified) {
+        const cleanSlug = paramSuffix.toLowerCase().replace(/[^a-z0-9-]/g, '');
+        setSlug(cleanSlug);
+        if (!title) {
+          setTitle(`Details for ${paramSuffix.toUpperCase()}`);
+        }
+      }
+    } else if (val && val.includes('tab=')) {
+      const match = val.match(/tab=([a-z0-9_-]+)/i);
+      if (match && match[1] && !slugModified && !slug) {
+        setSlug(match[1].toLowerCase());
+      }
+    }
+  };
+
   const handleTitleChange = (e) => {
     const val = e.target.value;
     setTitle(val);
@@ -52,17 +77,64 @@ export default function OgGenerator() {
     setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''));
   };
 
-  // Handle Image Upload
-  const handleImageChange = (e) => {
+  // Canvas Image Resizer Helper
+  const resizeOgImage = (file, aspect = 'landscape') => {
+    return new Promise((resolve) => {
+      const img = new Image();
+      img.src = URL.createObjectURL(file);
+      img.onload = () => {
+        const canvas = document.createElement('canvas');
+        const targetWidth = aspect === 'square' ? 1024 : 1200;
+        const targetHeight = aspect === 'square' ? 1024 : 630;
+        canvas.width = targetWidth;
+        canvas.height = targetHeight;
+        const ctx = canvas.getContext('2d');
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, targetWidth, targetHeight);
+
+        const imgRatio = img.width / img.height;
+        const targetRatio = targetWidth / targetHeight;
+        let drawWidth, drawHeight, offsetX, offsetY;
+
+        if (imgRatio > targetRatio) {
+          drawHeight = targetHeight;
+          drawWidth = targetHeight * imgRatio;
+          offsetX = (targetWidth - drawWidth) / 2;
+          offsetY = 0;
+        } else {
+          drawWidth = targetWidth;
+          drawHeight = targetWidth / imgRatio;
+          offsetX = 0;
+          offsetY = (targetHeight - drawHeight) / 2;
+        }
+
+        ctx.drawImage(img, offsetX, offsetY, drawWidth, drawHeight);
+
+        canvas.toBlob((blob) => {
+          const resizedFile = new File([blob], file.name.replace(/\.[^/.]+$/, "") + ".jpg", { type: 'image/jpeg', lastModified: Date.now() });
+          const previewUrl = canvas.toDataURL('image/jpeg', 0.92);
+          resolve({ file: resizedFile, preview: previewUrl });
+        }, 'image/jpeg', 0.92);
+      };
+    });
+  };
+
+  // Handle Image Upload with Automatic Canvas Crop & Resize
+  const handleImageChange = async (e) => {
     const file = e.target.files[0];
     if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result);
-      };
-      reader.readAsDataURL(file);
-      setIsGenerated(false); // Reset output if image changes
+      setIsProcessingImg(true);
+      try {
+        const processed = await resizeOgImage(file, aspectRatio);
+        setImageFile(processed.file);
+        setImagePreview(processed.preview);
+        setIsGenerated(false);
+      } catch (err) {
+        console.error('Image resize error:', err);
+      } finally {
+        setIsProcessingImg(false);
+      }
     }
   };
 
@@ -330,19 +402,35 @@ export default function OgGenerator() {
                   </div>
                 </div>
 
+                {/* Target Aspect Ratio */}
+                <div className="premium-input-group" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label className="premium-label" style={{ fontWeight: '700', fontSize: '0.85rem' }}>Auto Crop & Resize Format</label>
+                  <select
+                    value={aspectRatio}
+                    onChange={(e) => setAspectRatio(e.target.value)}
+                    className="premium-input"
+                    style={{ padding: '8px 12px', fontSize: '0.85rem', borderRadius: '8px', border: '1px solid var(--border-light)' }}
+                  >
+                    <option value="landscape">1.91:1 Landscape (1200×630px - Recommended for WhatsApp)</option>
+                    <option value="square">1:1 Square (1024×1024px)</option>
+                  </select>
+                </div>
+
                 {/* Target URL */}
                 <div className="premium-input-group" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                   <label className="premium-label" style={{ fontWeight: '700', fontSize: '0.85rem' }}>Target URL *</label>
                   <input 
                     type="text" 
                     value={targetUrl} 
-                    onChange={(e) => { setTargetUrl(e.target.value); setIsGenerated(false); }} 
-                    placeholder="https://subionlineservice.vercel.app/user?tab=jobs"
+                    onChange={(e) => handleTargetUrlChange(e.target.value)} 
+                    placeholder="https://subionlineservice.vercel.app/user?tab=jobs:JOB759562"
                     required
                     className="premium-input"
                     style={{ padding: '10px 12px', border: '1px solid var(--border-light)', borderRadius: '8px', fontSize: '0.85rem', width: '100%' }}
                   />
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-light-muted)' }}>The destination website where the user will be redirected.</span>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-light-muted)' }}>
+                    Paste your target destination link (e.g. <code>https://subi-e-sevai.vercel.app/user?tab=jobs:JOB759562</code>). Parameter tags are automatically extracted!
+                  </span>
                 </div>
 
                 {/* Title */}

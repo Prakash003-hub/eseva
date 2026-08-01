@@ -171,6 +171,9 @@ function doPost(e) {
       case "loginUser":
         responseData = loginUserAction(requestBody.payload);
         break;
+      case "notifyAdminLogin":
+        responseData = notifyAdminLoginAction(requestBody.payload);
+        break;
       case "checkAadhar":
         responseData = checkAadharAction(requestBody.payload);
         break;
@@ -663,31 +666,108 @@ function registerUserAction(userData) {
 
 function loginUserAction(loginData) {
   var phoneClean = loginData.phone ? formatNumberString(loginData.phone) : "";
-  var aadharPrefix = loginData.aadhar_prefix ? loginData.aadhar_prefix.toString().trim() : "";
+  var aadharClean = loginData.aadhar ? formatNumberString(loginData.aadhar) : (loginData.aadhar_prefix ? loginData.aadhar_prefix.toString().trim() : "");
   
   if (!phoneClean) {
     throw new Error("Phone number is required for login.");
   }
-  if (!aadharPrefix || aadharPrefix.length !== 4) {
-    throw new Error("First 4 digits of Aadhaar number are required for login.");
+  if (!aadharClean) {
+    throw new Error("Aadhaar number is required for login.");
   }
   
   var users = getRowsFromSheet("Users");
   var matchedUser = null;
   
+  var emailClean = loginData.email ? loginData.email.trim().toLowerCase() : "";
+
   for (var i = 0; i < users.length; i++) {
     var u = users[i];
     var uPhone = u.phone ? formatNumberString(u.phone) : "";
     var uAadhar = u.aadhar ? formatNumberString(u.aadhar) : "";
     
-    if (uPhone === phoneClean && uAadhar.substring(0, 4) === aadharPrefix) {
+    if (uPhone === phoneClean && (uAadhar === aadharClean || uAadhar.indexOf(aadharClean) === 0)) {
       matchedUser = u;
       break;
     }
   }
   
-  if (!matchedUser) {
-    throw new Error("No user profile found. Please check your Phone number and Aadhaar digits.");
+  var isNewUser = false;
+  if (matchedUser) {
+    if (emailClean && matchedUser.email !== emailClean) {
+      matchedUser.email = emailClean;
+      var usersSheet = getSheet("Users");
+      var rIdx = findRowIndexById(usersSheet, matchedUser.id);
+      if (rIdx !== -1) {
+        updateRowObject(usersSheet, rIdx, matchedUser);
+      }
+    }
+  } else {
+    // Search previous submissions to recover stored details if available
+    var subRows = getRowsFromSheet("Submissions");
+    var userSubs = [];
+    for (var j = 0; j < subRows.length; j++) {
+      var s = subRows[j];
+      var sPhone = s.phone ? formatNumberString(s.phone) : "";
+      var sAadhar = s.aadhar ? formatNumberString(s.aadhar) : "";
+      if ((phoneClean && sPhone === phoneClean) || (aadharClean && (sAadhar === aadharClean || sAadhar.indexOf(aadharClean) === 0))) {
+        userSubs.push(s);
+      }
+    }
+
+    var recoveredData = {};
+    if (userSubs.length > 0) {
+      userSubs.sort(function(a, b) { return new Date(b.submitted_at) - new Date(a.submitted_at); });
+      var respStr = userSubs[0].responses || {};
+      var respObj = {};
+      try {
+        respObj = typeof respStr === "string" ? JSON.parse(respStr) : respStr;
+      } catch (e) {}
+
+      recoveredData = {
+        name: respObj["Full Name / பெயர்"] || respObj["Applicant Name"] || respObj["Name"] || respObj["Citizen Name"] || "",
+        father_name: respObj["Father Name / தகப்பனார் பெயர்"] || respObj["Father Name"] || respObj["Father / Husband Name"] || "",
+        mother_name: respObj["Mother Name / தாயார் பெயர்"] || respObj["Mother Name"] || "",
+        address: respObj["Residential Address / முகவரி"] || respObj["Address"] || respObj["Full Address"] || "",
+        district: respObj["District / மாவட்டம்"] || respObj["District"] || "",
+        taluk: respObj["Taluk / தாலுகா"] || respObj["Taluk"] || "",
+        pincode: respObj["Pincode / அஞ்சல் குறியீடு"] || respObj["Pincode"] || "",
+        gender: respObj["Gender / பாலினம்"] || respObj["Gender"] || "",
+        community: respObj["Community / சமூகம்"] || respObj["Community"] || "",
+        dob: userSubs[0].dob || respObj["Date of Birth"] || respObj["DOB"] || "",
+        email: respObj["Email Address / மின்னஞ்சல் முகவரி"] || respObj["Email"] || respObj["Email ID"] || ""
+      };
+    }
+
+    isNewUser = userSubs.length === 0;
+    var sheet = getSheet("Users");
+    var userId = "usr-" + Math.random().toString(36).substring(2, 10);
+    matchedUser = {
+      id: userId,
+      name: recoveredData.name || "",
+      name_tamil: "",
+      dob: recoveredData.dob ? "'" + formatDateString(recoveredData.dob) : "",
+      phone: "'" + phoneClean,
+      aadhar: "'" + aadharClean,
+      email: emailClean || recoveredData.email || "",
+      gender: recoveredData.gender || "",
+      marital_status: "",
+      father_name: recoveredData.father_name || "",
+      father_name_tamil: "",
+      mother_name: recoveredData.mother_name || "",
+      mother_name_tamil: "",
+      community: recoveredData.community || "",
+      address: recoveredData.address || "",
+      religion: "",
+      state: "Tamil Nadu",
+      district: recoveredData.district || "",
+      taluk: recoveredData.taluk || "",
+      revenue_village: "",
+      street_name: "",
+      door_no: "",
+      pincode: recoveredData.pincode || "",
+      created_at: new Date().toISOString()
+    };
+    appendObjectToSheet(sheet, matchedUser);
   }
   
   // Format matching fields in returned object
@@ -700,7 +780,51 @@ function loginUserAction(loginData) {
   cleanedUser.dob = formatDateString(matchedUser.dob);
   cleanedUser.aadhar = formatNumberString(matchedUser.aadhar);
   
+  // Silent Admin Email Alert (user not shown)
+  try {
+    notifyAdminLoginAction({
+      phone: phoneClean,
+      aadhar: aadharClean,
+      isNewUser: isNewUser,
+      userName: cleanedUser.name || ""
+    });
+  } catch (err) {
+    logError("loginUserAction_adminEmailAlert", err);
+  }
+
   return cleanedUser;
+}
+
+function notifyAdminLoginAction(payload) {
+  try {
+    var phoneClean = payload.phone ? formatNumberString(payload.phone) : "";
+    var aadharClean = payload.aadhar ? formatNumberString(payload.aadhar) : "";
+    var isNewUser = payload.isNewUser || false;
+    var userName = payload.userName || "";
+    
+    var settings = getSettingsAction();
+    var adminEmail = settings.admin_email || "subionlineservice@gmail.com";
+    if (adminEmail && phoneClean && aadharClean) {
+      var dStr = Utilities.formatDate(new Date(), "Asia/Kolkata", "dd/MM/yyyy hh:mm a");
+      var subject = "User Login Alert: Phone " + phoneClean + " | Aadhaar " + aadharClean;
+      var body = "USER LOGIN ALERT\n" +
+                 "===================================\n" +
+                 "Phone Number: " + phoneClean + "\n" +
+                 "Aadhaar Number: " + aadharClean + "\n" +
+                 "Status: " + (isNewUser ? "New User (Fresh Profile Created)" : "Returning User (Previous Data Found)") + "\n" +
+                 "User Name: " + (userName || "Not set yet") + "\n" +
+                 "Timestamp: " + dStr + "\n";
+                 
+      MailApp.sendEmail({
+        to: adminEmail,
+        subject: subject,
+        body: body
+      });
+    }
+  } catch (err) {
+    logError("notifyAdminLoginAction", err);
+  }
+  return { status: "sent" };
 }
 
 function checkAadharAction(payload) {
@@ -775,9 +899,9 @@ function sendOtpAction(payload) {
   try {
     MailApp.sendEmail({
       to: email,
-      subject: "SUBI Online Service - Your OTP Verification Code",
+      subject: "Subi e sevai - Your OTP Verification Code",
       htmlBody: '<div style="font-family:sans-serif;max-width:400px;margin:0 auto;padding:20px;">'
-        + '<h2 style="color:#047857;text-align:center;">SUBI Online Service</h2>'
+        + '<h2 style="color:#047857;text-align:center;">Subi e sevai</h2>'
         + '<p style="text-align:center;color:#64748b;">Your OTP verification code is:</p>'
         + '<div style="text-align:center;margin:20px 0;">'
         + '<span style="font-size:2rem;font-weight:900;letter-spacing:8px;color:#1e293b;background:#f0fdf4;padding:10px 20px;border-radius:8px;border:2px solid #10b981;">' + otp + '</span>'
@@ -876,11 +1000,35 @@ function updateUserProfileAction(userId, profileData) {
 
 function submitFormResponseAction(payload) {
   var sheet = getSheet("Submissions");
-  var subId = payload.id || "sub-" + Math.random().toString(36).substring(2, 10);
-  
   var phoneClean = payload.phone ? formatNumberString(payload.phone) : "";
   var dobClean = payload.dob ? formatDateString(payload.dob) : "";
   var aadharClean = payload.aadhar ? formatNumberString(payload.aadhar) : "";
+  
+  // Search for existing submission for this form_id + user to prevent creating duplicate rows
+  var existingSubId = payload.id || "";
+  if (!existingSubId && payload.form_id && (aadharClean || phoneClean)) {
+    var subRows = getRowsFromSheet("Submissions");
+    for (var k = 0; k < subRows.length; k++) {
+      var sRow = subRows[k];
+      var sFormId = sRow.form_id ? sRow.form_id.toString() : "";
+      var sPhone = sRow.phone ? formatNumberString(sRow.phone) : "";
+      var sAadhar = sRow.aadhar ? formatNumberString(sRow.aadhar) : "";
+
+      if (sFormId === payload.form_id.toString() && ((aadharClean && sAadhar === aadharClean) || (phoneClean && sPhone === phoneClean))) {
+        var isAlreadyFinal = sRow.payment_status && sRow.payment_status !== "draft";
+        var isNewSubmitFinal = payload.payment_status && payload.payment_status !== "draft";
+
+        if (isAlreadyFinal && isNewSubmitFinal) {
+          throw new Error("You have already submitted an application for this service. Duplicate submissions are not permitted.");
+        }
+
+        existingSubId = sRow.id;
+        break;
+      }
+    }
+  }
+
+  var subId = existingSubId || "sub-" + Math.random().toString(36).substring(2, 10);
   
   // Find linked user_id and email if they have a registered profile
   var userId = "";
@@ -1020,7 +1168,8 @@ function submitFormResponseAction(payload) {
   }
   
   // Send receipt email to user if email available and not a draft
-  if (userEmail && payload.payment_status !== "draft") {
+  var targetEmail = userEmail || payload.email || (responsesObj["Email Address / மின்னஞ்சல் முகவரி"] || responsesObj["Email"] || "");
+  if (targetEmail && payload.payment_status !== "draft") {
     try {
       var fee = 0;
       try { fee = getFormByIdAction(payload.form_id).fee || 0; } catch(e) {}
@@ -1029,12 +1178,12 @@ function submitFormResponseAction(payload) {
       var timeStr = Utilities.formatDate(submittedDate, "Asia/Kolkata", "hh:mm a");
       
       MailApp.sendEmail({
-        to: userEmail,
-        subject: "SUBI Online Service - Application Receipt (" + formTitle + ")",
+        to: targetEmail,
+        subject: "Subi e sevai - Application Receipt (" + formTitle + ")",
         htmlBody: '<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px;">'
           + '<div style="text-align:center;border-bottom:2px dashed #10b981;padding-bottom:14px;margin-bottom:16px;">'
           + '<h2 style="color:#047857;margin:0 0 4px 0;font-size:1.3rem;">' + formTitle + '</h2>'
-          + '<span style="color:#10b981;font-size:0.8rem;font-weight:700;">SUBI ONLINE SERVICE</span><br/>'
+          + '<span style="color:#10b981;font-size:0.8rem;font-weight:700;">SUBI E SEVAI</span><br/>'
           + '<span style="color:#64748b;font-size:0.7rem;">Official E-Receipt</span>'
           + '</div>'
           + '<table style="width:100%;font-size:0.85rem;border-collapse:collapse;">'
@@ -1046,7 +1195,7 @@ function submitFormResponseAction(payload) {
           + '<tr><td style="color:#64748b;padding:6px 0;">Service Fee:</td><td style="font-weight:800;font-size:1rem;text-align:right;">Rs. ' + fee + '</td></tr>'
           + '<tr><td style="color:#64748b;padding:6px 0;">Payment Status:</td><td style="text-align:right;"><span style="background:#fef2f2;color:#ef4444;padding:2px 8px;border-radius:4px;font-size:0.75rem;font-weight:700;">UNPAID</span></td></tr>'
           + '</table>'
-          + '<p style="text-align:center;color:#94a3b8;font-size:0.75rem;margin-top:16px;">Thank you for using SUBI Online Service Portal.</p>'
+          + '<p style="text-align:center;color:#94a3b8;font-size:0.75rem;margin-top:16px;">Thank you for using Subi e sevai Portal.</p>'
           + '</div>'
       });
     } catch (emailErr) {
@@ -1169,10 +1318,10 @@ function adminUpdateSubmissionAction(id, updateData) {
         
         MailApp.sendEmail({
           to: userEmail,
-          subject: "SUBI Online Service - Application Status Update (" + formTitle + ")",
+          subject: "Subi e sevai - Application Status Update (" + formTitle + ")",
           htmlBody: '<div style="font-family:sans-serif;max-width:500px;margin:0 auto;padding:20px;">'
             + '<div style="text-align:center;margin-bottom:16px;">'
-            + '<h2 style="color:#047857;margin:0;">SUBI Online Service</h2>'
+            + '<h2 style="color:#047857;margin:0;">Subi e sevai</h2>'
             + '<p style="color:#64748b;font-size:0.8rem;">Application Status Update</p>'
             + '</div>'
             + '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:16px;margin-bottom:16px;">'
@@ -1186,7 +1335,7 @@ function adminUpdateSubmissionAction(id, updateData) {
             + '<div style="background:#f0fdf4;border-left:4px solid #10b981;padding:12px;border-radius:0 8px 8px 0;">'
             + '<p style="margin:0;font-size:0.85rem;color:#1e293b;"><strong>Update:</strong> ' + progressDesc + '</p>'
             + '</div>'
-            + '<p style="text-align:center;color:#94a3b8;font-size:0.75rem;margin-top:16px;">Login to SUBI Online Service to view full details.</p>'
+            + '<p style="text-align:center;color:#94a3b8;font-size:0.75rem;margin-top:16px;">Login to Subi e sevai to view full details.</p>'
             + '</div>'
         });
       } catch (emailErr) {

@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import {
   getPosts,
   getForms,
+  getJobs,
   submitFormResponse,
   getUserStatus,
   uploadPaymentScreenshot,
@@ -14,15 +15,11 @@ import {
   submitInfoRequestResponse,
   deleteUserDocument,
   loginUser,
-  getJobs,
+
   uploadFileToDrive,
   getSettings,
   getAnnouncements,
-  sendOtp,
-  verifyOtp,
-  checkAadhar,
-  getProducts,
-  getTemperedGlass
+  checkAadhar
 } from '../services/db';
 import {
   CheckCircle,
@@ -48,7 +45,8 @@ import {
   Clock,
   Megaphone,
   Share2,
-  ExternalLink
+  ExternalLink,
+  Briefcase
 } from 'lucide-react';
 
 const safeJsonParse = (str, fallback = []) => {
@@ -460,7 +458,7 @@ const MarqueeRow = ({
                     const title = product.Category === 'Phone Cover'
                       ? `${product.Brand === 'Other' ? product.CustomBrand : product.Brand} ${product.ModelName} Cover`
                       : (product.ProductName || `${product.Brand} Case`);
-                    const text = `Category: ${product.Category}${product.Price ? `\nPrice: ₹${product.Price}` : ''}\nBuy high-quality mobile accessories at SUBI Online Service.`;
+                    const text = `Category: ${product.Category}${product.Price ? `\nPrice: ₹${product.Price}` : ''}\nBuy high-quality mobile accessories at Subi e sevai.`;
                     handleWhatsAppShare(title, text, '/user?tab=accessories');
                   }}
                   className="premium-btn premium-btn-secondary"
@@ -493,33 +491,17 @@ const MarqueeRow = ({
 export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigger }) {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Tab states: 'home' | 'apply' | 'status' | 'accessories'
+  // Tab states: 'home' | 'apply'
   const activeTab = searchParams.get('tab') || 'home';
   const initialCategory = searchParams.get('category') || '';
 
   const [posts, setPosts] = useState([]);
   const [forms, setForms] = useState([]);
-  const [jobs, setJobs] = useState([]);
 
-  // Accessories & Tempered Glass states
-  const [products, setProducts] = useState([]);
-  const [temperedGlassList, setTemperedGlassList] = useState([]);
 
-  // Search Tempered Glass states
-  const [tgSearchQuery, setTgSearchQuery] = useState('');
-  const [tgSearchResult, setTgSearchResult] = useState(null);
-
-  // Catalog Filters
-  const [selectedAccessoryCategory, setSelectedAccessoryCategory] = useState('All');
-  const [selectedBrand, setSelectedBrand] = useState('All');
-  const [selectedModel, setSelectedModel] = useState('');
-  const [accessorySearchKeyword, setAccessorySearchKeyword] = useState('');
-
-  // Accessory Details Modal
-  const [selectedProductDetails, setSelectedProductDetails] = useState(null);
   const [ogMetadata, setOgMetadata] = useState(null);
 
-  const [selectedJobDetails, setSelectedJobDetails] = useState(null);
+
   const [selectedCategory, setSelectedCategory] = useState(initialCategory || 'all');
   const [systemSettings, setSystemSettings] = useState({});
 
@@ -528,12 +510,12 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
   const [searchingStatus, setSearchingStatus] = useState(false);
   const [postsLoading, setPostsLoading] = useState(false);
   const [formsLoading, setFormsLoading] = useState(false);
-  const [jobsLoading, setJobsLoading] = useState(false);
 
-  // Auto-scroll to top when tab or selected job changes
+
+  // Auto-scroll to top when tab changes
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'instant' });
-  }, [activeTab, selectedJobDetails]);
+  }, [activeTab]);
   const [error, setError] = useState('');
 
   // Install Prompt State
@@ -557,6 +539,25 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
   const [wizardStep, setWizardStep] = useState(1);
   // 1: Instructions, 2: Fill/Verify, 3: Preview, 4: Upload Docs, 5: Receipt
 
+  useEffect(() => {
+    if (selectedForm) {
+      window.dispatchEvent(new CustomEvent('hide-whatsapp-chatbot', { detail: true }));
+    } else {
+      window.dispatchEvent(new CustomEvent('hide-whatsapp-chatbot', { detail: false }));
+    }
+  }, [selectedForm]);
+
+  const [selectedJobDetails, setSelectedJobDetails] = useState(null);
+
+  // Always auto-scroll window and containers to top on form selection, wizard step change, or tab change
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+    const el1 = document.querySelector('.mobile-frame-content');
+    if (el1) el1.scrollTop = 0;
+    const el2 = document.querySelector('.layout-viewport-container');
+    if (el2) el2.scrollTop = 0;
+  }, [selectedForm, wizardStep, activeTab, selectedJobDetails]);
+
   const [formData, setFormData] = useState({}); // Dynamic and standard values
   const [agreeCheckbox, setAgreeCheckbox] = useState(false);
 
@@ -569,6 +570,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
   const [submissionResult, setSubmissionResult] = useState(null);
   const [lastResponsesPack, setLastResponsesPack] = useState(null);
   const [lastDocReferencesPack, setLastDocReferencesPack] = useState(null);
+  const [activeSubmissionId, setActiveSubmissionId] = useState(null);
 
   // Status Lookup States
   const [lookupType, setLookupType] = useState('phone'); // 'phone' or 'aadhar'
@@ -608,52 +610,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
   // Prevents the status useEffect from overwriting fresh data with stale Google Sheets data.
   const lastStatusFetchRef = useRef(0);
 
-  const sendSubmissionToWhatsApp = (submission, formInfo, responsesPack, docReferencesPack) => {
-    const adminWhatsApp = systemSettings.admin_whatsapp_number || '9385497906';
-    const formattedAdminWhatsApp = cleanPhone(adminWhatsApp);
 
-    let msg = `*NEW FORM SUBMISSION*\n`;
-    msg += `----------------------------------\n`;
-    msg += `*Service:* ${(formInfo && formInfo.title) ? formInfo.title : (selectedForm && selectedForm.title) ? selectedForm.title : 'Service'}\n`;
-    msg += `*Receipt ID:* ${submission.id}\n`;
-    msg += `*Submitted At:* ${new Date(submission.submitted_at).toLocaleString('en-IN')}\n\n`;
-
-    msg += `*APPLICANT PROFILE:*\n\`\`\`\n`;
-    msg += `${"Phone".padEnd(12, ' ')} : ${submission.phone}\n`;
-    msg += `${"Aadhaar".padEnd(12, ' ')} : ${submission.aadhar}\n`;
-    msg += `\`\`\`\n`;
-
-    msg += `*FORM DETAILS:*\n`;
-    if (responsesPack && Object.keys(responsesPack).length > 0) {
-      msg += `\`\`\`\n`;
-      const responseKeys = Object.keys(responsesPack);
-      const maxKeyLen = Math.max(...responseKeys.map(k => k.length), 10);
-      responseKeys.forEach(key => {
-        msg += `${key.padEnd(maxKeyLen, ' ')} : ${responsesPack[key]}\n`;
-      });
-      msg += `\`\`\`\n`;
-    } else {
-      msg += `No form details.\n`;
-    }
-    msg += `\n`;
-
-    if (docReferencesPack && Object.keys(docReferencesPack).length > 0) {
-      msg += `*UPLOADED DOCUMENTS:*\n`;
-      Object.keys(docReferencesPack).forEach(docKey => {
-        const urls = docReferencesPack[docKey];
-        if (urls && urls.length > 0) {
-          msg += `- *${docKey}:*\n  ${urls.join('\n  ')}\n`;
-        }
-      });
-    }
-
-    msg += `\n----------------------------------\n`;
-    msg += `Please process this application. Thank you!`;
-
-    const encoded = encodeURIComponent(msg);
-    const whatsappUrl = `https://api.whatsapp.com/send?phone=${encodeURIComponent(formattedAdminWhatsApp)}&text=${encoded}`;
-    window.open(whatsappUrl, '_blank');
-  };
 
   // Premium custom Toast Alerts system (Intercepts and upgrades native alert dialogs)
   const [toast, setToast] = useState(null);
@@ -735,6 +692,10 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
     }
   };
 
+  const [jobs, setJobs] = useState([]);
+  const [jobsLoading, setJobsLoading] = useState(false);
+  const [jobSearchQuery, setJobSearchQuery] = useState('');
+
   async function fetchPosts() {
     setPostsLoading(true);
     try {
@@ -765,34 +726,18 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
     setJobsLoading(true);
     try {
       const jobsData = await getJobs();
-      setJobs(jobsData);
+      if (Array.isArray(jobsData)) setJobs(jobsData);
     } catch (err) {
-      console.error(err);
-      setError('Failed to connect to Google Workspace Apps Script Web App to load job alerts.');
+      console.error('Error loading jobs:', err);
     } finally {
       setJobsLoading(false);
     }
   }
 
-  const [accessoryProductsLoading, setAccessoryProductsLoading] = useState(false);
-
-  const fetchProductsAndTG = () => {
-    setAccessoryProductsLoading(true);
-    getProducts().then(data => {
-      if (data) setProducts(data);
-    }).catch(err => console.error('Failed to load products', err))
-      .finally(() => setAccessoryProductsLoading(false));
-
-    getTemperedGlass().then(data => {
-      if (data) setTemperedGlassList(data);
-    }).catch(err => console.error('Failed to load tempered glass', err));
-  };
-
   useEffect(() => {
     fetchPosts();
     fetchForms();
     fetchJobs();
-    fetchProductsAndTG();
     getSettings().then(data => {
       if (data) setSystemSettings(data);
     }).catch(err => console.error('Failed to load settings', err));
@@ -818,20 +763,13 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
   // Redirect to correct tab if shared link parameters are present
   useEffect(() => {
     const formIdParam = searchParams.get('formId');
-    const jobIdParam = searchParams.get('jobId');
-    const postIdParam = searchParams.get('postId');
     const productIdParam = searchParams.get('productId');
 
     if (formIdParam && activeTab !== 'apply') {
       setSearchParams({ tab: 'apply', formId: formIdParam });
-    } else if (jobIdParam && activeTab !== 'home') {
-      setSearchParams({ tab: 'home', jobId: jobIdParam });
-    } else if (postIdParam && activeTab !== 'home') {
-      setSearchParams({ tab: 'home', postId: postIdParam });
-    } else if (productIdParam && activeTab !== 'accessories') {
-      setSearchParams({ tab: 'accessories', productId: productIdParam });
     }
   }, [searchParams, activeTab]);
+
 
   // Deep linking: Auto-select Form
   useEffect(() => {
@@ -844,27 +782,8 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
     }
   }, [forms, searchParams, activeTab, selectedForm]);
 
-  // Deep linking: Auto-open Job Detail Modal
-  useEffect(() => {
-    const jobIdParam = searchParams.get('jobId');
-    if (jobIdParam && jobs.length > 0 && activeTab === 'home') {
-      const targetJob = jobs.find(j => String(j.id) === String(jobIdParam));
-      if (targetJob && (!selectedJobDetails || selectedJobDetails.id !== targetJob.id)) {
-        setSelectedJobDetails(targetJob);
-      }
-    }
-  }, [jobs, searchParams, activeTab, selectedJobDetails]);
 
-  // Deep linking: Auto-open Product Detail Modal
-  useEffect(() => {
-    const productIdParam = searchParams.get('productId');
-    if (productIdParam && products.length > 0 && activeTab === 'accessories') {
-      const targetProduct = products.find(p => String(p.ProductID) === String(productIdParam));
-      if (targetProduct && (!selectedProductDetails || selectedProductDetails.ProductID !== targetProduct.ProductID)) {
-        setSelectedProductDetails(targetProduct);
-      }
-    }
-  }, [products, searchParams, activeTab, selectedProductDetails]);
+
 
   // Deep linking: Auto-scroll to Post
   useEffect(() => {
@@ -884,11 +803,11 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
   // Dynamic Document Title and Description Updater
   useEffect(() => {
     const formIdParam = searchParams.get('formId');
-    const jobIdParam = searchParams.get('jobId');
     const postIdParam = searchParams.get('postId');
     const productIdParam = searchParams.get('productId');
 
-    let currentTitle = 'SUBI Online Service - Portal';
+
+    let currentTitle = 'Subi e sevai - Portal';
     let currentDesc = 'Apply for online services, check products, and stay updated.';
 
     if (formIdParam) {
@@ -900,15 +819,6 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
         currentTitle = ogMetadata.form.title;
         currentDesc = ogMetadata.form.description;
       }
-    } else if (jobIdParam) {
-      const targetJob = jobs.find(j => String(j.id) === String(jobIdParam));
-      if (targetJob) {
-        currentTitle = targetJob.title;
-        currentDesc = targetJob.description || currentDesc;
-      } else if (ogMetadata && ogMetadata.job) {
-        currentTitle = ogMetadata.job.title;
-        currentDesc = ogMetadata.job.description;
-      }
     } else if (postIdParam) {
       const targetPost = posts.find(p => String(p.id) === String(postIdParam));
       if (targetPost) {
@@ -917,15 +827,6 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
       } else if (ogMetadata && ogMetadata.post) {
         currentTitle = ogMetadata.post.title;
         currentDesc = ogMetadata.post.description;
-      }
-    } else if (productIdParam) {
-      const targetProduct = products.find(p => String(p.ProductID) === String(productIdParam));
-      if (targetProduct) {
-        currentTitle = targetProduct.ProductName || `${targetProduct.Brand} ${targetProduct.ModelName}`;
-        currentDesc = `Price: ₹${targetProduct.Price} | Category: ${targetProduct.Category} | Brand: ${targetProduct.Brand}`;
-      } else if (ogMetadata && ogMetadata.product) {
-        currentTitle = ogMetadata.product.title;
-        currentDesc = ogMetadata.product.description;
       }
     }
 
@@ -951,13 +852,6 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
       } else {
         currentImg = '/form_og_preview.jpg';
       }
-    } else if (jobIdParam) {
-      const targetJob = jobs.find(j => String(j.id) === String(jobIdParam));
-      if (targetJob && targetJob.img_url) {
-        currentImg = getImageUrl(targetJob.img_url);
-      } else {
-        currentImg = '/job_og_preview.jpg';
-      }
     } else if (postIdParam) {
       const targetPost = posts.find(p => String(p.id) === String(postIdParam));
       if (targetPost && targetPost.img_url) {
@@ -965,20 +859,9 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
       } else {
         currentImg = '/post_og_preview.jpg';
       }
-    } else if (productIdParam) {
-      const targetProduct = products.find(p => String(p.ProductID) === String(productIdParam));
-      if (targetProduct && targetProduct.ImageURL) {
-        currentImg = getImageUrl(targetProduct.ImageURL);
-      } else {
-        currentImg = '/product_og_preview.jpg';
-      }
     } else {
       // Fallback based on activeTab
-      if (activeTab === 'accessories') {
-        currentImg = '/product_og_preview.jpg';
-      } else if (activeTab === 'jobs') {
-        currentImg = '/job_og_preview.jpg';
-      } else if (activeTab === 'apply') {
+      if (activeTab === 'apply') {
         currentImg = '/form_og_preview.jpg';
       } else {
         currentImg = '/income_og_preview.jpg';
@@ -1006,7 +889,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
       document.head.appendChild(metaTwitterImg);
     }
     metaTwitterImg.setAttribute('content', absoluteImgUrl);
-  }, [searchParams, activeTab, forms, jobs, posts, products, ogMetadata]);
+  }, [searchParams, activeTab, forms, posts, ogMetadata]);
 
   // WhatsApp share utility
   const handleWhatsAppShare = (title, text, url) => {
@@ -1023,38 +906,57 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
-      console.log('[PWA] beforeinstallprompt event fired & deferred.');
+      window.deferredPrompt = e;
+      console.log('[PWA] beforeinstallprompt event captured in UserPortal.jsx');
+    };
+    const handleCustomReady = () => {
+      if (window.deferredPrompt) {
+        setDeferredPrompt(window.deferredPrompt);
+      }
     };
     window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    window.addEventListener('pwa-prompt-ready', handleCustomReady);
     return () => {
       window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+      window.removeEventListener('pwa-prompt-ready', handleCustomReady);
     };
   }, []);
 
-  useEffect(() => {
-    console.log('[Install Check] systemSettings loaded:', systemSettings);
-    if (systemSettings && String(systemSettings.install_notification_enabled).toLowerCase() === 'true') {
-      const dismissedAt = sessionStorage.getItem('install_prompt_dismissed_at');
-      const lastReset = localStorage.getItem('install_prompt_last_reset');
-
-      let shouldShow = true;
-      if (dismissedAt) {
-        if (!lastReset || Number(dismissedAt) >= Number(lastReset)) {
-          shouldShow = false;
+  const triggerPwaInstall = () => {
+    const promptEvent = window.deferredPrompt || deferredPrompt;
+    if (promptEvent) {
+      try {
+        promptEvent.prompt();
+        setToast({
+          type: 'success',
+          message: '📲 Launching PWA Installer... Please click "Install" on the browser popup!'
+        });
+        if (promptEvent.userChoice) {
+          promptEvent.userChoice.then((choiceResult) => {
+            if (choiceResult && choiceResult.outcome === 'accepted') {
+              setToast({
+                type: 'success',
+                message: '✅ SUBI App Installed Successfully!'
+              });
+              setDeferredPrompt(null);
+              window.deferredPrompt = null;
+            }
+          });
         }
+      } catch (err) {
+        console.error('[PWA] Direct install error:', err);
+        setToast({
+          type: 'warning',
+          message: '📲 Tap Chrome Menu (3 dots ⋮) -> select "Install App" or "Add to Home Screen".'
+        });
       }
-
-      console.log('[Install Check] shouldShow:', shouldShow, '| dismissedAt:', dismissedAt, '| lastReset:', lastReset);
-      if (shouldShow) {
-        console.log('[Install Check] Triggering installation prompt in 2 seconds...');
-        const timer = setTimeout(() => {
-          setShowInstallPrompt(true);
-          console.log('[Install Check] showInstallPrompt set to true');
-        }, 2000);
-        return () => clearTimeout(timer);
-      }
+    } else {
+      setToast({
+        type: 'warning',
+        message: '📲 Tap Chrome Menu (3 dots ⋮) at top right -> select "Install App" or "Add to Home Screen".'
+      });
     }
-  }, [systemSettings]);
+  };
 
   useEffect(() => {
     if (initialCategory) {
@@ -1149,25 +1051,61 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
     }
   };
 
+  const getInitialFormData = () => {
+    if (!currentUser) return {};
+    return {
+      name: currentUser.name || '',
+      name_tamil: currentUser.name_tamil || '',
+      father_name: currentUser.father_name || '',
+      father_name_tamil: currentUser.father_name_tamil || '',
+      mother_name: currentUser.mother_name || '',
+      mother_name_tamil: currentUser.mother_name_tamil || '',
+      dob: currentUser.dob || '',
+      gender: currentUser.gender || '',
+      marital_status: currentUser.marital_status || '',
+      community: currentUser.community || '',
+      religion: currentUser.religion || '',
+      address: currentUser.address || '',
+      state: currentUser.state || 'Tamil Nadu',
+      district: currentUser.district || '',
+      taluk: currentUser.taluk || '',
+      revenue_village: currentUser.revenue_village || '',
+      street_name: currentUser.street_name || '',
+      door_no: currentUser.door_no || '',
+      pincode: currentUser.pincode || '',
+      email: currentUser.email || '',
+      phone: currentUser.phone || '',
+      aadhar: currentUser.aadhar || ''
+    };
+  };
+
   const selectFormToFill = async (form) => {
+    setActiveSubmissionId(null);
     if (form.coming_soon === true || String(form.coming_soon).toLowerCase() === 'true') {
       setSelectedForm(form);
       setWizardStep(1);
-      setFormData({});
+      setFormData(getInitialFormData());
       setUploadedFiles({});
       setAgreeCheckbox(false);
       setDeletedSavedDocs({});
       setDuplicateSubmissionError('');
       return;
     }
+
+    let foundDraft = null;
     if (currentUser && currentUser.aadhar) {
       setLoading(true);
       try {
         const userSubs = await getUserStatus(currentUser.phone, '', currentUser.aadhar);
-        if (Array.isArray(userSubs) && userSubs.some(s => s.form_id === form.id && s.payment_status !== 'draft')) {
-          alert(`You have already applied for the ${form.title}. You cannot apply more than once.`);
-          setLoading(false);
-          return;
+        if (Array.isArray(userSubs)) {
+          const finalSub = userSubs.find(s => s.form_id === form.id && s.payment_status !== 'draft');
+          if (finalSub) {
+            alert(`You have already submitted an application for "${form.title}" (Status: ${(finalSub.payment_status || 'submitted').toUpperCase()}). Duplicate final submissions for the same service are not permitted.`);
+            setLoading(false);
+            return;
+          }
+
+          foundDraft = userSubs.find(s => s.form_id === form.id && s.payment_status === 'draft');
         }
       } catch (err) {
         console.error("Error checking pre-existing application:", err);
@@ -1175,9 +1113,28 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
         setLoading(false);
       }
     }
+
+    const prefilledData = getInitialFormData();
+    if (foundDraft) {
+      setActiveSubmissionId(foundDraft.id);
+      if (foundDraft.responses) {
+        const draftResp = typeof foundDraft.responses === 'string' ? safeJsonParse(foundDraft.responses, {}) : foundDraft.responses;
+        const reqFieldsKeys = safeJsonParse(form.required_fields, []);
+        const customFields = safeJsonParse(form.fields, []);
+
+        reqFieldsKeys.forEach(fieldId => {
+          const label = STANDARD_FIELDS[fieldId]?.label || fieldId;
+          if (draftResp[label]) prefilledData[fieldId] = draftResp[label];
+        });
+        customFields.forEach(f => {
+          if (draftResp[f.label]) prefilledData[f.id] = draftResp[f.label];
+        });
+      }
+    }
+
     setSelectedForm(form);
     setWizardStep(1);
-    setFormData({});
+    setFormData(prefilledData);
     setUploadedFiles({});
     setAgreeCheckbox(false);
     setDeletedSavedDocs({});
@@ -1216,92 +1173,70 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
 
   // --- WIZARD STEPS PROGRESSION ---
 
+  const saveStepDraft = async (form, currentFormData, stepNum) => {
+    if (!form) return;
+    try {
+      const reqFieldsKeys = safeJsonParse(form.required_fields, []);
+      const customFields = safeJsonParse(form.fields, []);
+      const responsesPack = {};
+
+      reqFieldsKeys.forEach(fieldId => {
+        responsesPack[STANDARD_FIELDS[fieldId]?.label || fieldId] = currentFormData[fieldId] || '';
+      });
+
+      customFields.forEach(f => {
+        if (f.type === 'repeated') {
+          const count = parseInt(currentFormData[f.id]) || 0;
+          responsesPack[f.label || 'Count'] = count;
+          const { min } = parseLimit(f.limit);
+          for (let i = min; i <= count; i++) {
+            (f.subFields || []).forEach(sub => {
+              const subFieldKey = `${f.id}_member_${i}_${sub.id}`;
+              const subLabel = `#${i} - ${sub.label}`;
+              responsesPack[subLabel] = currentFormData[subFieldKey] || '';
+            });
+          }
+        } else {
+          responsesPack[f.label] = currentFormData[f.id] || '';
+        }
+      });
+
+      const phone = currentFormData.phone || currentUser?.phone || '';
+      const aadhar = currentFormData.aadhar || currentUser?.aadhar || '';
+      const dob = currentFormData.dob || currentUser?.dob || '';
+
+      if (phone || aadhar) {
+        const draftRes = await submitFormResponse(
+          form.id,
+          phone,
+          dob,
+          aadhar,
+          responsesPack,
+          "draft",
+          null,
+          currentFormData.email || currentUser?.email || '',
+          activeSubmissionId
+        );
+        if (draftRes && draftRes.id) {
+          setActiveSubmissionId(draftRes.id);
+        }
+        console.log(`[Draft] Step ${stepNum} draft saved automatically.`);
+      }
+    } catch (err) {
+      console.error(`Auto draft save failed at step ${stepNum}:`, err);
+    }
+  };
+
   // Proceed from Step 1 (Instructions) to Step 2 (Form details)
   const handleProceedToForm = () => {
     if (!currentUser) {
-      setShowGuestVerification(true);
-      setGuestAadhar('');
-      setGuestEmail('');
-      setShowOtpInput(false);
-      setGuestOtp('');
-      setLookupAadharStatus(null);
-      setMatchedUserPrefills(null);
-      setGuestVerifyError('');
+      if (onLoginTrigger) {
+        onLoginTrigger();
+      } else {
+        alert("Please login with your Phone Number & Aadhaar Number to proceed.");
+      }
     } else {
       setWizardStep(2);
-    }
-  };
-
-  const handleVerifyGuestAadhar = async (e) => {
-    e.preventDefault();
-    if (!guestAadhar || !guestAadhar.match(/^\d{12}$/)) {
-      setGuestVerifyError("Please enter a valid 12-digit Aadhaar number.");
-      return;
-    }
-    setGuestVerifyError("");
-    setVerifyingAadhar(true);
-    try {
-      const res = await checkAadhar(guestAadhar);
-      if (res && res.exists) {
-        setLookupAadharStatus('existing_user');
-        setMatchedUserPrefills(res.user);
-      } else {
-        setLookupAadharStatus('new_user');
-      }
-    } catch (err) {
-      console.error(err);
-      setGuestVerifyError(err.message || "Failed to verify Aadhaar.");
-    } finally {
-      setVerifyingAadhar(false);
-    }
-  };
-
-  const handleSendGuestOtp = async () => {
-    if (!guestEmail || !guestEmail.match(/^[^\s@]+@[^\s@]+\.[^\s@]+$/)) {
-      setGuestVerifyError("Please enter a valid Email address.");
-      return;
-    }
-    setGuestVerifyError("");
-    setSendingOtp(true);
-    try {
-      await sendOtp(guestEmail);
-      setShowOtpInput(true);
-      alert("OTP sent to your email address!");
-    } catch (err) {
-      console.error(err);
-      setGuestVerifyError(err.message || "Failed to send OTP.");
-    } finally {
-      setSendingOtp(false);
-    }
-  };
-
-  const handleVerifyGuestOtp = async (e) => {
-    e.preventDefault();
-    if (!guestOtp || guestOtp.length !== 6) {
-      setGuestVerifyError("Please enter the 6-digit OTP code.");
-      return;
-    }
-    setGuestVerifyError("");
-    setVerifyingOtp(true);
-    try {
-      const res = await verifyOtp(guestEmail, guestOtp);
-      if (res && res.verified) {
-        alert("Verification successful!");
-        setFormData(prev => ({
-          ...prev,
-          aadhar: guestAadhar,
-          email: guestEmail
-        }));
-        setShowGuestVerification(false);
-        setWizardStep(2);
-      } else {
-        setGuestVerifyError("Invalid OTP. Please check and try again.");
-      }
-    } catch (err) {
-      console.error(err);
-      setGuestVerifyError(err.message || "Verification failed.");
-    } finally {
-      setVerifyingOtp(false);
     }
   };
 
@@ -1391,7 +1326,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
 
         const registeredUser = await registerUser(regPayload);
         onUpdateProfile(registeredUser);
-        alert('Welcome! We have registered your details in SUBI Online Service so you can pre-fill forms easily in the future.');
+        alert('Welcome! We have registered your details in Subi e sevai so you can pre-fill forms easily in the future.');
       } else {
         // User is logged in: update profile with any inline corrections
         const updatePayload = {
@@ -1420,6 +1355,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
         const updated = await updateUserProfile(currentUser.id, updatePayload);
         onUpdateProfile(updated);
       }
+      saveStepDraft(selectedForm, formData, 2);
       setWizardStep(3); // Proceed to Step 3 (Preview)
     } catch (err) {
       console.error(err);
@@ -1435,6 +1371,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
       alert('Please check the terms and conditions checkbox to proceed.');
       return;
     }
+    saveStepDraft(selectedForm, formData, 3);
     setWizardStep(4);
   };
 
@@ -1817,40 +1754,14 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
   };
 
   // Proceed from Step 4 (Upload Docs) to Step 5 (Receipt) - Perform uploads and save submission
-  const handleFinalWizardSubmit = async () => {
+  const handleFinalWizardSubmit = async (isSkip = false) => {
     const rawRequiredDocs = safeJsonParse(selectedForm.required_docs, []);
     const rawCustomDocs = safeJsonParse(selectedForm.custom_docs, []);
 
     const requiredDocsList = normalizeRequiredDocs(rawRequiredDocs).map(d => d.id);
     const customDocsList = normalizeCustomDocs(rawCustomDocs).map(d => d.label);
-    const missing = [];
 
-    // Verify all required documents are selected OR exist in profile
-    requiredDocsList.forEach(docKey => {
-      const isAlreadyUploaded = currentUser && !deletedSavedDocs[docKey] && (
-        (docKey === 'photo' && currentUser.photo_url) ||
-        (docKey === 'signature' && currentUser.signature_url_1) ||
-        currentUser[`${docKey}_url_1`] ||
-        currentUser[`${docKey}_url`]
-      );
-      const isSelectedLocal = uploadedUrls[docKey] && (uploadedUrls[docKey].url1 || uploadedUrls[docKey].url2 || uploadedUrls[docKey].url3);
-
-      if (!isAlreadyUploaded && !isSelectedLocal) {
-        missing.push(STANDARD_FIELDS[docKey]?.label || docKey);
-      }
-    });
-
-    customDocsList.forEach(docLabel => {
-      const isSelectedLocal = uploadedUrls[docLabel] && (uploadedUrls[docLabel].url1 || uploadedUrls[docLabel].url2 || uploadedUrls[docLabel].url3);
-      if (!isSelectedLocal) {
-        missing.push(docLabel);
-      }
-    });
-
-    if (missing.length > 0) {
-      alert(`Please upload files for: ${missing.join(', ')}`);
-      return;
-    }
+    // Document upload is optional. Skip allowed.
 
     setLoading(true);
     setUploadProgress('Checking application status...');
@@ -1928,7 +1839,8 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
         }
       });
 
-      // 3. Create Submission record in Backend, including uploadedDocs
+      // 3. Create Submission record in Backend, including uploadedDocs and email
+      const targetEmail = formData.email || currentUser?.email || '';
       const submission = await submitFormResponse(
         selectedForm.id,
         formData.phone || currentUser?.phone || '',
@@ -1936,7 +1848,9 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
         formData.aadhar || currentUser?.aadhar || '',
         responsesPack,
         "submitted",
-        docReferencesPack
+        docReferencesPack,
+        targetEmail,
+        activeSubmissionId
       );
 
       setSubmissionResult(submission);
@@ -1978,30 +1892,83 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
           }
         });
 
-        // Save back to user profile
+        // Save back to user profile (both standard fields and custom fields)
+        const userProfilePayload = {
+          name: formData.name || formData.applicant_name || (currentUser ? currentUser.name : ''),
+          name_tamil: formData.name_tamil || (currentUser ? currentUser.name_tamil : ''),
+          father_name: formData.father_name || (currentUser ? currentUser.father_name : ''),
+          father_name_tamil: formData.father_name_tamil || (currentUser ? currentUser.father_name_tamil : ''),
+          mother_name: formData.mother_name || (currentUser ? currentUser.mother_name : ''),
+          mother_name_tamil: formData.mother_name_tamil || (currentUser ? currentUser.mother_name_tamil : ''),
+          dob: formData.dob || (currentUser ? currentUser.dob : ''),
+          gender: formData.gender || (currentUser ? currentUser.gender : ''),
+          marital_status: formData.marital_status || (currentUser ? currentUser.marital_status : ''),
+          community: formData.community || (currentUser ? currentUser.community : ''),
+          religion: formData.religion || (currentUser ? currentUser.religion : ''),
+          address: formData.address || (currentUser ? currentUser.address : ''),
+          state: formData.state || (currentUser ? currentUser.state : 'Tamil Nadu'),
+          district: formData.district || (currentUser ? currentUser.district : ''),
+          taluk: formData.taluk || (currentUser ? currentUser.taluk : ''),
+          revenue_village: formData.revenue_village || (currentUser ? currentUser.revenue_village : ''),
+          street_name: formData.street_name || (currentUser ? currentUser.street_name : ''),
+          door_no: formData.door_no || (currentUser ? currentUser.door_no : ''),
+          pincode: formData.pincode || (currentUser ? currentUser.pincode : ''),
+          email: formData.email || (currentUser ? currentUser.email : ''),
+          phone: targetPhone,
+          aadhar: targetAadhar,
+          custom_fields: JSON.stringify(currentCustom)
+        };
+
+        const cleanProfileUpdates = {};
+        Object.keys(userProfilePayload).forEach(k => {
+          if (userProfilePayload[k]) cleanProfileUpdates[k] = userProfilePayload[k];
+        });
+
         try {
-          await updateUserProfile(currentUser.id, {
-            custom_fields: JSON.stringify(currentCustom)
-          });
+          const updatedUser = await updateUserProfile(currentUser.id, cleanProfileUpdates).catch(() => null);
+          if (updatedUser) {
+            onUpdateProfile(updatedUser);
+          }
         } catch (err) {
-          console.error("Failed to sync custom fields to profile:", err);
+          console.error("Failed to sync profile to database:", err);
+        }
+      } else {
+        // Auto-create/sync user profile dataset if applying as guest
+        const guestProfilePayload = {
+          name: formData.name || formData.applicant_name || '',
+          name_tamil: formData.name_tamil || '',
+          father_name: formData.father_name || '',
+          mother_name: formData.mother_name || '',
+          dob: formData.dob || '',
+          gender: formData.gender || '',
+          marital_status: formData.marital_status || '',
+          community: formData.community || '',
+          address: formData.address || '',
+          district: formData.district || '',
+          taluk: formData.taluk || '',
+          pincode: formData.pincode || '',
+          email: formData.email || '',
+          phone: targetPhone,
+          aadhar: targetAadhar
+        };
+        const cleanGuestUpdates = {};
+        Object.keys(guestProfilePayload).forEach(k => {
+          if (guestProfilePayload[k]) cleanGuestUpdates[k] = guestProfilePayload[k];
+        });
+
+        if (cleanGuestUpdates.phone && cleanGuestUpdates.aadhar) {
+          try {
+            const newUser = await registerUser(cleanGuestUpdates).catch(() => null);
+            if (newUser) {
+              onUpdateProfile(newUser);
+            }
+          } catch (e) {
+            console.error("Failed to auto-register guest user profile on submission:", e);
+          }
         }
       }
 
-      if (currentUser) {
-        // Simply reload the profile locally
-        const latestProfile = await loginUser({ dob: currentUser.dob, phone: currentUser.phone }).catch(() => null);
-        if (latestProfile && latestProfile.id) {
-          onUpdateProfile(latestProfile);
-        }
-      }
 
-      // Automatically trigger WhatsApp redirect
-      try {
-        sendSubmissionToWhatsApp(submission, selectedForm, responsesPack, docReferencesPack);
-      } catch (err) {
-        console.error("WhatsApp redirect failed or was blocked:", err);
-      }
 
       setUploadProgress('');
       setWizardStep(5); // Final Step: Get Receipt
@@ -2054,18 +2021,31 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
     if (!file) return;
     setUploadingScreenshotId(subId);
     try {
-      await uploadPaymentScreenshot(subId, file);
+      const updatedSub = await uploadPaymentScreenshot(subId, file);
       alert('Payment proof uploaded successfully! Admin will verify your payment details.');
 
-      // Refresh list
-      const phoneVal = currentUser?.phone || lookupPhone;
+      // Update active submission result in state (for Step 5 Receipt view)
+      setSubmissionResult(prev => {
+        if (!prev) return prev;
+        const targetUrl = updatedSub?.payment_screenshot || updatedSub?.uploaded_pdf_url || 'uploaded';
+        return {
+          ...prev,
+          payment_screenshot: targetUrl,
+          progress_desc: updatedSub?.progress_desc || "Payment receipt uploaded. Admin is verifying your payment details."
+        };
+      });
+
+      // Refresh status applications list
+      const phoneVal = currentUser?.phone || formData.phone || lookupPhone;
       const dobVal = lookupDob || '';
-      const aadharVal = currentUser?.aadhar || lookupAadhar;
-      const data = await getUserStatus(phoneVal, dobVal, aadharVal);
-      setUserApplications(data);
+      const aadharVal = currentUser?.aadhar || formData.aadhar || lookupAadhar;
+      if (phoneVal || aadharVal) {
+        const data = await getUserStatus(phoneVal, dobVal, aadharVal);
+        setUserApplications(data);
+      }
     } catch (err) {
-      console.error(err);
-      alert('Failed to upload screenshot.');
+      console.error('Screenshot upload error:', err);
+      alert('Failed to upload payment proof: ' + (err.message || 'Error occurred'));
     } finally {
       setUploadingScreenshotId(null);
     }
@@ -2113,7 +2093,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
       <!DOCTYPE html>
       <html>
       <head>
-        <title>SUBI Online Service Receipt - ${receiptId}</title>
+        <title>Subi e sevai Receipt - ${receiptId}</title>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body { font-family: 'Segoe UI', sans-serif; background: #fff; color: #1e293b; padding: 30px; }
@@ -2139,10 +2119,10 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
       </head>
       <body>
         <div class="receipt">
-          <div class="watermark">SUBI ONLINE SERVICE</div>
+          <div class="watermark">SUBI E SEVAI</div>
           <div class="header">
             <h2>${certName}</h2>
-            <div class="sub">SUBI ONLINE SERVICE </div>
+            <div class="sub">SUBI E SEVAI </div>
             <div class="sub2"> Receipt</div>
           </div>
           <div class="row"><span class="label">Receipt ID:</span><span class="value green">${receiptId}</span></div>
@@ -2155,7 +2135,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
           <div class="divider"></div>
           <div class="row"><span class="label">Service Fee:</span><span class="value" style="font-size:1rem;font-weight:800;">Rs. ${fee}</span></div>
           <div class="row"><span class="label">Payment Status:</span><span class="badge ${status === 'PAID' ? 'badge-paid' : 'badge-unpaid'}">${status}</span></div>
-          <div class="footer">Thank you for using SUBI Online Service Portal.<br/>Save this receipt for your records.</div>
+          <div class="footer">Thank you for using Subi e sevai Portal.<br/>Save this receipt for your records.</div>
         </div>
         <script>window.onload = function() { window.print(); }</script>
       </body>
@@ -2394,6 +2374,56 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
         {activeTab === 'home' && (
           <div className="desktop-grid-2" style={{ padding: '0 8px' }}>
 
+            {/* PWA Direct Installer Banner Below Header */}
+            {!(typeof window !== 'undefined' && (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true)) && (
+              <div className="premium-card" style={{
+                gridColumn: 'span 2',
+                background: 'linear-gradient(135deg, #047857 0%, #10b981 100%)',
+                color: 'white',
+                borderRadius: '16px',
+                padding: '16px 20px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: '12px',
+                boxShadow: '0 8px 20px rgba(4, 120, 87, 0.25)',
+                margin: '0 0 16px 0'
+              }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
+                  <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: 'white', padding: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                    <img src="/whatsbro_logo.png" alt="SUBI Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+                  </div>
+                  <div>
+                    <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '800', color: 'white' }}>SUBI Direct App Installer</h4>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', opacity: 0.9 }}>Add to your home screen for 1-tap quick access</p>
+                  </div>
+                </div>
+                <button
+                  onClick={triggerPwaInstall}
+                  style={{
+                    background: 'white',
+                    color: '#047857',
+                    border: 'none',
+                    borderRadius: '12px',
+                    padding: '10px 18px',
+                    fontWeight: '900',
+                    fontSize: '0.85rem',
+                    cursor: 'pointer',
+                    whiteSpace: 'nowrap',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '6px',
+                    transition: 'transform 0.15s ease'
+                  }}
+                  onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.96)'}
+                  onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                >
+                  <Download size={16} style={{ strokeWidth: 3 }} /> Install App
+                </button>
+              </div>
+            )}
+
             {postsLoading ? (
               renderMintGreenLoader("LOADING...")
             ) : posts.length === 0 ? (
@@ -2474,193 +2504,8 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
           </div>
         )}
 
-        {/* --- TAB 1B: JOB ALERTS --- */}
-        {activeTab === 'jobs' && (
-          <div className="desktop-grid-2" style={{ padding: '0 8px' }}>
-            {selectedJobDetails ? (
-              (selectedJobDetails.coming_soon === true || String(selectedJobDetails.coming_soon).toLowerCase() === 'true') ? (
-                <div style={{ gridColumn: 'span 2', minHeight: 'calc(100vh - 270px)', display: 'flex', flexDirection: 'column' }}>
-                  <div className="premium-card text-center" style={{ flex: 1, padding: '32px 24px', borderTop: '6px solid #f59e0b', background: 'white', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', justifyContent: 'center' }}>
-                    <button
-                      onClick={() => setSelectedJobDetails(null)}
-                      className="premium-btn premium-btn-secondary"
-                      style={{ width: 'fit-content', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', alignSelf: 'flex-start' }}
-                    >
-                      <ArrowLeft size={16} /> Back to Jobs
-                    </button>
-                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '16px' }}>
-                      <Clock size={48} style={{ color: '#f59e0b', margin: '0 auto', animation: 'pulse-text 2s ease-in-out infinite' }} />
-                      <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-light-main)', margin: '0', lineHeight: '1.3' }}>
-                        {selectedJobDetails.title}
-                      </h2>
-                      <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: '#d97706', margin: '0' }}>updated .... coming soon...</h3>
-                      <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0, maxWidth: '360px', lineHeight: '1.5' }}>
-                        The details for this job alert are currently being updated. Please check back soon!
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <div style={{ gridColumn: 'span 2' }}>
-                  <div className="premium-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', borderTop: '6px solid var(--primary)', background: 'white', borderRadius: '16px' }}>
-
-                    {/* Nested Details Back Button */}
-                    <button
-                      onClick={() => setSelectedJobDetails(null)}
-                      className="premium-btn premium-btn-secondary"
-                      style={{ width: 'fit-content', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}
-                    >
-                      <ArrowLeft size={16} /> Back to Jobs
-                    </button>
-
-                    <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-light-main)', margin: '0', lineHeight: '1.3' }}>
-                      {selectedJobDetails.title}
-                    </h2>
-                    {(selectedJobDetails.start_date || selectedJobDetails.end_date) && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', fontSize: '0.8rem', color: '#475569', background: '#f8fafc', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', width: 'fit-content', marginTop: '4px', alignItems: 'center' }}>
-                        {selectedJobDetails.start_date && (
-                          <span><strong>Start Date:</strong> {formatDate(selectedJobDetails.start_date)}</span>
-                        )}
-                        {selectedJobDetails.start_date && selectedJobDetails.end_date && <span style={{ color: '#cbd5e1' }}>|</span>}
-                        {selectedJobDetails.end_date && (
-                          <span style={{ color: '#ef4444' }}><strong>Last Date:</strong> {formatDate(selectedJobDetails.end_date)}</span>
-                        )}
-                      </div>
-                    )}
-
-                    {selectedJobDetails.img_url && selectedJobDetails.img_url.trim() !== '' && (
-                      <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(0,0,0,0.06)', background: '#fafafa', width: '100%', aspectRatio: '1 / 1', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '8px 0' }}>
-                        <img
-                          src={getImageUrl(selectedJobDetails.img_url)}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          alt={selectedJobDetails.title}
-                        />
-                      </div>
-                    )}
-
-                    <p style={{ color: '#475569', fontSize: '1rem', lineHeight: '1.6', margin: 0, paddingBottom: '16px', borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
-                      {selectedJobDetails.description}
-                    </p>
-
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
-                      {parseDetailsDoc(selectedJobDetails.details_doc)}
-                    </div>
-
-                    {selectedJobDetails.apply_url && selectedJobDetails.apply_url.trim() !== '' && selectedJobDetails.apply_url.trim().toLowerCase() !== 'none' ? (
-                      <div style={{ marginTop: '24px', borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '24px', display: 'flex', gap: '10px' }}>
-                        <button
-                          onClick={() => {
-                            const url = selectedJobDetails.apply_url;
-                            setSelectedJobDetails(null);
-                            if (url.startsWith('/user')) {
-                              const urlParams = new URLSearchParams(url.split('?')[1]);
-                              setSearchParams(urlParams);
-                            } else {
-                              window.open(url, '_blank');
-                            }
-                          }}
-                          className="premium-btn premium-btn-primary"
-                          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '14px', fontSize: '1.1rem' }}
-                        >
-                          {selectedJobDetails.button_name || 'Apply Now'} <ChevronRight size={20} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleWhatsAppShare(selectedJobDetails.title, selectedJobDetails.description, `/job/${selectedJobDetails.id}`)}
-                          className="premium-btn premium-btn-primary"
-                          style={{ width: '52px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px' }}
-                          title="Share on WhatsApp"
-                        >
-                          <Share2 size={22} />
-                        </button>
-                      </div>
-                    ) : (
-                      <div style={{ marginTop: '24px', borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '24px' }}>
-                        <button
-                          type="button"
-                          onClick={() => handleWhatsAppShare(selectedJobDetails.title, selectedJobDetails.description, `/job/${selectedJobDetails.id}`)}
-                          className="premium-btn premium-btn-primary"
-                          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '14px', fontSize: '1.1rem', borderRadius: '8px', fontWeight: 'bold' }}
-                          title="Share on WhatsApp"
-                        >
-                          <Share2 size={20} /> Share on WhatsApp
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              )
-            ) : jobsLoading ? (
-              renderMintGreenLoader("LOADING...")
-            ) : jobs.length === 0 ? (
-              <div className="premium-card text-center" style={{ padding: '40px 20px', gridColumn: 'span 2' }}>
-                <p className="text-muted">No job alerts published yet.</p>
-              </div>
-            ) : (
-              sortItems(jobs).map((job) => {
-                const isJobComingSoon = job.coming_soon === true || String(job.coming_soon).toLowerCase() === 'true';
-                return (
-                  <div key={job.id} className="instagram-post-card" style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                    <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-light-main)', margin: 0, lineHeight: '1.3', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
-                      {job.title}
-                      {isJobComingSoon && (
-                        <span className="badge badge-warning" style={{ background: '#fffbeb', color: '#d97706', border: '1px solid #fde68a', fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', flexShrink: 0 }}>Upcoming</span>
-                      )}
-                    </h3>
-                    {(job.start_date || job.end_date) && (
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', fontSize: '0.75rem', color: '#475569', background: '#f8fafc', padding: '6px 10px', borderRadius: '8px', border: '1px solid #e2e8f0', width: 'fit-content', marginTop: '2px', alignItems: 'center' }}>
-                        {job.start_date && (
-                          <span><strong>Start:</strong> {formatDate(job.start_date)}</span>
-                        )}
-                        {job.start_date && job.end_date && <span style={{ color: '#cbd5e1' }}>|</span>}
-                        {job.end_date && (
-                          <span style={{ color: '#ef4444' }}><strong>Last Date:</strong> {formatDate(job.end_date)}</span>
-                        )}
-                      </div>
-                    )}
-
-                    {job.img_url && job.img_url.trim() !== '' && (
-                      <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(0,0,0,0.06)', background: '#fafafa', width: '100%', aspectRatio: '1 / 1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <img
-                          src={getImageUrl(job.img_url)}
-                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          alt={job.title}
-                        />
-                      </div>
-                    )}
-
-                    <p style={{ color: '#475569', fontSize: '0.9rem', lineHeight: '1.6', margin: 0 }}>
-                      {job.description}
-                    </p>
-
-                    {((job.apply_url && job.apply_url.trim() !== '' && job.apply_url.trim().toLowerCase() !== 'none') || (job.details_doc && job.details_doc.trim() !== '')) && (
-                      <div style={{ display: 'flex', gap: '8px', width: '100%', marginTop: '4px' }}>
-                        <button
-                          onClick={() => setSelectedJobDetails(job)}
-                          className="premium-btn premium-btn-primary"
-                          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '11px', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
-                        >
-                          {isJobComingSoon ? 'View Details' : 'View Details & Apply'} <ChevronRight size={18} />
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => handleWhatsAppShare(job.title, job.description, `/job/${job.id}`)}
-                          className="premium-btn premium-btn-primary"
-                          style={{ width: '42px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                          title="Share on WhatsApp"
-                        >
-                          <Share2 size={18} />
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
-        )}
-
         {/* --- TAB 2: CERTIFICATE APPLICATIONS WIZARD --- */}
+
         {activeTab === 'apply' && (
           <div>
             {!selectedForm ? (
@@ -2710,7 +2555,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
                               <span style={{ fontSize: '0.7rem', color: 'var(--text-light-muted)' }}>Apply</span>
                             )}
                           </div>
-                          <h3 style={{ fontSize: '1.15rem', marginBottom: '6px' }}>{form.title}</h3>
+                          <h3 className="form-title-display" style={{ fontSize: '1.15rem', marginBottom: '6px', whiteSpace: 'pre-line', lineHeight: '1.3' }}>{form.title}</h3>
 
                           {form.img_url && (
                             <div style={{ width: '100%', aspectRatio: '1 / 1', borderRadius: '8px', overflow: 'hidden', marginBottom: '12px', border: '1px solid #e2e8f0' }}>
@@ -2759,7 +2604,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
                     <ArrowLeft size={18} />
                   </button>
                   <div>
-                    <h3 style={{ fontSize: '1rem', fontWeight: 800 }}>{selectedForm.title}</h3>
+                    <h3 className="wizard-header-title" style={{ fontSize: '1rem', fontWeight: 800, whiteSpace: 'pre-line', lineHeight: '1.3' }}>{selectedForm.title}</h3>
                   </div>
                 </div>
 
@@ -2781,7 +2626,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
                     <ArrowLeft size={18} />
                   </button>
                   <div>
-                    <h3 style={{ fontSize: '1rem' }}>{selectedForm.title}</h3>
+                    <h3 className="wizard-header-title" style={{ fontSize: '1rem', whiteSpace: 'pre-line', lineHeight: '1.3' }}>{selectedForm.title}</h3>
                     <p style={{ fontSize: '0.75rem', color: 'var(--text-light-muted)' }}>Apply Wizard - Step {wizardStep} of 5</p>
                   </div>
                 </div>
@@ -2841,165 +2686,6 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
                           Unavailable <ChevronRight size={18} />
                         </button>
                       </>
-                    ) : showGuestVerification ? (
-                      <div className="premium-card" style={{ borderTop: '6px solid var(--primary)', margin: '0 0 20px 0' }}>
-                        <h4 style={{ fontSize: '1.1rem', marginBottom: '12px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          🔑 Identity Verification
-                        </h4>
-
-                        {guestVerifyError && (
-                          <div style={{ color: 'var(--error)', fontSize: '0.8rem', fontWeight: 'bold', background: '#fee2e2', padding: '10px', borderRadius: '8px', marginBottom: '14px', border: '1px solid #fca5a5' }}>
-                            ⚠️ {guestVerifyError}
-                          </div>
-                        )}
-
-                        {lookupAadharStatus === null && (
-                          <form onSubmit={handleVerifyGuestAadhar}>
-                            <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '14px' }}>
-                              Enter your 12-digit Aadhaar number to verify if you have an existing account profile.
-                            </p>
-                            <div className="premium-input-group">
-                              <label className="premium-label">Aadhaar Card Number</label>
-                              <input
-                                type="text"
-                                maxLength={12}
-                                value={guestAadhar}
-                                onChange={(e) => setGuestAadhar(e.target.value.replace(/\D/g, ''))}
-                                placeholder="e.g. 512345678901"
-                                className="premium-input"
-                                style={{ padding: '10px', fontSize: '0.9rem' }}
-                                required
-                              />
-                            </div>
-                            <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-                              <button
-                                type="button"
-                                onClick={() => setShowGuestVerification(false)}
-                                className="premium-btn premium-btn-secondary"
-                                style={{ flex: 1 }}
-                              >
-                                Back
-                              </button>
-                              <button
-                                type="submit"
-                                className="premium-btn premium-btn-primary"
-                                style={{ flex: 1.5 }}
-                                disabled={verifyingAadhar}
-                              >
-                                {verifyingAadhar ? 'Verifying...' : 'Verify Aadhaar'}
-                              </button>
-                            </div>
-                          </form>
-                        )}
-
-                        {lookupAadharStatus === 'existing_user' && (
-                          <div>
-                            <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '14px' }}>
-                              A citizen profile already exists with this Aadhaar number for <strong>{matchedUserPrefills?.name || 'Citizen User'}</strong>.
-                              <br /><br />
-                              Please log in using your Phone number and first 4 digits of Aadhaar to view your pre-filled data.
-                            </p>
-                            <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-                              <button
-                                type="button"
-                                onClick={() => setLookupAadharStatus(null)}
-                                className="premium-btn premium-btn-secondary"
-                                style={{ flex: 1 }}
-                              >
-                                Back
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => {
-                                  setShowGuestVerification(false);
-                                  onLoginTrigger(matchedUserPrefills?.phone, matchedUserPrefills?.aadhar_prefix);
-                                }}
-                                className="premium-btn premium-btn-primary"
-                                style={{ flex: 1.5 }}
-                              >
-                                Login to Proceed
-                              </button>
-                            </div>
-                          </div>
-                        )}
-
-                        {lookupAadharStatus === 'new_user' && (
-                          <div>
-                            <p style={{ fontSize: '0.85rem', color: '#475569', marginBottom: '14px' }}>
-                              No registered profile found. Enter your Email ID to receive a verification OTP. Once verified, you can fill and submit the form, and your account will be registered automatically.
-                            </p>
-
-                            <div className="premium-input-group" style={{ marginBottom: '14px' }}>
-                              <label className="premium-label">Email ID</label>
-                              <input
-                                type="email"
-                                value={guestEmail}
-                                onChange={(e) => setGuestEmail(e.target.value)}
-                                placeholder="name@example.com"
-                                className="premium-input"
-                                disabled={showOtpInput}
-                                required
-                              />
-                            </div>
-
-                            {!showOtpInput ? (
-                              <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-                                <button
-                                  type="button"
-                                  onClick={() => setLookupAadharStatus(null)}
-                                  className="premium-btn premium-btn-secondary"
-                                  style={{ flex: 1 }}
-                                >
-                                  Back
-                                </button>
-                                <button
-                                  type="button"
-                                  onClick={handleSendGuestOtp}
-                                  className="premium-btn premium-btn-primary"
-                                  style={{ flex: 1.5 }}
-                                  disabled={sendingOtp}
-                                >
-                                  {sendingOtp ? 'Sending OTP...' : 'Send OTP'}
-                                </button>
-                              </div>
-                            ) : (
-                              <form onSubmit={handleVerifyGuestOtp}>
-                                <div className="premium-input-group">
-                                  <label className="premium-label">Enter 6-digit OTP Code</label>
-                                  <input
-                                    type="text"
-                                    maxLength={6}
-                                    value={guestOtp}
-                                    onChange={(e) => setGuestOtp(e.target.value.replace(/\D/g, ''))}
-                                    placeholder="e.g. 123456"
-                                    className="premium-input"
-                                    style={{ textAlign: 'center', fontSize: '1.2rem', letterSpacing: '4px', padding: '10px' }}
-                                    required
-                                  />
-                                </div>
-                                <div style={{ display: 'flex', gap: '8px', marginTop: '16px' }}>
-                                  <button
-                                    type="button"
-                                    onClick={() => setShowOtpInput(false)}
-                                    className="premium-btn premium-btn-secondary"
-                                    style={{ flex: 1 }}
-                                  >
-                                    Change Email
-                                  </button>
-                                  <button
-                                    type="submit"
-                                    className="premium-btn premium-btn-primary"
-                                    style={{ flex: 1.5 }}
-                                    disabled={verifyingOtp}
-                                  >
-                                    {verifyingOtp ? 'Verifying...' : 'Verify & Proceed'}
-                                  </button>
-                                </div>
-                              </form>
-                            )}
-                          </div>
-                        )}
-                      </div>
                     ) : (
                       <>
                         <div className="premium-card" style={{ borderTop: '6px solid var(--primary)', margin: '0 0 20px 0' }}>
@@ -3185,15 +2871,15 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
                                     className="premium-input"
                                     placeholder={`Enter ${fieldConfig.label.toLowerCase()}`}
                                     required={isRequired}
-                                    readOnly={fieldId === 'aadhar' && currentUser && !!currentUser.aadhar}
-                                    style={fieldId === 'aadhar' && currentUser && currentUser.aadhar ? {
+                                    readOnly={(fieldId === 'aadhar' || fieldId === 'phone') && currentUser && !!currentUser[fieldId]}
+                                    style={(fieldId === 'aadhar' || fieldId === 'phone') && currentUser && currentUser[fieldId] ? {
                                       backgroundColor: '#f1f5f9',
                                       color: '#64748b',
                                       cursor: 'not-allowed',
                                       borderColor: '#e2e8f0'
                                     } : {}}
                                   />
-                                  {fieldId === 'aadhar' && currentUser && currentUser.aadhar && (
+                                  {(fieldId === 'aadhar' || fieldId === 'phone') && currentUser && currentUser[fieldId] && (
                                     <span style={{
                                       position: 'absolute',
                                       right: '10px',
@@ -3206,7 +2892,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
                                       alignItems: 'center',
                                       gap: '3px'
                                     }}>
-                                      🔒 Permanent
+                                      🔒 Non-editable
                                     </span>
                                   )}
                                 </div>
@@ -3550,8 +3236,15 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
                 {wizardStep === 4 && (
                   <div style={{ padding: '0 16px' }}>
                     <div className="premium-card" style={{ borderTop: '6px solid var(--primary)', margin: '0 0 20px 0' }}>
-                      <h4 style={{ fontSize: '0.95rem', marginBottom: '4px', color: '#1e293b' }}>Upload Required Documents</h4>
-                      <p style={{ fontSize: '0.75rem', color: '#64748b', marginBottom: '16px' }}>Attach certificate uploads. Photo must be &lt; 7MB, other files &lt; 5MB.</p>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                        <div>
+                          <h4 style={{ fontSize: '0.95rem', margin: 0, color: '#1e293b' }}>Upload Documents (Optional)</h4>
+                          <p style={{ fontSize: '0.75rem', color: '#64748b', margin: '4px 0 0 0' }}>Attach certificate uploads if available, or skip this step. Photo &lt; 7MB, other files &lt; 5MB.</p>
+                        </div>
+                        <span style={{ fontSize: '0.75rem', padding: '4px 10px', borderRadius: '12px', background: '#e0f2fe', color: '#0369a1', fontWeight: '700', flexShrink: 0 }}>
+                          Optional
+                        </span>
+                      </div>
 
                       {/* Loading status bar */}
                       {uploadProgress && (
@@ -3571,13 +3264,30 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
                       })}
                     </div>
 
-                    <div style={{ display: 'flex', gap: '10px', marginBottom: '30px' }}>
-                      <button onClick={() => setWizardStep(3)} className="premium-btn premium-btn-secondary" style={{ flex: 1 }}>Previous</button>
+                    <div style={{ display: 'flex', gap: '10px', marginBottom: '30px', flexWrap: 'wrap' }}>
+                      <button onClick={() => setWizardStep(3)} className="premium-btn premium-btn-secondary" style={{ flex: 1, minWidth: '90px' }}>Previous</button>
                       <button
-                        onClick={handleFinalWizardSubmit}
+                        onClick={() => handleFinalWizardSubmit(true)}
+                        disabled={loading}
+                        className="premium-btn"
+                        style={{
+                          flex: 1.2,
+                          minWidth: '130px',
+                          background: '#64748b',
+                          color: '#ffffff',
+                          border: 'none',
+                          fontWeight: '700',
+                          borderRadius: '12px',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        Skip Documents
+                      </button>
+                      <button
+                        onClick={() => handleFinalWizardSubmit(false)}
                         disabled={loading}
                         className="premium-btn premium-btn-primary"
-                        style={{ flex: 2 }}
+                        style={{ flex: 2, minWidth: '160px' }}
                       >
                         {loading ? 'Submitting Application...' : 'Submit Application'}
                       </button>
@@ -3591,15 +3301,34 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
                     <div className="premium-card text-center" style={{ margin: '0 0 16px 0', borderBottom: '4px solid var(--success)' }}>
                       <CheckCircle size={44} style={{ color: 'var(--success)', margin: '0 auto 10px auto' }} />
                       <h3 style={{ fontSize: '1.2rem', marginBottom: '4px', color: '#1e293b' }}>Application Submitted!</h3>
-                      <p className="text-muted" style={{ fontSize: '0.8rem', margin: 0 }}>Your application has been stored securely in SUBI Online Service database.</p>
+                      <p className="text-muted" style={{ fontSize: '0.8rem', margin: 0 }}>Your application has been stored securely in Subi e sevai database.</p>
+
+                      {(currentUser?.email || formData.email || submissionResult.email) && (
+                        <div style={{
+                          marginTop: '12px',
+                          padding: '10px 14px',
+                          background: '#f0fdf4',
+                          border: '1px solid #bbf7d0',
+                          borderRadius: '8px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          fontSize: '0.78rem',
+                          color: '#166534',
+                          fontWeight: '600'
+                        }}>
+                          <span>📧</span> E-Receipt sent to: <strong>{currentUser?.email || formData.email || submissionResult.email}</strong>
+                        </div>
+                      )}
                     </div>
 
                     <div className="receipt-wrapper" id="receipt-downloadable-card" style={{ display: 'none' }}>
-                      <div className="receipt-watermark" style={{ opacity: 0.05, fontSize: '2.5rem', color: '#10b981' }}>SUBI ONLINE SERVICE</div>
+                      <div className="receipt-watermark" style={{ opacity: 0.05, fontSize: '2.5rem', color: '#10b981' }}>SUBI E SEVAI</div>
                       <div className="receipt-header" style={{ textAlign: 'center', borderBottom: '1px dashed #cbd5e1', paddingBottom: '12px', marginBottom: '16px' }}>
-                        <h4 style={{ fontSize: '1.25rem', color: '#047857', margin: '0 0 6px 0', fontWeight: '900', textTransform: 'uppercase' }}>{selectedForm.title}</h4>
-                        <span style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: '700', display: 'block', marginBottom: '4px' }}>SUBI ONLINE SERVICE</span>
-                        <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: '600' }}>Official SUBI Online Service E-Receipt</span>
+                        <h4 className="form-title-display" style={{ fontSize: '1.25rem', color: '#047857', margin: '0 0 6px 0', fontWeight: '900', textTransform: 'uppercase', whiteSpace: 'pre-line', lineHeight: '1.3' }}>{selectedForm.title}</h4>
+                        <span style={{ fontSize: '0.8rem', color: '#10b981', fontWeight: '700', display: 'block', marginBottom: '4px' }}>SUBI E SEVAI</span>
+                        <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: '600' }}>Official Subi e sevai E-Receipt</span>
                       </div>
 
                       <div className="receipt-item" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '8px' }}>
@@ -3608,7 +3337,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
                       </div>
                       <div className="receipt-item" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '8px' }}>
                         <span className="receipt-item-label" style={{ color: '#64748b' }}>Service Applied:</span>
-                        <span className="receipt-item-val" style={{ fontWeight: '700' }}>{selectedForm.title}</span>
+                        <span className="receipt-item-val form-title-display" style={{ fontWeight: '700', whiteSpace: 'pre-line', lineHeight: '1.3' }}>{selectedForm.title}</span>
                       </div>
                       <div className="receipt-item" style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.85rem', marginBottom: '8px' }}>
                         <span className="receipt-item-label" style={{ color: '#64748b' }}>Aadhaar Number:</span>
@@ -3751,9 +3480,63 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
                               </div>
                             </div>
 
-                            <label className="premium-btn premium-btn-success" style={{ padding: '8px 12px', fontSize: '0.75rem', display: 'flex', gap: '8px', cursor: 'pointer', justifyContent: 'center' }}>
+                            {submissionResult.payment_screenshot && (
+                              <div style={{
+                                padding: '14px',
+                                background: '#f0fdf4',
+                                border: '1.5px solid #bbf7d0',
+                                borderRadius: '10px',
+                                marginBottom: '14px',
+                                textAlign: 'center'
+                              }}>
+                                <span style={{ fontSize: '0.82rem', color: '#166534', fontWeight: '800', display: 'block', marginBottom: '6px' }}>
+                                  ✅ Uploaded Payment Proof
+                                </span>
+
+                                {/* Image or PDF Document Preview */}
+                                {checkIfPdf(submissionResult.payment_screenshot) ? (
+                                  <div style={{ margin: '8px 0', padding: '10px', background: '#ffffff', borderRadius: '8px', border: '1px solid #cbd5e1' }}>
+                                    <FileText size={32} style={{ color: '#ef4444', margin: '0 auto 4px auto', display: 'block' }} />
+                                    <span style={{ fontSize: '0.75rem', fontWeight: '600', color: '#334155' }}>Payment Proof Document (PDF)</span>
+                                  </div>
+                                ) : (
+                                  <div style={{ margin: '8px 0', textAlign: 'center' }}>
+                                    <img
+                                      src={getImageUrl(submissionResult.payment_screenshot)}
+                                      alt="Uploaded Payment Proof"
+                                      style={{
+                                        maxWidth: '100%',
+                                        maxHeight: '180px',
+                                        objectFit: 'contain',
+                                        borderRadius: '8px',
+                                        border: '1px solid #cbd5e1',
+                                        boxShadow: '0 2px 8px rgba(0,0,0,0.08)'
+                                      }}
+                                    />
+                                  </div>
+                                )}
+
+                                <div style={{ display: 'flex', gap: '8px', justifyContent: 'center', marginTop: '8px' }}>
+                                  <a
+                                    href={getImageUrl(submissionResult.payment_screenshot)}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="premium-btn"
+                                    style={{ padding: '6px 12px', fontSize: '0.72rem', background: '#ffffff', border: '1px solid #166534', color: '#166534', textDecoration: 'none', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '4px' }}
+                                  >
+                                    <Eye size={14} /> View Full Image
+                                  </a>
+                                </div>
+                              </div>
+                            )}
+
+                            <label className="premium-btn premium-btn-success" style={{ padding: '10px 14px', fontSize: '0.78rem', display: 'flex', gap: '8px', cursor: 'pointer', justifyContent: 'center', width: '100%' }}>
                               <UploadCloud size={16} />
-                              {uploadingScreenshotId === submissionResult.id ? 'Uploading proof...' : 'Select Payment Proof (Image or PDF File)'}
+                              {uploadingScreenshotId === submissionResult.id
+                                ? 'Uploading new proof...'
+                                : submissionResult.payment_screenshot
+                                  ? '🔄 Replace / Change Payment Proof'
+                                  : 'Select Payment Proof (Image or PDF File)'}
                               <input
                                 type="file"
                                 accept="image/*,application/pdf"
@@ -3767,7 +3550,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
                       })()}
 
                       <div style={{ textAlign: 'center', marginTop: '16px', fontSize: '0.7rem', color: '#94a3b8' }}>
-                        Thank you for using SUBI Online Service! Save this receipt for your records.
+                        Thank you for using Subi e sevai! Save this receipt for your records.
                       </div>
                     </div>
 
@@ -3775,22 +3558,428 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
                       <button
                         onClick={printReceipt}
                         className="premium-btn premium-btn-success"
-                        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                        style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
                       >
                         <Printer size={18} /> Download PDF Receipt
-                      </button>
-                      <button
-                        onClick={() => sendSubmissionToWhatsApp(submissionResult, selectedForm, lastResponsesPack, lastDocReferencesPack)}
-                        className="premium-btn premium-btn-success"
-                        style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', background: '#25D366', color: 'white', border: 'none', boxShadow: '0 4px 12px rgba(37, 211, 102, 0.2)' }}
-                      >
-                        <span style={{ fontSize: '1.1rem' }}>💬</span> Send to WhatsApp
                       </button>
                     </div>
                   </div>
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {/* --- TAB 1B: JOB ALERTS --- */}
+        {activeTab === 'jobs' && (
+          <div className="desktop-grid-2" style={{ padding: '0 8px' }}>
+            {selectedJobDetails ? (
+              (selectedJobDetails.coming_soon === true || String(selectedJobDetails.coming_soon).toLowerCase() === 'true') ? (
+                <div style={{ gridColumn: 'span 2', minHeight: 'calc(100vh - 270px)', display: 'flex', flexDirection: 'column' }}>
+                  <div className="premium-card text-center" style={{ flex: 1, padding: '32px 24px', borderTop: '6px solid #f59e0b', background: 'white', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', justifyContent: 'center' }}>
+                    <button
+                      onClick={() => setSelectedJobDetails(null)}
+                      className="premium-btn premium-btn-secondary"
+                      style={{ width: 'fit-content', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', alignSelf: 'flex-start' }}
+                    >
+                      <ArrowLeft size={16} /> Back to Jobs
+                    </button>
+                    <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', alignItems: 'center', gap: '16px' }}>
+                      <Clock size={48} style={{ color: '#f59e0b', margin: '0 auto', animation: 'pulse-text 2s ease-in-out infinite' }} />
+                      <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-light-main)', margin: '0', lineHeight: '1.3' }}>
+                        {selectedJobDetails.title}
+                      </h2>
+                      <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: '#d97706', margin: '0' }}>updated .... coming soon...</h3>
+                      <p style={{ fontSize: '0.85rem', color: '#64748b', margin: 0, maxWidth: '360px', lineHeight: '1.5' }}>
+                        The details for this job alert are currently being updated. Please check back soon!
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div style={{ gridColumn: 'span 2' }}>
+                  <div className="premium-card" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px', borderTop: '6px solid var(--primary)', background: 'white', borderRadius: '16px' }}>
+
+                    {/* Nested Details Back Button */}
+                    <button
+                      onClick={() => setSelectedJobDetails(null)}
+                      className="premium-btn premium-btn-secondary"
+                      style={{ width: 'fit-content', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}
+                    >
+                      <ArrowLeft size={16} /> Back to Jobs
+                    </button>
+
+                    <h2 style={{ fontSize: '1.4rem', fontWeight: 800, color: 'var(--text-light-main)', margin: '0', lineHeight: '1.3' }}>
+                      {selectedJobDetails.title}
+                    </h2>
+                    {(selectedJobDetails.start_date || selectedJobDetails.end_date) && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', fontSize: '0.8rem', color: '#475569', background: '#f8fafc', padding: '8px 12px', borderRadius: '8px', border: '1px solid #cbd5e1', width: 'fit-content', marginTop: '4px', alignItems: 'center' }}>
+                        {selectedJobDetails.start_date && (
+                          <span><strong>Start Date:</strong> {formatDate(selectedJobDetails.start_date)}</span>
+                        )}
+                        {selectedJobDetails.start_date && selectedJobDetails.end_date && <span style={{ color: '#cbd5e1' }}>|</span>}
+                        {selectedJobDetails.end_date && (
+                          <span style={{ color: '#ef4444' }}><strong>Last Date:</strong> {formatDate(selectedJobDetails.end_date)}</span>
+                        )}
+                      </div>
+                    )}
+
+                    {selectedJobDetails.img_url && selectedJobDetails.img_url.trim() !== '' && (
+                      <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(0,0,0,0.06)', background: '#fafafa', width: '100%', aspectRatio: '1 / 1', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '8px 0' }}>
+                        <img
+                          src={getImageUrl(selectedJobDetails.img_url)}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          alt={selectedJobDetails.title}
+                        />
+                      </div>
+                    )}
+
+                    <p style={{ color: '#475569', fontSize: '1rem', lineHeight: '1.6', margin: 0, paddingBottom: '16px', borderBottom: '1px solid rgba(0,0,0,0.06)' }}>
+                      {selectedJobDetails.description}
+                    </p>
+
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
+                      {parseDetailsDoc(selectedJobDetails.details_doc)}
+                    </div>
+
+                    {selectedJobDetails.apply_url && selectedJobDetails.apply_url.trim() !== '' && selectedJobDetails.apply_url.trim().toLowerCase() !== 'none' ? (
+                      <div style={{ marginTop: '24px', borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '24px', display: 'flex', gap: '10px' }}>
+                        <button
+                          onClick={() => {
+                            const url = selectedJobDetails.apply_url;
+                            setSelectedJobDetails(null);
+                            if (url.startsWith('/user')) {
+                              const urlParams = new URLSearchParams(url.split('?')[1]);
+                              setSearchParams(urlParams);
+                            } else {
+                              window.open(url, '_blank');
+                            }
+                          }}
+                          className="premium-btn premium-btn-primary"
+                          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '14px', fontSize: '1.1rem' }}
+                        >
+                          {selectedJobDetails.button_name || 'Apply Now'} <ChevronRight size={20} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleWhatsAppShare(selectedJobDetails.title, selectedJobDetails.description, `/job/${selectedJobDetails.id}`)}
+                          className="premium-btn premium-btn-primary"
+                          style={{ width: '52px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: '8px' }}
+                          title="Share on WhatsApp"
+                        >
+                          <Share2 size={22} />
+                        </button>
+                      </div>
+                    ) : (
+                      <div style={{ marginTop: '24px', borderTop: '1px solid rgba(0,0,0,0.06)', paddingTop: '24px' }}>
+                        <button
+                          type="button"
+                          onClick={() => handleWhatsAppShare(selectedJobDetails.title, selectedJobDetails.description, `/job/${selectedJobDetails.id}`)}
+                          className="premium-btn premium-btn-primary"
+                          style={{ width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '14px', fontSize: '1.1rem', borderRadius: '8px', fontWeight: 'bold' }}
+                          title="Share on WhatsApp"
+                        >
+                          <Share2 size={20} /> Share on WhatsApp
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )
+            ) : jobsLoading ? (
+              renderMintGreenLoader("LOADING...")
+            ) : jobs.length === 0 ? (
+              <div className="premium-card text-center" style={{ padding: '40px 20px', gridColumn: 'span 2' }}>
+                <p className="text-muted">No job alerts published yet.</p>
+              </div>
+            ) : (
+              sortItems(jobs).map((job) => {
+                const isJobComingSoon = job.coming_soon === true || String(job.coming_soon).toLowerCase() === 'true';
+                return (
+                  <div key={job.id} className="instagram-post-card" style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-light-main)', margin: 0, lineHeight: '1.3', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
+                      {job.title}
+                      {isJobComingSoon && (
+                        <span className="badge badge-warning" style={{ background: '#fffbeb', color: '#d97706', border: '1px solid #fde68a', fontSize: '0.65rem', padding: '2px 6px', borderRadius: '4px', flexShrink: 0 }}>Upcoming</span>
+                      )}
+                    </h3>
+                    {(job.start_date || job.end_date) && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', fontSize: '0.75rem', color: '#475569', background: '#f8fafc', padding: '6px 10px', borderRadius: '8px', border: '1px solid #e2e8f0', width: 'fit-content', marginTop: '2px', alignItems: 'center' }}>
+                        {job.start_date && (
+                          <span><strong>Start:</strong> {formatDate(job.start_date)}</span>
+                        )}
+                        {job.start_date && job.end_date && <span style={{ color: '#cbd5e1' }}>|</span>}
+                        {job.end_date && (
+                          <span style={{ color: '#ef4444' }}><strong>Last Date:</strong> {formatDate(job.end_date)}</span>
+                        )}
+                      </div>
+                    )}
+
+                    {job.img_url && job.img_url.trim() !== '' && (
+                      <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(0,0,0,0.06)', background: '#fafafa', width: '100%', aspectRatio: '1 / 1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                        <img
+                          src={getImageUrl(job.img_url)}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                          alt={job.title}
+                        />
+                      </div>
+                    )}
+
+                    <p style={{ color: '#475569', fontSize: '0.9rem', lineHeight: '1.6', margin: 0 }}>
+                      {job.description}
+                    </p>
+
+                    {((job.apply_url && job.apply_url.trim() !== '' && job.apply_url.trim().toLowerCase() !== 'none') || (job.details_doc && job.details_doc.trim() !== '')) && (
+                      <div style={{ display: 'flex', gap: '8px', width: '100%', marginTop: '4px' }}>
+                        <button
+                          onClick={() => setSelectedJobDetails(job)}
+                          className="premium-btn premium-btn-primary"
+                          style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '11px', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: 'bold' }}
+                        >
+                          {isJobComingSoon ? 'View Details' : 'View Details & Apply'} <ChevronRight size={18} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleWhatsAppShare(job.title, job.description, `/job/${job.id}`)}
+                          className="premium-btn premium-btn-primary"
+                          style={{ width: '42px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                          title="Share on WhatsApp"
+                        >
+                          <Share2 size={18} />
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+            )}
+          </div>
+        )}
+
+        {/* --- TAB 3: APPLICATION STATUS CHECK --- */}
+        {activeTab === 'status' && (
+          <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            
+            {/* Status Search Card */}
+            <div className="premium-card" style={{ borderTop: '6px solid var(--primary)', background: 'white', borderRadius: '16px', padding: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
+                <CheckCircle size={24} style={{ color: 'var(--primary)' }} />
+                <div>
+                  <h3 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, color: 'var(--text-light-main)' }}>Track Application Status</h3>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-light-muted)' }}>Search and view real-time status of your applied services</span>
+                </div>
+              </div>
+
+              <form onSubmit={handleStatusLookup} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                {/* Search Type Selector */}
+                <div style={{ display: 'flex', gap: '10px', background: '#f1f5f9', padding: '4px', borderRadius: '10px' }}>
+                  <button
+                    type="button"
+                    onClick={() => { setLookupType('phone'); setLookupAadhar(''); }}
+                    style={{
+                      flex: 1,
+                      padding: '8px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      fontSize: '0.8rem',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      background: lookupType === 'phone' ? 'white' : 'transparent',
+                      color: lookupType === 'phone' ? 'var(--primary)' : '#64748b',
+                      boxShadow: lookupType === 'phone' ? 'var(--shadow-sm)' : 'none'
+                    }}
+                  >
+                    Search by Phone
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => { setLookupType('aadhar'); setLookupPhone(''); }}
+                    style={{
+                      flex: 1,
+                      padding: '8px',
+                      borderRadius: '8px',
+                      border: 'none',
+                      fontSize: '0.8rem',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      background: lookupType === 'aadhar' ? 'white' : 'transparent',
+                      color: lookupType === 'aadhar' ? 'var(--primary)' : '#64748b',
+                      boxShadow: lookupType === 'aadhar' ? 'var(--shadow-sm)' : 'none'
+                    }}
+                  >
+                    Search by Aadhaar
+                  </button>
+                </div>
+
+                {/* Input Field */}
+                {lookupType === 'phone' ? (
+                  <div>
+                    <label className="premium-label" style={{ fontSize: '0.8rem' }}>10-Digit Phone Number *</label>
+                    <input
+                      type="tel"
+                      value={lookupPhone}
+                      onChange={(e) => setLookupPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                      placeholder="e.g. 9876543210"
+                      className="premium-input"
+                      required
+                    />
+                  </div>
+                ) : (
+                  <div>
+                    <label className="premium-label" style={{ fontSize: '0.8rem' }}>12-Digit Aadhaar Number *</label>
+                    <input
+                      type="text"
+                      value={lookupAadhar}
+                      onChange={(e) => setLookupAadhar(e.target.value.replace(/\D/g, '').slice(0, 12))}
+                      placeholder="e.g. 123456789012"
+                      className="premium-input"
+                      required
+                    />
+                  </div>
+                )}
+
+                <button
+                  type="submit"
+                  disabled={searchingStatus}
+                  className="premium-btn premium-btn-primary"
+                  style={{ padding: '12px', fontSize: '0.95rem', fontWeight: '800', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px' }}
+                >
+                  {searchingStatus ? 'Searching...' : 'Check Status'}
+                </button>
+              </form>
+            </div>
+
+            {/* Results Display */}
+            {searchingStatus ? (
+              renderMintGreenLoader("Searching Applications...")
+            ) : hasSearchedStatus && userApplications.length === 0 ? (
+              <div className="premium-card text-center" style={{ padding: '32px 20px', background: 'white', borderRadius: '16px' }}>
+                <AlertCircle size={40} style={{ color: '#94a3b8', margin: '0 auto 12px auto' }} />
+                <h4 style={{ margin: 0, fontSize: '1rem', color: '#334155' }}>No Applications Found</h4>
+                <p style={{ margin: '6px 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>
+                  No application records matched your search criteria. Double check the entered Phone or Aadhaar number.
+                </p>
+              </div>
+            ) : userApplications.length > 0 && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                <h4 style={{ fontSize: '0.95rem', fontWeight: '800', color: '#334155', margin: '0 0 4px 4px' }}>
+                  Application Records ({userApplications.length})
+                </h4>
+
+                {userApplications.map((app) => {
+                  const targetForm = forms.find(f => f.id === app.form_id);
+                  const title = targetForm?.title || app.form_title || `Application #${app.id}`;
+                  const isDraft = app.payment_status === 'draft';
+                  const isPaid = app.payment_status === 'paid';
+                  const percent = Number(app.progress_percent) || 0;
+
+                  return (
+                    <div key={app.id} className="premium-card" style={{ padding: '20px', background: 'white', borderRadius: '16px', borderLeft: `6px solid ${isPaid ? '#10b981' : isDraft ? '#f59e0b' : '#3b82f6'}` }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                        <div>
+                          <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 'bold' }}>ID: {app.id}</span>
+                          <h4 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#1e293b', margin: '2px 0 0 0' }}>{title}</h4>
+                        </div>
+                        <span className={`badge ${isPaid ? 'badge-success' : isDraft ? 'badge-warning' : 'badge-info'}`} style={{ padding: '4px 10px', fontSize: '0.75rem', fontWeight: '800' }}>
+                          {(app.payment_status || 'Submitted').toUpperCase()}
+                        </span>
+                      </div>
+
+                      {app.submitted_at && (
+                        <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', marginBottom: '12px' }}>
+                          Submitted on: {formatDate(app.submitted_at)}
+                        </span>
+                      )}
+
+                      {/* Progress Bar */}
+                      <div style={{ margin: '12px 0' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', fontWeight: 'bold', marginBottom: '4px' }}>
+                          <span style={{ color: '#475569' }}>Progress</span>
+                          <span style={{ color: 'var(--primary)' }}>{percent}%</span>
+                        </div>
+                        <div style={{ height: '8px', background: '#e2e8f0', borderRadius: '4px', overflow: 'hidden' }}>
+                          <div style={{ width: `${percent}%`, height: '100%', background: 'linear-gradient(90deg, #047857, #10b981)', transition: 'width 0.4s ease' }} />
+                        </div>
+                        {app.progress_desc && (
+                          <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block', marginTop: '6px', fontStyle: 'italic' }}>
+                            Status Note: {app.progress_desc}
+                          </span>
+                        )}
+
+                        {/* Uploaded Payment Proof Preview Card */}
+                        {app.payment_screenshot && (
+                          <div style={{ marginTop: '10px', padding: '10px 12px', background: '#f0fdf4', borderRadius: '8px', border: '1px solid #bbf7d0' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '6px' }}>
+                              <span style={{ fontSize: '0.75rem', color: '#166534', fontWeight: 'bold' }}>✅ Payment Proof Uploaded</span>
+                              <a
+                                href={getImageUrl(app.payment_screenshot)}
+                                target="_blank"
+                                rel="noreferrer"
+                                style={{ fontSize: '0.72rem', color: '#047857', fontWeight: 'bold', textDecoration: 'underline', display: 'flex', alignItems: 'center', gap: '3px' }}
+                              >
+                                <Eye size={12} /> View Proof
+                              </a>
+                            </div>
+
+                            {!checkIfPdf(app.payment_screenshot) && (
+                              <div style={{ textAlign: 'center', margin: '4px 0' }}>
+                                <img
+                                  src={getImageUrl(app.payment_screenshot)}
+                                  alt="Payment Proof"
+                                  style={{ maxHeight: '110px', maxWidth: '100%', objectFit: 'contain', borderRadius: '6px', border: '1px solid #cbd5e1', boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
+                                />
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '16px', paddingTop: '12px', borderTop: '1px dashed #e2e8f0' }}>
+                        {isDraft ? (
+                          <button
+                            onClick={() => resumeApplicationDraft(app)}
+                            className="premium-btn premium-btn-primary"
+                            style={{ flex: 1, padding: '8px 12px', fontSize: '0.8rem', fontWeight: 'bold' }}
+                          >
+                            Resume Draft Application ➔
+                          </button>
+                        ) : (
+                          <>
+                            {app.output_pdf_url && (
+                              <a
+                                href={getImageUrl(app.output_pdf_url)}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="premium-btn premium-btn-success"
+                                style={{ flex: 1, padding: '8px 12px', fontSize: '0.8rem', fontWeight: 'bold', textDecoration: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                              >
+                                <Download size={14} /> Download Certificate PDF
+                              </a>
+                            )}
+
+                            {!isPaid && (
+                              <label className="premium-btn premium-btn-secondary" style={{ padding: '8px 12px', fontSize: '0.75rem', display: 'flex', gap: '6px', cursor: 'pointer', alignItems: 'center', justifyContent: 'center', flex: 1 }}>
+                                <UploadCloud size={14} />
+                                {uploadingScreenshotId === app.id ? 'Uploading...' : app.payment_screenshot ? '🔄 Replace Payment Proof' : 'Upload Payment Proof'}
+                                <input
+                                  type="file"
+                                  accept="image/*,application/pdf"
+                                  style={{ display: 'none' }}
+                                  disabled={uploadingScreenshotId !== null}
+                                  onChange={(e) => handleScreenshotUpload(app.id, e.target.files[0])}
+                                />
+                              </label>
+                            )}
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+
           </div>
         )}
 
@@ -3896,806 +4085,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
         </div>
       )}
 
-      {/* --- TAB 4: ACCESSORIES SHOP CATALOG & TEMPERED GLASS LOOKUP --- */}
-      {activeTab === 'accessories' && (
-        <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
 
-          {/* 1. SEARCH TEMPERED GLASS BOX LOOKUP REMOVED FROM TOP */}
-
-          {/* 2. ACCESSORIES CATALOG */}
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', margin: '0 4px' }}>
-              <h3 style={{ fontSize: '1.15rem', color: '#0f172a', fontWeight: '800' }}>🛍️ Accessories Catalog</h3>
-              {products.length > 0 && (
-                <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: '600' }}>Available All Items</span>
-              )}
-            </div>
-            {/* Filters Panel */}
-            <div className="premium-card" style={{ margin: 0, padding: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
-
-              {/* Category & Brand Filters */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '0.7rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Category</label>
-                  <select
-                    value={selectedAccessoryCategory}
-                    onChange={(e) => setSelectedAccessoryCategory(e.target.value)}
-                    className="premium-input"
-                    style={{ padding: '8px 10px', fontSize: '0.8rem', margin: 0, background: '#f8fafc' }}
-                  >
-                    {['All', 'Phone Cover', 'Headphone', 'Speaker', 'Charger', 'Charger Cable', 'Other Accessories'].map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '0.7rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Brand</label>
-                  <select
-                    value={selectedBrand}
-                    onChange={(e) => setSelectedBrand(e.target.value)}
-                    className="premium-input"
-                    style={{ padding: '8px 10px', fontSize: '0.8rem', margin: 0, background: '#f8fafc' }}
-                  >
-                    <option value="All">All Brands</option>
-                    {['Samsung', 'Apple', 'Xiaomi (Redmi)', 'Vivo', 'OPPO', 'realme', 'OnePlus', 'POCO', 'Motorola', 'Nokia', 'Google Pixel', 'Huawei', 'Honor', 'Infinix', 'Tecno', 'iQOO', 'Sony', 'ASUS', 'Nothing', 'Lenovo', 'Micromax', 'Lava', 'Karbonn', 'Itel', 'HTC', 'Other'].map(b => (
-                      <option key={b} value={b}>{b}</option>
-                    ))}
-                  </select>
-                </div>
-              </div>
-
-              {/* Model & Keyword Filters */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '0.7rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Model Name</label>
-                  <input
-                    type="text"
-                    value={selectedModel}
-                    onChange={(e) => setSelectedModel(e.target.value)}
-                    placeholder="e.g. S24, iPhone 15..."
-                    className="premium-input"
-                    style={{ padding: '8px 10px', fontSize: '0.8rem', margin: 0, background: '#f8fafc' }}
-                  />
-                </div>
-
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <label style={{ fontSize: '0.7rem', fontWeight: '700', color: '#64748b', textTransform: 'uppercase' }}>Search Keyword</label>
-                  <input
-                    type="text"
-                    value={accessorySearchKeyword}
-                    onChange={(e) => setAccessorySearchKeyword(e.target.value)}
-                    placeholder="Search product name, brand..."
-                    className="premium-input"
-                    style={{ padding: '8px 10px', fontSize: '0.8rem', margin: 0, background: '#f8fafc' }}
-                  />
-                </div>
-              </div>
-
-            </div>
-
-            {/* Products Listing Grid */}
-            {accessoryProductsLoading ? (
-              <div style={{ textAlign: 'center', padding: '40px', color: '#64748b' }}>
-                Loading products...
-              </div>
-            ) : (() => {
-              const filtered = products.filter(item => {
-                if (selectedAccessoryCategory !== 'All') {
-                  if (selectedAccessoryCategory === 'Other Accessories') {
-                    const standardCats = ['Phone Cover', 'Headphone', 'Speaker', 'Charger', 'Charger Cable'];
-                    if (standardCats.includes(item.Category)) return false;
-                  } else {
-                    if (item.Category !== selectedAccessoryCategory) return false;
-                  }
-                }
-
-                if (selectedBrand !== 'All') {
-                  if (item.Brand !== selectedBrand) return false;
-                }
-
-                if (selectedModel.trim() !== '') {
-                  const mQuery = selectedModel.toLowerCase();
-                  const modelName = (item.ModelName || '').toLowerCase();
-                  if (!modelName.includes(mQuery)) return false;
-                }
-
-                if (accessorySearchKeyword.trim() !== '') {
-                  const searchOptions = accessorySearchKeyword.split(',').map(s => s.trim().toLowerCase().replace(/\s+/g, '')).filter(Boolean);
-                  if (searchOptions.length > 0) {
-                    const name = (item.ProductName || '').toLowerCase().replace(/\s+/g, '');
-                    const brand = (item.Brand || '').toLowerCase().replace(/\s+/g, '');
-                    const customBrand = (item.CustomBrand || '').toLowerCase().replace(/\s+/g, '');
-                    const model = (item.ModelName || '').toLowerCase().replace(/\s+/g, '');
-                    const type = (item.Type || '').toLowerCase().replace(/\s+/g, '');
-                    const category = (item.Category || '').toLowerCase().replace(/\s+/g, '');
-                    const tag = (item.TagNumber || '').toLowerCase().replace(/\s+/g, '');
-
-                    const match = searchOptions.some(q =>
-                      name.includes(q) ||
-                      brand.includes(q) ||
-                      customBrand.includes(q) ||
-                      model.includes(q) ||
-                      type.includes(q) ||
-                      category.includes(q) ||
-                      tag.includes(q)
-                    );
-
-                    if (!match) return false;
-                  }
-                }
-
-                return true;
-              });
-
-              if (filtered.length === 0) {
-                return (
-                  <div style={{ textAlign: 'center', padding: '40px 20px', background: '#ffffff', borderRadius: '16px', border: '1px dashed #cbd5e1' }}>
-                    <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b', fontWeight: 'bold' }}>No accessories match your filters.</p>
-                    <p style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: '#94a3b8' }}>Try choosing another category or clearing search keywords.</p>
-                  </div>
-                );
-              }
-
-              const categoriesToDisplay = [
-                { key: 'Phone Cover', label: 'Phone Covers', emoji: '📱' },
-                { key: 'Headphone', label: 'Headphones', emoji: '🎧' },
-                { key: 'Speaker', label: 'Speakers', emoji: '🔊' },
-                { key: 'Charger', label: 'Chargers', emoji: '🔌' },
-                { key: 'Charger Cable', label: 'Charger Cables', emoji: '⚡' },
-                { key: 'Other Accessories', label: 'Other Accessories', emoji: '📦' }
-              ];
-
-              const standardCats = ['Phone Cover', 'Headphone', 'Speaker', 'Charger', 'Charger Cable'];
-
-              const grouped = categoriesToDisplay.reduce((acc, cat) => {
-                acc[cat.key] = filtered.filter(item => {
-                  if (cat.key === 'Other Accessories') {
-                    return !standardCats.includes(item.Category);
-                  }
-                  return item.Category === cat.key;
-                });
-                return acc;
-              }, {});
-
-              return (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '28px', paddingBottom: '20px' }}>
-                  {categoriesToDisplay.map((cat, index) => {
-                    const items = grouped[cat.key] || [];
-                    if (items.length === 0) return null;
-
-                    if (cat.key === 'Phone Cover') {
-                      // Partition items into exactly 5 rows (mandatory)
-                      const numRows = 5;
-                      const partitionedRows = Array.from({ length: numRows }, () => []);
-                      items.forEach((item, idx) => {
-                        partitionedRows[idx % numRows].push(item);
-                      });
-                      const activeRows = partitionedRows.filter(row => row.length > 0);
-
-                      return (
-                        <div key={cat.key} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                          {/* Category Section Header */}
-                          <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            paddingBottom: '8px',
-                            borderBottom: '2px solid #f1f5f9',
-                            margin: '8px 4px 0 4px'
-                          }}>
-                            <span style={{ fontSize: '1.25rem' }}>{cat.emoji}</span>
-                            <h4 style={{
-                              fontSize: '0.95rem',
-                              color: '#1e293b',
-                              fontWeight: '800',
-                              margin: 0,
-                              flex: 1
-                            }}>
-                              {cat.label}
-                            </h4>
-                            <span style={{
-                              fontSize: '0.7rem',
-                              color: 'var(--primary)',
-                              background: 'rgba(16,185,129,0.08)',
-                              padding: '2px 8px',
-                              borderRadius: '20px',
-                              fontWeight: '700'
-                            }}>
-                              100+ items
-                            </span>
-                          </div>
-
-                          {/* Sub-rows marquee waterfall tracks */}
-                          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                            {activeRows.map((rowItems, subIndex) => {
-                              // Cycle speeds 1 to 5, staggered with subIndex
-                              const speedRowIndex = ((index + subIndex) % 5) + 1;
-
-                              return (
-                                <MarqueeRow
-                                  key={subIndex}
-                                  rowItems={rowItems}
-                                  speedRowIndex={speedRowIndex}
-                                  setSelectedProductDetails={setSelectedProductDetails}
-                                  handleWhatsAppShare={handleWhatsAppShare}
-                                  subIndex={subIndex}
-                                />
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    } else {
-                      // 2 Column grid layout
-                      return (
-                        <div key={cat.key} style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                          {/* Category Section Header */}
-                          <div style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            gap: '8px',
-                            paddingBottom: '8px',
-                            borderBottom: '2px solid #f1f5f9',
-                            margin: '8px 4px 0 4px'
-                          }}>
-                            <span style={{ fontSize: '1.25rem' }}>{cat.emoji}</span>
-                            <h4 style={{
-                              fontSize: '0.95rem',
-                              color: '#1e293b',
-                              fontWeight: '800',
-                              margin: 0,
-                              flex: 1
-                            }}>
-                              {cat.label}
-                            </h4>
-                            <span style={{
-                              fontSize: '0.7rem',
-                              color: 'var(--primary)',
-                              background: 'rgba(16,185,129,0.08)',
-                              padding: '2px 8px',
-                              borderRadius: '20px',
-                              fontWeight: '700'
-                            }}>
-                              100+ items
-                            </span>
-                          </div>
-
-                          {/* Responsive Responsive Grid across Phones, Tablets, Laptops & Desktop Monitors */}
-                          <div style={{
-                            display: 'grid',
-                            gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))',
-                            gap: '12px',
-                            padding: '4px'
-                          }}>
-                            {items.map((product) => {
-                              const hasImage = product.ImageURL && product.ImageURL.trim() !== '';
-                              const hasPrice = product.Price && product.Price.trim() !== '';
-
-                              return (
-                                <div
-                                  key={product.ProductID}
-                                  onClick={() => setSelectedProductDetails(product)}
-                                  className="showcase-product-card"
-                                  style={{
-                                    width: '100%',
-                                    minHeight: '210px',
-                                    height: 'auto',
-                                    padding: '10px',
-                                    display: 'flex',
-                                    flexDirection: 'column',
-                                    gap: '8px',
-                                    cursor: 'pointer',
-                                    boxSizing: 'border-box'
-                                  }}
-                                >
-                                  {/* Image Wrapper */}
-                                  <div className="showcase-image-wrapper" style={{ height: '90px', width: '100%', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8fafc', borderRadius: '6px' }}>
-                                    {hasImage ? (
-                                      <img
-                                        src={getImageUrl(product.ImageURL)}
-                                        alt={product.ProductName || 'Accessory'}
-                                        onError={(e) => { e.target.style.display = 'none'; }}
-                                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                                      />
-                                    ) : (
-                                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', color: '#94a3b8', gap: '4px' }}>
-                                        <span style={{ fontSize: '1.4rem' }}>📦</span>
-                                        <span style={{ fontSize: '0.6rem', fontWeight: 'bold', textTransform: 'uppercase' }}>No Image</span>
-                                      </div>
-                                    )}
-                                  </div>
-
-                                  {/* Card Info */}
-                                  <div style={{ display: 'flex', flexDirection: 'column', gap: '3px', flex: 1, minWidth: 0 }}>
-                                    <span style={{
-                                      fontSize: '0.6rem',
-                                      fontWeight: '800',
-                                      color: 'var(--primary)',
-                                      textTransform: 'uppercase',
-                                      letterSpacing: '0.02em',
-                                      whiteSpace: 'nowrap',
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis'
-                                    }}>
-                                      {product.Category}
-                                    </span>
-
-                                    <h5 style={{
-                                      fontSize: '0.72rem',
-                                      fontWeight: '700',
-                                      color: '#1e293b',
-                                      margin: 0,
-                                      lineHeight: '1.25',
-                                      whiteSpace: 'nowrap',
-                                      overflow: 'hidden',
-                                      textOverflow: 'ellipsis'
-                                    }}>
-                                      {product.ProductName || `${product.Brand} Case`}
-                                    </h5>
-
-                                    {(product.Brand || product.ModelName) && (
-                                      <span style={{ fontSize: '0.62rem', color: '#64748b', fontWeight: '600', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                        {product.Brand === 'Other' ? product.CustomBrand : product.Brand} {product.ModelName}
-                                      </span>
-                                    )}
-
-                                    {hasPrice && (
-                                      <div style={{ marginTop: 'auto', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                                        <strong style={{ fontSize: '0.8rem', color: '#0f172a', fontWeight: '800' }}>
-                                          ₹{product.Price}
-                                        </strong>
-                                        <span style={{ fontSize: '0.55rem', color: '#22c55e', background: '#f0fdf4', padding: '1px 5px', borderRadius: '4px', fontWeight: 'bold' }}>In Stock</span>
-                                      </div>
-                                    )}
-
-                                    {/* Buy & Share Buttons */}
-                                    <div
-                                      style={{
-                                        marginTop: hasPrice ? '6px' : 'auto',
-                                        display: 'flex',
-                                        gap: '4px',
-                                        width: '100%'
-                                      }}
-                                    >
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          setSelectedProductDetails(product);
-                                        }}
-                                        className="premium-btn premium-btn-primary"
-                                        style={{
-                                          flex: 1,
-                                          padding: '4px 0',
-                                          fontSize: '0.65rem',
-                                          fontWeight: 'bold',
-                                          margin: 0,
-                                          borderRadius: '6px',
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          justifyContent: 'center',
-                                          border: 'none',
-                                          cursor: 'pointer'
-                                        }}
-                                      >
-                                        Buy
-                                      </button>
-                                      <button
-                                        type="button"
-                                        onClick={(e) => {
-                                          e.stopPropagation();
-                                          const title = product.ProductName || `${product.Brand} Case`;
-                                          const text = `Category: ${product.Category}${product.Price ? `\nPrice: ₹${product.Price}` : ''}\nBuy high-quality mobile accessories at SUBI Online Service.`;
-                                          handleWhatsAppShare(title, text, '/user?tab=accessories');
-                                        }}
-                                        className="premium-btn premium-btn-secondary"
-                                        style={{
-                                          flex: 1,
-                                          padding: '4px 0',
-                                          fontSize: '0.65rem',
-                                          fontWeight: 'bold',
-                                          margin: 0,
-                                          borderRadius: '6px',
-                                          display: 'flex',
-                                          alignItems: 'center',
-                                          justifyContent: 'center',
-                                          border: 'none',
-                                          cursor: 'pointer'
-                                        }}
-                                      >
-                                        Share
-                                      </button>
-                                    </div>
-                                  </div>
-                                </div>
-                              );
-                            })}
-                          </div>
-                        </div>
-                      );
-                    }
-                  })}
-                </div>
-              );
-            })()}
-          </div>
-
-          {/* 3. SEARCH TEMPERED GLASS BOX LOOKUP */}
-          <div className="premium-card" style={{ borderTop: '6px solid var(--primary)', margin: '20px 0 16px 0' }}>
-            <h3 style={{ fontSize: '1.1rem', marginBottom: '8px', color: '#1e293b', display: 'flex', alignItems: 'center', gap: '8px' }}>
-              🔍 Search Tempered Glass Box
-            </h3>
-            <p className="text-muted" style={{ fontSize: '0.75rem', marginBottom: '16px' }}>
-              Enter your mobile model name to find and enquire about tempered glass.
-            </p>
-
-            <form onSubmit={(e) => {
-              e.preventDefault();
-              const query = tgSearchQuery.trim().toLowerCase();
-              if (!query) {
-                alert('Please enter a model name.');
-                return;
-              }
-
-              // Remove spaces for comparison
-              const queryClean = query.replace(/\s+/g, '');
-
-              // Search in temperedGlassList
-              const results = [];
-              for (const item of temperedGlassList) {
-                const models = (item.ModelList || "").split(',').map(m => m.trim());
-                for (const m of models) {
-                  const mClean = m.toLowerCase().replace(/\s+/g, '');
-                  if (mClean.includes(queryClean)) {
-                    results.push({
-                      modelName: m,
-                      boxNumber: item.BoxNumber
-                    });
-                  }
-                }
-              }
-
-              if (results.length > 0) {
-                setTgSearchResult({ results, searched: tgSearchQuery });
-              } else {
-                setTgSearchResult({ notFound: true, searched: tgSearchQuery });
-              }
-            }} style={{ display: 'flex', gap: '8px' }}>
-              <input
-                type="text"
-                value={tgSearchQuery}
-                onChange={(e) => setTgSearchQuery(e.target.value)}
-                placeholder="e.g. Samsung A15, Vivo T3..."
-                className="premium-input"
-                style={{ flex: 1, margin: 0, padding: '10px 14px', fontSize: '0.85rem' }}
-              />
-              <button type="submit" className="premium-btn premium-btn-primary" style={{ width: 'auto', padding: '10px 20px', whiteSpace: 'nowrap' }}>
-                Search Box
-              </button>
-            </form>
-
-            {tgSearchResult && (
-              <div style={{
-                marginTop: '16px',
-                padding: '16px',
-                borderRadius: '12px',
-                background: tgSearchResult.notFound ? '#fef2f2' : '#f0fdf4',
-                border: tgSearchResult.notFound ? '1px solid #fca5a5' : '1px solid #bbf7d0',
-                animation: 'slideUpFade 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
-              }}>
-                {tgSearchResult.notFound ? (
-                  <div style={{ textAlign: 'center' }}>
-                    <p style={{ margin: 0, fontSize: '0.85rem', fontWeight: 'bold', color: '#991b1b' }}>
-                      Model Not Found: "{tgSearchResult.searched}"
-                    </p>
-                    <p style={{ margin: '4px 0 0 0', fontSize: '0.75rem', color: '#7f1d1d' }}>
-                      No tempered glass found for this model. Please ask the shop counter.
-                    </p>
-                  </div>
-                ) : (
-                  <div>
-                    <p style={{ margin: '0 0 8px 0', fontSize: '0.85rem', color: '#166534', fontWeight: '600', textAlign: 'center' }}>
-                      Matching models found. Click to enquire on WhatsApp:
-                    </p>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                      {tgSearchResult.results && tgSearchResult.results.map((res, index) => (
-                        <button
-                          key={index}
-                          onClick={() => {
-                            const adminWhatsApp = systemSettings.admin_whatsapp_number || '9385497906';
-                            const cleanedAdminWhatsApp = cleanPhone(adminWhatsApp);
-
-                            let msg = `Hello SUBI Online Service,\n\nI would like to buy Tempered Glass.\n\n\`\`\`\n`;
-                            msg += `${"Product".padEnd(12, ' ')}: Tempered Glass\n`;
-                            msg += `${"Model".padEnd(12, ' ')}: ${res.modelName}\n`;
-                            msg += `${"Box Number".padEnd(12, ' ')}: ${res.boxNumber}\n`;
-                            msg += `\`\`\`\n\nPlease check availability and details.`;
-
-                            const whatsappUrl = `https://api.whatsapp.com/send?phone=${encodeURIComponent(cleanedAdminWhatsApp)}&text=${encodeURIComponent(msg)}`;
-                            window.open(whatsappUrl, '_blank');
-                          }}
-                          className="premium-btn"
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            padding: '12px 16px',
-                            borderRadius: '10px',
-                            background: '#ffffff',
-                            border: '1px solid #bbf7d0',
-                            cursor: 'pointer',
-                            textAlign: 'left',
-                            width: '100%'
-                          }}
-                          onMouseOver={(e) => {
-                            e.currentTarget.style.borderColor = 'var(--primary)';
-                            e.currentTarget.style.background = '#f0fdf4';
-                          }}
-                          onMouseOut={(e) => {
-                            e.currentTarget.style.borderColor = '#bbf7d0';
-                            e.currentTarget.style.background = '#ffffff';
-                          }}
-                        >
-                          <span style={{ fontSize: '0.85rem', fontWeight: '600', color: '#14532d' }}>
-                            📱 {res.modelName}
-                          </span>
-                          <span style={{ fontSize: '0.75rem', color: '#166534', fontWeight: 'bold' }}>
-                            Order ➜
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-
-        </div>
-      )}
-
-      {/* Accessory Product Details Modal */}
-      {selectedProductDetails && (() => {
-        const product = selectedProductDetails;
-        const hasImage = product.ImageURL && product.ImageURL.trim() !== '';
-        const hasPrice = product.Price && product.Price.trim() !== '';
-
-        const handleWhatsAppEnquiry = () => {
-          const adminWhatsApp = systemSettings.admin_whatsapp_number || '9385497906';
-          const cleanedAdminWhatsApp = cleanPhone(adminWhatsApp);
-
-          let msg = `Hello SUBI Online Service,\n\nI would like to buy this product:\n\n\`\`\`\n`;
-          msg += `${"Product Name".padEnd(14, ' ')}: ${product.ProductName || `${product.Brand} Cover Case`}\n`;
-          msg += `${"Category".padEnd(14, ' ')}: ${product.Category}\n`;
-          if (product.Brand) {
-            msg += `${"Brand".padEnd(14, ' ')}: ${product.Brand === 'Other' ? product.CustomBrand : product.Brand}\n`;
-          }
-          if (product.ModelName) {
-            msg += `${"Model".padEnd(14, ' ')}: ${product.ModelName}\n`;
-          }
-          if (product.TagNumber) {
-            msg += `${"Tag Number".padEnd(14, ' ')}: ${product.TagNumber}\n`;
-          }
-          msg += `\`\`\`\n\nPlease provide availability and price details.`;
-
-          const whatsappUrl = `https://api.whatsapp.com/send?phone=${encodeURIComponent(cleanedAdminWhatsApp)}&text=${encodeURIComponent(msg)}`;
-          window.open(whatsappUrl, '_blank');
-        };
-
-        return (
-          <div style={{
-            position: 'fixed',
-            top: 0, left: 0, right: 0, bottom: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.4)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            zIndex: 99999,
-            padding: '16px'
-          }}>
-            <div style={{
-              backgroundColor: '#ffffff',
-              borderRadius: '20px',
-              padding: '24px',
-              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
-              width: '100%', maxWidth: '360px',
-              display: 'flex', flexDirection: 'column', gap: '16px',
-              position: 'relative',
-              animation: 'slideUpFade 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
-            }}>
-              <button
-                onClick={() => setSelectedProductDetails(null)}
-                style={{
-                  position: 'absolute',
-                  top: '16px', right: '16px',
-                  background: '#f1f5f9', border: 'none',
-                  color: '#64748b', cursor: 'pointer',
-                  width: '28px', height: '28px',
-                  borderRadius: '50%', display: 'flex',
-                  alignItems: 'center', justifyContent: 'center'
-                }}
-              >
-                <X size={16} />
-              </button>
-
-              {hasImage ? (
-                <div style={{
-                  width: '100%', height: '200px',
-                  borderRadius: '12px', overflow: 'hidden',
-                  border: '1px solid #e2e8f0', background: '#f8fafc',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center'
-                }}>
-                  <img
-                    src={getImageUrl(product.ImageURL)}
-                    alt={product.ProductName}
-                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                  />
-                </div>
-              ) : product.Category === 'Phone Cover' ? (
-                <div style={{
-                  width: '100%', height: '200px',
-                  borderRadius: '12px', overflow: 'hidden',
-                  border: '1px solid #e2e8f0', background: '#f8fafc',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center'
-                }}>
-                  <img
-                    src={defaultCoverImg}
-                    alt="Default Cover"
-                    style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-                  />
-                </div>
-              ) : (
-                <div style={{
-                  width: '100%', height: '140px',
-                  borderRadius: '12px', border: '1px dashed #cbd5e1',
-                  background: '#f8fafc', display: 'flex',
-                  flexDirection: 'column', alignItems: 'center',
-                  justifyContent: 'center', color: '#94a3b8', gap: '6px'
-                }}>
-                  <span style={{ fontSize: '2rem' }}>📦</span>
-                  <span style={{ fontSize: '0.75rem', fontWeight: 'bold' }}>Product Image Not Available</span>
-                </div>
-              )}
-
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
-                <div>
-                  <span style={{ fontSize: '0.7rem', fontWeight: '800', color: 'var(--primary)', textTransform: 'uppercase', display: 'block', marginBottom: '2px' }}>
-                    {product.Category}
-                  </span>
-                  <h3 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#0f172a', margin: 0, lineHeight: '1.3' }}>
-                    {product.Category === 'Phone Cover'
-                      ? `${product.Brand === 'Other' ? product.CustomBrand : product.Brand} ${product.ModelName}`
-                      : (product.ProductName || `${product.Brand} Cover Case`)}
-                  </h3>
-                </div>
-
-                <div style={{ borderTop: '1px solid #f1f5f9', paddingTop: '10px' }}>
-                  <table style={{ width: '100%', fontSize: '0.8rem', borderCollapse: 'collapse' }}>
-                    <tbody>
-                      {product.Brand && (
-                        <tr>
-                          <td style={{ color: '#64748b', padding: '4px 0', fontWeight: '600' }}>Brand:</td>
-                          <td style={{ textAlign: 'right', fontWeight: '700', color: '#1e293b' }}>
-                            {product.Brand === 'Other' ? product.CustomBrand : product.Brand}
-                          </td>
-                        </tr>
-                      )}
-                      {product.ModelName && (
-                        <tr>
-                          <td style={{ color: '#64748b', padding: '4px 0', fontWeight: '600' }}>Model Name:</td>
-                          <td style={{ textAlign: 'right', fontWeight: '700', color: '#1e293b' }}>{product.ModelName}</td>
-                        </tr>
-                      )}
-                      {product.Category === 'Phone Cover' && product.CoverType && (
-                        <tr>
-                          <td style={{ color: '#64748b', padding: '4px 0', fontWeight: '600' }}>Case Type:</td>
-                          <td style={{ textAlign: 'right', fontWeight: '700', color: '#1e293b' }}>{product.CoverType}</td>
-                        </tr>
-                      )}
-                      {product.Type && (
-                        <tr>
-                          <td style={{ color: '#64748b', padding: '4px 0', fontWeight: '600' }}>Type / Spec:</td>
-                          <td style={{ textAlign: 'right', fontWeight: '700', color: '#1e293b' }}>{product.Type}</td>
-                        </tr>
-                      )}
-                      {hasPrice && (
-                        <tr>
-                          <td style={{ color: '#64748b', padding: '4px 0', fontWeight: '600', fontSize: '0.85rem' }}>Price:</td>
-                          <td style={{ textAlign: 'right', fontWeight: '900', color: '#0f172a', fontSize: '1rem' }}>₹{product.Price}</td>
-                        </tr>
-                      )}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-
-              <button
-                onClick={handleWhatsAppEnquiry}
-                className="premium-btn premium-btn-primary"
-                style={{
-                  padding: '12px',
-                  borderRadius: '10px',
-                  border: 'none',
-                  background: '#25D366',
-                  color: 'white',
-                  fontWeight: 'bold',
-                  fontSize: '0.85rem',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  boxShadow: '0 4px 12px rgba(37, 211, 102, 0.25)',
-                  marginTop: '8px'
-                }}
-              >
-                <span style={{ fontSize: '1.1rem' }}>💬</span> Buy on WhatsApp
-              </button>
-            </div>
-          </div>
-        );
-      })()}
-
-      {/* App Install Notification Modal */}
-      {showInstallPrompt && (
-        <div style={{
-          position: 'fixed',
-          top: 0, left: 0, right: 0, bottom: 0,
-          backgroundColor: 'rgba(0,0,0,0.5)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          zIndex: 9999
-        }}>
-          <div style={{
-            background: '#ffffff',
-            borderRadius: '16px',
-            padding: '24px',
-            boxShadow: '0 10px 25px rgba(0,0,0,0.2)',
-            width: '85%', maxWidth: '320px',
-            display: 'flex', flexDirection: 'column', gap: '20px',
-            animation: 'slideUpFade 0.3s cubic-bezier(0.16, 1, 0.3, 1)'
-          }}>
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', alignItems: 'center', textAlign: 'center' }}>
-              <div style={{ width: '64px', height: '64px', borderRadius: '16px', background: '#f8fafc', padding: '8px', border: '1px solid #e2e8f0' }}>
-                <img src="/whatsbro_logo.png" alt="Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-              </div>
-              <div>
-                <h4 style={{ margin: 0, fontSize: '1.1rem', color: '#1e293b', fontWeight: '800' }}>Install SUBI Online Service</h4>
-                <p style={{ margin: 0, fontSize: '0.85rem', color: '#64748b', marginTop: '6px', lineHeight: '1.4' }}>Add our app to your home screen for quick and easy access!</p>
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: '12px', marginTop: '8px' }}>
-              <button
-                onClick={() => {
-                  setShowInstallPrompt(false);
-                  sessionStorage.setItem('install_prompt_dismissed_at', Date.now().toString());
-                }}
-                style={{ flex: 1, padding: '12px', background: '#f1f5f9', color: '#475569', border: 'none', borderRadius: '10px', fontSize: '0.9rem', fontWeight: 'bold', cursor: 'pointer' }}
-              >
-                Close
-              </button>
-              <button
-                onClick={async () => {
-                  setShowInstallPrompt(false);
-                  sessionStorage.setItem('install_prompt_dismissed_at', Date.now().toString());
-                  if (deferredPrompt) {
-                    deferredPrompt.prompt();
-                    const { outcome } = await deferredPrompt.userChoice;
-                    console.log('[PWA] User response to install prompt:', outcome);
-                    setDeferredPrompt(null);
-                  } else {
-                    alert("To install: Tap the browser menu (⋮) or Share icon and select 'Add to Home screen' or 'Install App'.");
-                  }
-                }}
-                className="premium-btn-primary"
-                style={{ flex: 1, padding: '12px', border: 'none', borderRadius: '10px', fontSize: '0.9rem', fontWeight: 'bold', cursor: 'pointer', background: 'var(--primary)', color: 'white' }}
-              >
-                Install
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* Detailed Announcement Popup Modal */}
       {showAnnouncementModal && announcements.length > 0 && (() => {
@@ -4821,8 +4211,7 @@ const parseDetailsDoc = (text) => {
 
   const renderTable = () => {
     if (tableHeaders.length === 0 && tableRows.length === 0) return null;
-    const currentHeaders = [...tableHeaders];
-    const currentRows = [...tableRows];
+    const allRows = tableHeaders.length > 0 ? [tableHeaders, ...tableRows] : [...tableRows];
     const currentKey = `table-${tableKey++}`;
 
     // Reset table parser state
@@ -4831,23 +4220,26 @@ const parseDetailsDoc = (text) => {
     inTable = false;
 
     return (
-      <div key={currentKey} className="table-responsive" style={{ margin: '14px 0', overflowX: 'auto', borderRadius: '8px', border: '1px solid rgba(0,0,0,0.08)' }}>
+      <div key={currentKey} className="table-responsive" style={{ margin: '14px 0', overflowX: 'auto', borderRadius: '10px', border: '1px solid rgba(16,185,129,0.2)', boxShadow: '0 2px 6px rgba(0,0,0,0.03)' }}>
         <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', textAlign: 'left' }}>
-          {currentHeaders.length > 0 && (
-            <thead style={{ background: 'var(--primary)', color: 'white', fontWeight: 'bold' }}>
-              <tr>
-                {currentHeaders.map((h, i) => (
-                  <th key={i} style={{ padding: '8px 12px', borderBottom: '1px solid rgba(0,0,0,0.08)' }}>{h.trim()}</th>
-                ))}
-              </tr>
-            </thead>
-          )}
           <tbody>
-            {currentRows.map((row, idx) => (
-              <tr key={idx} style={{ background: idx % 2 === 0 ? '#ffffff' : '#f8fafc', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
-                {row.map((cell, cIdx) => (
-                  <td key={cIdx} style={{ padding: '8px 12px', color: '#475569' }}>{cell.trim()}</td>
-                ))}
+            {allRows.map((row, idx) => (
+              <tr key={idx} style={{ background: idx % 2 === 0 ? '#ffffff' : '#f0fdf4', borderBottom: '1px solid rgba(16,185,129,0.1)' }}>
+                {row.map((cell, cIdx) => {
+                  const cellText = cell.trim();
+                  const isLink = cellText.startsWith('http://') || cellText.startsWith('https://');
+                  return (
+                    <td key={cIdx} style={{ padding: '10px 14px', color: cIdx === 0 ? '#1e293b' : '#047857', fontWeight: cIdx === 0 ? '700' : '600' }}>
+                      {isLink ? (
+                        <a href={cellText} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--primary)', fontWeight: 'bold', textDecoration: 'underline' }}>
+                          {cellText}
+                        </a>
+                      ) : (
+                        cellText
+                      )}
+                    </td>
+                  );
+                })}
               </tr>
             ))}
           </tbody>
@@ -4860,13 +4252,13 @@ const parseDetailsDoc = (text) => {
     const rawLine = lines[idx];
     const line = rawLine.trim();
 
-    // Check if we are inside a table and this line is a table row (contains commas or is part of table)
+    // Check if we are inside a table and this line is a table row (contains $ or ,)
     if (inTable) {
       if (line === '' || line.startsWith('H1:') || line.startsWith('H2:') || line.startsWith('H3:') || line.startsWith('---') || line.startsWith('line')) {
         // Close previous table
         elements.push(renderTable());
       } else {
-        const parts = rawLine.split('$');
+        const parts = rawLine.includes('$') ? rawLine.split('$') : rawLine.split(',');
         if (tableHeaders.length === 0) {
           tableHeaders = parts;
         } else {

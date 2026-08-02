@@ -14,7 +14,7 @@
     "description": "Browse quality mobile cases, tempered glass, and premium phone accessories in our catalog.",
     "image": "/product_og_preview.jpg"
   },
-  "custom": {
+  "form": {
     "form-slzjghgr": {
       "target_url": "https://subi-eseva-service.vercel.app/form/form-slzjghgr",
       "title": "",

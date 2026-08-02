@@ -3,7 +3,7 @@ import react from '@vitejs/plugin-react'
 import fs from 'fs'
 import path from 'path'
 
-// Custom plugin to handle local OG image upload and processing
+// Custom plugin to handle local OG image upload, auto-crop, resize & compress
 function localOgUploadPlugin() {
   return {
     name: 'local-og-upload',
@@ -33,11 +33,35 @@ function localOgUploadPlugin() {
                 // Dynamic import jimp to process the image
                 const { Jimp } = await import('jimp');
                 const image = await Jimp.read(fileBuffer);
+                const width = image.width;
+                const height = image.height;
                 const aspect = json.aspect || 'landscape';
                 
+                console.log(`[Local OG Plugin] Processing image: ${width}x${height} | Target Aspect: ${aspect}`);
+                
+                // Auto crop to target ratio before resizing
                 if (aspect === 'square') {
+                  if (width !== height) {
+                    const minDim = Math.min(width, height);
+                    const cropX = Math.max(0, Math.floor((width - minDim) / 2));
+                    const cropY = Math.max(0, Math.floor((height - minDim) / 2));
+                    image.crop({ x: cropX, y: cropY, w: minDim, h: minDim });
+                  }
                   image.resize({ w: 1024, h: 1024 });
                 } else {
+                  // Landscape 1.91:1 (1200x630)
+                  const targetRatio = 1200 / 630;
+                  const currentRatio = width / height;
+                  
+                  if (currentRatio > targetRatio) {
+                    const targetWidth = Math.floor(height * targetRatio);
+                    const cropX = Math.max(0, Math.floor((width - targetWidth) / 2));
+                    image.crop({ x: cropX, y: 0, w: targetWidth, h: height });
+                  } else if (currentRatio < targetRatio) {
+                    const targetHeight = Math.floor(width / targetRatio);
+                    const cropY = Math.max(0, Math.floor((height - targetHeight) / 2));
+                    image.crop({ x: 0, y: cropY, w: width, h: targetHeight });
+                  }
                   image.resize({ w: 1200, h: 630 });
                 }
                 
@@ -89,24 +113,24 @@ function localOgUploadPlugin() {
                   fs.writeFileSync(distOgJsonPath, JSON.stringify(ogConfig, null, 2), 'utf8');
                 }
 
-                console.log(`[Vite Upload API] Successfully saved OG image to public/uploads/${fileName} and updated public/data/og.json`);
+                console.log(`[Local OG Plugin] Saved cropped & compressed OG image to public/uploads/${fileName}`);
                 
                 res.statusCode = 200;
                 res.setHeader('Content-Type', 'application/json');
                 res.end(JSON.stringify({
                   success: true,
                   imagePath: `/uploads/${fileName}`,
-                  message: `OG Image saved locally to public/data/og.json & public/uploads/${fileName}!`
+                  message: `OG Image auto-cropped, resized & saved locally to public/uploads/${fileName}!`
                 }));
               } catch (e) {
-                console.error('[Vite Upload API] Error processing image:', e);
+                console.error('[Local OG Plugin] Error processing image:', e);
                 res.statusCode = 500;
                 res.setHeader('Content-Type', 'application/json');
                 res.end(JSON.stringify({ success: false, error: e.message }));
               }
             });
           } catch (e) {
-            console.error('[Vite Upload API] Connection error:', e);
+            console.error('[Local OG Plugin] Connection error:', e);
             res.statusCode = 500;
             res.setHeader('Content-Type', 'application/json');
             res.end(JSON.stringify({ success: false, error: e.message }));

@@ -894,48 +894,27 @@ export default function AdminPortal() {
 
     setOgIsGenerating(true);
     try {
-      // 1. Save locally to public/data/og.json & public/uploads/ (when running locally)
-      try {
-        await saveLocalOgImage({
-          key,
-          targetUrl: finalTarget,
-          title: finalTitle,
-          description: finalDesc,
-          imageFile: ogImageFile,
-          aspect: ogAspect
-        });
-      } catch (e) {
-        console.warn("Local file save skipped:", e);
-      }
+      // Save strictly to local project files (public/uploads/ & public/data/og.json)
+      const res = await saveLocalOgImage({
+        key,
+        targetUrl: finalTarget,
+        title: finalTitle,
+        description: finalDesc,
+        imageFile: ogImageFile,
+        aspect: ogAspect
+      });
 
-      // 2. Upload to Google Drive & GAS database as cloud backup
-      try {
-        const folderPath = ["WhatsBroTNService_Uploads", "OG_Images"];
-        const driveUrl = await uploadFileToDrive(ogImageFile, folderPath);
-        if (driveUrl) {
-          const payload = {
-            id: key,
-            target_url: finalTarget,
-            title: finalTitle,
-            description: finalDesc,
-            img_url: driveUrl
-          };
-          await createRedirect(payload);
-        }
-      } catch (cloudErr) {
-        console.warn("Cloud backup save failed:", cloudErr);
+      if (!res || !res.success) {
+        throw new Error(res?.error || "Make sure you are running 'npm run dev' locally to save project files.");
       }
 
       setOgGeneratedUrl(finalTarget);
       setOgIsGenerated(true);
       
-      // Refresh redirects list
-      handleRefreshRedirects();
-      
-      alert("OG Cover Image saved locally in project files (public/data/og.json & public/uploads/)!");
+      alert("OG Image auto-cropped, resized & saved locally to public/data/og.json & public/uploads/!");
     } catch (err) {
       console.error(err);
-      alert("Failed to save OG Image: " + (err.message || err));
+      alert("Failed to save OG Image locally: " + (err.message || err));
     } finally {
       setOgIsGenerating(false);
     }

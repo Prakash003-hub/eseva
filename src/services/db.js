@@ -284,6 +284,35 @@ export const createRedirect = async (payload) => {
   return await callApi("createRedirect", { payload });
 };
 
+export const saveLocalOgImage = async ({ key, targetUrl, title, description, imageFile, aspect = 'landscape' }) => {
+  let imageBase64 = '';
+  if (imageFile) {
+    imageBase64 = await fileToBase64(imageFile);
+  }
+
+  try {
+    const res = await fetch('/api/upload-og-image', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        key,
+        targetUrl,
+        title,
+        description,
+        image: imageBase64,
+        aspect
+      })
+    });
+    if (res.ok) {
+      const data = await res.json();
+      return data;
+    }
+  } catch (e) {
+    console.warn('[Local OG Save API] Not running Vite dev server or error:', e);
+  }
+  return null;
+};
+
 export const deleteRedirect = async (id) => {
   return await callApi("deleteRedirect", { id });
 };

@@ -11,7 +11,6 @@ function localOgUploadPlugin() {
       server.middlewares.use(async (req, res, next) => {
         if (req.url === '/api/upload-og-image' && req.method === 'POST') {
           try {
-            // Buffer to hold request body chunks
             const chunks = [];
             req.on('data', chunk => chunks.push(chunk));
             req.on('end', async () => {
@@ -34,92 +33,71 @@ function localOgUploadPlugin() {
                 // Dynamic import jimp to process the image
                 const { Jimp } = await import('jimp');
                 const image = await Jimp.read(fileBuffer);
-                const width = image.width;
-                const height = image.height;
                 const aspect = json.aspect || 'landscape';
                 
-                console.log(`[Vite Upload API] Received image: ${width}x${height} | Target aspect: ${aspect}`);
-                
                 if (aspect === 'square') {
-                  console.log('[Vite Upload API] Resizing directly to square 1024x1024...');
                   image.resize({ w: 1024, h: 1024 });
                 } else {
-                  // Detect boundaries (same logic as our script)
-                  let yStart = height;
-                  let yEnd = 0;
-                  for (let x of [100, Math.floor(width/2), width - 100]) {
-                    if (x < 0 || x >= width) continue;
-                    // Scan from top
-                    for (let y = 0; y < height; y++) {
-                      const color = image.getPixelColor(x, y);
-                      const r = (color >> 24) & 0xff;
-                      const g = (color >> 16) & 0xff;
-                      const b = (color >> 8) & 0xff;
-                      if (r > 30 || g > 30 || b > 30) {
-                        if (y < yStart) yStart = y;
-                        break;
-                      }
-                    }
-                    // Scan from bottom
-                    for (let y = height - 1; y >= 0; y--) {
-                      const color = image.getPixelColor(x, y);
-                      const r = (color >> 24) & 0xff;
-                      const g = (color >> 16) & 0xff;
-                      const b = (color >> 8) & 0xff;
-                      if (r > 30 || g > 30 || b > 30) {
-                        if (y > yEnd) yEnd = y;
-                        break;
-                      }
-                    }
-                  }
-                  
-                  // Fallback boundary detection
-                  if (yStart >= yEnd || yEnd - yStart < 200) {
-                    const currentRatio = width / height;
-                    if (Math.abs(currentRatio - 1.91) < 0.1) {
-                      yStart = 0;
-                      yEnd = height;
-                    } else {
-                      yStart = Math.floor((height - (width / 1.91)) / 2);
-                      if (yStart < 0) yStart = 0;
-                      yEnd = height - yStart;
-                    }
-                  }
-                  
-                  const cropHeight = yEnd - yStart;
-                  console.log(`[Vite Upload API] Cropping area: x=0, y=${yStart}, w=${width}, h=${cropHeight}`);
-                  image.crop({ x: 0, y: yStart, w: width, h: cropHeight });
-                  
-                  console.log('[Vite Upload API] Resizing to 1200x630...');
                   image.resize({ w: 1200, h: 630 });
                 }
                 
-                // Determine file name based on routeType
-                let baseName = 'income_og_preview';
-                if (json.routeType === 'post') baseName = 'post_og_preview';
-                else if (json.routeType === 'form') baseName = 'form_og_preview';
-                else if (json.routeType === 'job') baseName = 'job_og_preview';
-                else if (json.routeType === 'product') baseName = 'product_og_preview';
+                // Clean key for file name
+                const cleanKey = (json.key || json.routeType || 'link').toLowerCase().replace(/[^a-z0-9_-]/g, '');
+                const fileName = `og_${cleanKey}.jpg`;
 
-                // Save to public directory
-                const publicJpgPath = path.join(process.cwd(), `public/${baseName}.jpg`);
-                const publicPngPath = path.join(process.cwd(), `public/${baseName}.png`);
+                // Ensure public/uploads directory exists
+                const uploadsDir = path.join(process.cwd(), 'public/uploads');
+                if (!fs.existsSync(uploadsDir)) {
+                  fs.mkdirSync(uploadsDir, { recursive: true });
+                }
+
+                const publicJpgPath = path.join(uploadsDir, fileName);
+                await image.write(publicJpgPath, { quality: 85 });
                 
-                await image.write(publicJpgPath, { quality: 80 });
-                await image.write(publicPngPath);
-                
-                // Save to dist as well if it exists
-                const distPath = path.join(process.cwd(), 'dist');
-                if (fs.existsSync(distPath)) {
-                  await image.write(path.join(distPath, `${baseName}.jpg`), { quality: 80 });
-                  await image.write(path.join(distPath, `${baseName}.png`));
+                // Save to dist/uploads as well if dist exists
+                const distUploadsDir = path.join(process.cwd(), 'dist/uploads');
+                if (fs.existsSync(path.join(process.cwd(), 'dist'))) {
+                  if (!fs.existsSync(distUploadsDir)) fs.mkdirSync(distUploadsDir, { recursive: true });
+                  await image.write(path.join(distUploadsDir, fileName), { quality: 85 });
                 }
                 
-                console.log(`[Vite Upload API] Successfully saved OG image to public/${baseName}.jpg`);
+                // Update public/data/og.json
+                const ogJsonPath = path.join(process.cwd(), 'public/data/og.json');
+                let ogConfig = {};
+                try {
+                  if (fs.existsSync(ogJsonPath)) {
+                    ogConfig = JSON.parse(fs.readFileSync(ogJsonPath, 'utf8'));
+                  }
+                } catch (e) {
+                  console.error('Error reading og.json:', e);
+                }
+
+                if (!ogConfig.custom) ogConfig.custom = {};
+                ogConfig.custom[cleanKey] = {
+                  target_url: json.targetUrl || '',
+                  title: json.title || '',
+                  description: json.description || '',
+                  image: `/uploads/${fileName}`,
+                  created_at: new Date().toISOString()
+                };
+
+                fs.writeFileSync(ogJsonPath, JSON.stringify(ogConfig, null, 2), 'utf8');
+
+                // If dist/data/og.json exists, update it too
+                const distOgJsonPath = path.join(process.cwd(), 'dist/data/og.json');
+                if (fs.existsSync(path.join(process.cwd(), 'dist/data'))) {
+                  fs.writeFileSync(distOgJsonPath, JSON.stringify(ogConfig, null, 2), 'utf8');
+                }
+
+                console.log(`[Vite Upload API] Successfully saved OG image to public/uploads/${fileName} and updated public/data/og.json`);
                 
                 res.statusCode = 200;
                 res.setHeader('Content-Type', 'application/json');
-                res.end(JSON.stringify({ success: true, message: `OG Image successfully uploaded and updated locally as ${baseName}.jpg!` }));
+                res.end(JSON.stringify({
+                  success: true,
+                  imagePath: `/uploads/${fileName}`,
+                  message: `OG Image saved locally to public/data/og.json & public/uploads/${fileName}!`
+                }));
               } catch (e) {
                 console.error('[Vite Upload API] Error processing image:', e);
                 res.statusCode = 500;

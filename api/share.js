@@ -212,11 +212,22 @@ export default async function handler(req, res) {
   try {
     const scriptUrl = process.env.VITE_GOOGLE_SCRIPT_URL || process.env.GOOGLE_SCRIPT_URL;
 
-    // Check if custom redirect/OG metadata exists in Redirects table for this target ID
+    // Check target ID from request
     const targetId = (id || req.query.formId || req.query.jobId || req.query.postId || req.query.productId || req.query.id || '').toString().trim().toLowerCase();
     let customRedirect = null;
 
-    if (targetId && scriptUrl) {
+    // 0. Check local public/data/og.json custom entries first (instant 0ms response)
+    if (targetId && ogConfig && ogConfig.custom && ogConfig.custom[targetId]) {
+      const cItem = ogConfig.custom[targetId];
+      customRedirect = {
+        title: cItem.title,
+        description: cItem.description,
+        img_url: cItem.image
+      };
+    }
+
+    // If not found in local og.json, try fetching custom redirect from GAS Redirects table
+    if (!customRedirect && targetId && scriptUrl) {
       try {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 1200);

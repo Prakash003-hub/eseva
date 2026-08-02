@@ -31,6 +31,7 @@ import {
   verifyAdminLogin,
   getRedirects,
   createRedirect,
+  saveLocalOgImage,
   deleteRedirect,
   getAnnouncements,
   createAnnouncement,
@@ -893,21 +894,37 @@ export default function AdminPortal() {
 
     setOgIsGenerating(true);
     try {
-      const folderPath = ["WhatsBroTNService_Uploads", "OG_Images"];
-      const driveUrl = await uploadFileToDrive(ogImageFile, folderPath);
-      if (!driveUrl) {
-        throw new Error("Failed to upload image to Google Drive storage.");
+      // 1. Save locally to public/data/og.json & public/uploads/ (when running locally)
+      try {
+        await saveLocalOgImage({
+          key,
+          targetUrl: finalTarget,
+          title: finalTitle,
+          description: finalDesc,
+          imageFile: ogImageFile,
+          aspect: ogAspect
+        });
+      } catch (e) {
+        console.warn("Local file save skipped:", e);
       }
 
-      const payload = {
-        id: key,
-        target_url: finalTarget,
-        title: finalTitle,
-        description: finalDesc,
-        img_url: driveUrl
-      };
-
-      await createRedirect(payload);
+      // 2. Upload to Google Drive & GAS database as cloud backup
+      try {
+        const folderPath = ["WhatsBroTNService_Uploads", "OG_Images"];
+        const driveUrl = await uploadFileToDrive(ogImageFile, folderPath);
+        if (driveUrl) {
+          const payload = {
+            id: key,
+            target_url: finalTarget,
+            title: finalTitle,
+            description: finalDesc,
+            img_url: driveUrl
+          };
+          await createRedirect(payload);
+        }
+      } catch (cloudErr) {
+        console.warn("Cloud backup save failed:", cloudErr);
+      }
 
       setOgGeneratedUrl(finalTarget);
       setOgIsGenerated(true);
@@ -915,7 +932,7 @@ export default function AdminPortal() {
       // Refresh redirects list
       handleRefreshRedirects();
       
-      alert("OG Cover Image saved successfully for Target Link!");
+      alert("OG Cover Image saved locally in project files (public/data/og.json & public/uploads/)!");
     } catch (err) {
       console.error(err);
       alert("Failed to save OG Image: " + (err.message || err));

@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Upload, Copy, ExternalLink, Check, X, Sparkles } from 'lucide-react';
-import { verifyAdminLogin, uploadFileToDrive, createRedirect } from '../services/db';
+import { verifyAdminLogin, uploadFileToDrive, createRedirect, saveLocalOgImage } from '../services/db';
 
 export default function OgGenerator() {
   const navigate = useNavigate();
@@ -176,23 +176,37 @@ export default function OgGenerator() {
 
     setIsGenerating(true);
     try {
-      // 1. Upload to Google Drive (folder: ["WhatsBroTNService_Uploads", "OG_Images"])
-      const folderPath = ["WhatsBroTNService_Uploads", "OG_Images"];
-      const driveUrl = await uploadFileToDrive(imageFile, folderPath);
-      if (!driveUrl) {
-        throw new Error("Failed to upload image to Google Drive storage.");
+      // 1. Save locally to public/data/og.json & public/uploads/ (when running locally)
+      try {
+        await saveLocalOgImage({
+          key,
+          targetUrl: finalTarget,
+          title: finalTitle,
+          description: finalDesc,
+          imageFile,
+          aspect: aspectRatio
+        });
+      } catch (e) {
+        console.warn("Local file save skipped:", e);
       }
 
-      // 2. Call API to save image mapping directly for target link key
-      const payload = {
-        id: key,
-        target_url: finalTarget,
-        title: finalTitle,
-        description: finalDesc,
-        img_url: driveUrl
-      };
-
-      await createRedirect(payload);
+      // 2. Upload to Google Drive & GAS database as cloud backup
+      try {
+        const folderPath = ["WhatsBroTNService_Uploads", "OG_Images"];
+        const driveUrl = await uploadFileToDrive(imageFile, folderPath);
+        if (driveUrl) {
+          const payload = {
+            id: key,
+            target_url: finalTarget,
+            title: finalTitle,
+            description: finalDesc,
+            img_url: driveUrl
+          };
+          await createRedirect(payload);
+        }
+      } catch (cloudErr) {
+        console.warn("Cloud backup save failed:", cloudErr);
+      }
 
       setGeneratedTargetUrl(finalTarget);
       setIsGenerated(true);

@@ -28,22 +28,67 @@
     },
     {
       "source": "/post/:id*",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": {
+            "re": ".*([fF]acebook|[tT]witter|[wW]hats[aA]pp|[lL]inked[iI]n|[tT]elegram|[sS]lack|[dD]iscord|[gG]oogle|[bB]ing|[yY]andex|[pP]interest).*"
+          }
+        }
+      ],
       "destination": "/api/share?type=post&id=:id*"
     },
     {
       "source": "/job/:id*",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": {
+            "re": ".*([fF]acebook|[tT]witter|[wW]hats[aA]pp|[lL]inked[iI]n|[tT]elegram|[sS]lack|[dD]iscord|[gG]oogle|[bB]ing|[yY]andex|[pP]interest).*"
+          }
+        }
+      ],
       "destination": "/api/share?type=job&id=:id*"
     },
     {
       "source": "/form/:id*",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": {
+            "re": ".*([fF]acebook|[tT]witter|[wW]hats[aA]pp|[lL]inked[iI]n|[tT]elegram|[sS]lack|[dD]iscord|[gG]oogle|[bB]ing|[yY]andex|[pP]interest).*"
+          }
+        }
+      ],
       "destination": "/api/share?type=form&id=:id*"
     },
     {
       "source": "/accessories/:id*",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": {
+            "re": ".*([fF]acebook|[tT]witter|[wW]hats[aA]pp|[lL]inked[iI]n|[tT]elegram|[sS]lack|[dD]iscord|[gG]oogle|[bB]ing|[yY]andex|[pP]interest).*"
+          }
+        }
+      ],
       "destination": "/api/share?type=accessories&id=:id*"
     },
     {
       "source": "/product/:id*",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": {
+            "re": ".*([fF]acebook|[tT]witter|[wW]hats[aA]pp|[lL]inked[iI]n|[tT]elegram|[sS]lack|[dD]iscord|[gG]oogle|[bB]ing|[yY]andex|[pP]interest).*"
+          }
+        }
+      ],
       "destination": "/api/share?type=product&id=:id*"
     },
     {

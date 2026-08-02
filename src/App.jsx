@@ -336,7 +336,10 @@ function PortalLayout() {
               <Route path="/tnkpadmin" element={<AdminPortal systemSettings={systemSettings} />} />
               <Route path="/admin/og-generator" element={<OgGenerator systemSettings={systemSettings} />} />
               <Route path="/form/:formId" element={<UserPortal currentUser={currentUser} onLoginTrigger={() => setIsAuthModalOpen(true)} systemSettings={systemSettings} />} />
+              <Route path="/job/:jobId" element={<UserPortal currentUser={currentUser} onLoginTrigger={() => setIsAuthModalOpen(true)} systemSettings={systemSettings} />} />
               <Route path="/post/:postId" element={<UserPortal currentUser={currentUser} onLoginTrigger={() => setIsAuthModalOpen(true)} systemSettings={systemSettings} />} />
+              <Route path="/product/:productId" element={<UserPortal currentUser={currentUser} onLoginTrigger={() => setIsAuthModalOpen(true)} systemSettings={systemSettings} />} />
+              <Route path="/accessories/:productId" element={<UserPortal currentUser={currentUser} onLoginTrigger={() => setIsAuthModalOpen(true)} systemSettings={systemSettings} />} />
               <Route path="/admin" element={<TrollPage />} />
               <Route path="*" element={<Navigate to="/user" replace />} />
             </Routes>

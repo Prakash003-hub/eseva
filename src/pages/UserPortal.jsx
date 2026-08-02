@@ -760,37 +760,53 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
       .catch(err => console.error('Failed to load og.json metadata:', err));
   }, []);
 
-  // Redirect to correct tab if shared link parameters are present
+  // Deep linking: Auto-select Form, Job, or Post from URL path or search query
   useEffect(() => {
-    const formIdParam = searchParams.get('formId');
-    const productIdParam = searchParams.get('productId');
+    const pathname = window.location.pathname || '';
+    const parts = pathname.split('/').filter(Boolean);
 
-    if (formIdParam && activeTab !== 'apply') {
-      setSearchParams({ tab: 'apply', formId: formIdParam });
+    let routeType = '';
+    let routeId = '';
+
+    if (parts.length >= 2) {
+      routeType = parts[0].toLowerCase();
+      routeId = parts.slice(1).join('/');
+    } else if (parts.length === 1 && parts[0] !== 'user' && parts[0] !== 'tnkpadmin') {
+      routeId = parts[0];
+      if (routeId.startsWith('form')) routeType = 'form';
+      else if (routeId.startsWith('post')) routeType = 'post';
+      else if (routeId.startsWith('job')) routeType = 'job';
+      else if (routeId.startsWith('prod')) routeType = 'product';
     }
-  }, [searchParams, activeTab]);
 
+    const queryFormId = searchParams.get('formId');
+    const queryJobId = searchParams.get('jobId');
+    const queryPostId = searchParams.get('postId');
 
-  // Deep linking: Auto-select Form
-  useEffect(() => {
-    const formIdParam = searchParams.get('formId');
-    if (formIdParam && forms.length > 0 && activeTab === 'apply') {
-      const targetForm = forms.find(f => String(f.id) === String(formIdParam));
+    const targetFormId = (routeType === 'form' ? routeId : '') || queryFormId;
+    const targetJobId = (routeType === 'job' ? routeId : '') || queryJobId;
+    const targetPostId = (routeType === 'post' ? routeId : '') || queryPostId;
+
+    if (targetFormId && forms.length > 0) {
+      const targetForm = forms.find(f => String(f.id).toLowerCase() === targetFormId.toLowerCase());
       if (targetForm && (!selectedForm || selectedForm.id !== targetForm.id)) {
+        if (activeTab !== 'apply') setActiveTab('apply');
         selectFormToFill(targetForm);
       }
     }
-  }, [forms, searchParams, activeTab, selectedForm]);
 
+    if (targetJobId && jobs.length > 0) {
+      const targetJob = jobs.find(j => String(j.id).toLowerCase() === targetJobId.toLowerCase());
+      if (targetJob && (!selectedJobDetails || String(selectedJobDetails.id) !== String(targetJob.id))) {
+        if (activeTab !== 'home') setActiveTab('home');
+        setSelectedJobDetails(targetJob);
+      }
+    }
 
-
-
-  // Deep linking: Auto-scroll to Post
-  useEffect(() => {
-    const postIdParam = searchParams.get('postId');
-    if (postIdParam && posts.length > 0 && activeTab === 'home') {
+    if (targetPostId && posts.length > 0) {
+      if (activeTab !== 'home') setActiveTab('home');
       setTimeout(() => {
-        const el = document.getElementById(`post-${postIdParam}`);
+        const el = document.getElementById(`post-${targetPostId}`);
         if (el) {
           el.scrollIntoView({ behavior: 'smooth', block: 'center' });
           el.classList.add('highlight-flash');
@@ -798,7 +814,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
         }
       }, 500);
     }
-  }, [posts, searchParams, activeTab]);
+  }, [forms, jobs, posts, searchParams, activeTab, selectedForm, selectedJobDetails]);
 
   // Dynamic Document Title and Description Updater
   useEffect(() => {

@@ -334,7 +334,7 @@ export default async function handler(req, res) {
     if (type === 'post') {
       redirectPath = `/user?tab=home&postId=${id}`;
     } else if (type === 'job') {
-      redirectPath = `/user?tab=home&jobId=${id}`;
+      redirectPath = `/user?tab=jobs&jobId=${id}`;
     } else if (type === 'form') {
       redirectPath = `/user?tab=apply&formId=${id}`;
     } else if (type === 'product' || type === 'accessories') {

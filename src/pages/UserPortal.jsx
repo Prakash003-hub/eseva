@@ -491,8 +491,16 @@ const MarqueeRow = ({
 export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigger }) {
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Tab states: 'home' | 'apply'
-  const activeTab = searchParams.get('tab') || 'home';
+  // Tab states: 'home' | 'apply' | 'jobs' | 'status' | 'accessories'
+  const activeTab = (() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam) return tabParam;
+    const pathname = window.location.pathname || '';
+    if (pathname.startsWith('/form')) return 'apply';
+    if (pathname.startsWith('/job')) return 'jobs';
+    if (pathname.startsWith('/product') || pathname.startsWith('/accessories')) return 'accessories';
+    return 'home';
+  })();
   const initialCategory = searchParams.get('category') || '';
 
   const [posts, setPosts] = useState([]);
@@ -759,6 +767,33 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
       .then(data => setOgMetadata(data))
       .catch(err => console.error('Failed to load og.json metadata:', err));
   }, []);
+
+  const handleTabChange = (tabName) => {
+    setSearchParams({ tab: tabName });
+    if (window.location.pathname !== '/user' && window.location.pathname !== '/') {
+      try {
+        window.history.pushState({}, '', `/user?tab=${tabName}`);
+      } catch (e) {}
+    }
+    // Reset wizard & job states
+    if (tabName !== 'apply') {
+      setSelectedForm(null);
+      setWizardStep(1);
+      setFormData({});
+      setUploadedFiles({});
+      setSubmissionResult(null);
+      setAgreeCheckbox(false);
+      setDeletedSavedDocs({});
+      setDuplicateSubmissionError('');
+    }
+    if (tabName !== 'jobs') {
+      setSelectedJobDetails(null);
+    }
+  };
+
+  const setActiveTab = (tabName) => {
+    handleTabChange(tabName);
+  };
 
   // Deep linking: Auto-select Form, Job, or Post from URL path or search query
   useEffect(() => {
@@ -1116,29 +1151,6 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
       setFormData(prev => ({ ...initialFields, ...prev }));
     }
   }, [selectedForm, wizardStep, currentUser]);
-
-  const handleTabChange = (tabName) => {
-    setSearchParams({ tab: tabName });
-    if (window.location.pathname !== '/user' && window.location.pathname !== '/') {
-      try {
-        window.history.pushState({}, '', `/user?tab=${tabName}`);
-      } catch (e) {}
-    }
-    // Reset wizard & job states
-    if (tabName !== 'apply') {
-      setSelectedForm(null);
-      setWizardStep(1);
-      setFormData({});
-      setUploadedFiles({});
-      setSubmissionResult(null);
-      setAgreeCheckbox(false);
-      setDeletedSavedDocs({});
-      setDuplicateSubmissionError('');
-    }
-    if (tabName !== 'jobs') {
-      setSelectedJobDetails(null);
-    }
-  };
 
   const getInitialFormData = () => {
     if (!currentUser) return {};

@@ -3615,14 +3615,20 @@ export default function AdminPortal() {
                                         path: item.target_path || key
                                       })
                                     });
+                                    const contentType = res.headers.get('content-type') || '';
+                                    if (!res.ok || contentType.includes('text/html')) {
+                                      alert("⚠️ Local dev server plugin needs a restart!\n\nPlease stop 'npm run dev' in your terminal (Ctrl + C) and run 'npm run dev' again so Vite loads the /api/delete-og-image handler.");
+                                      return;
+                                    }
                                     const data = await res.json();
                                     if (data.success) {
+                                      alert("✅ OG image deleted successfully!");
                                       fetchLocalOgList();
                                     } else {
-                                      alert("Delete failed: " + data.error);
+                                      alert("Delete failed: " + (data.error || 'Unknown error'));
                                     }
                                   } catch (err) {
-                                    alert("Error deleting OG image: " + err.message);
+                                    alert("⚠️ Local dev server plugin needs a restart!\n\nPlease stop 'npm run dev' in your terminal (Ctrl + C) and run 'npm run dev' again so Vite loads the /api/delete-og-image handler.");
                                   }
                                 }}
                                 style={{

@@ -816,21 +816,22 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
     }
   }, [forms, jobs, posts, searchParams, activeTab, selectedForm, selectedJobDetails]);
 
-  // Handle browser popstate and back navigation for deep links
-  useEffect(() => {
-    const handlePopState = () => {
-      if (selectedJobDetails) {
-        setSelectedJobDetails(null);
-        setActiveTab('jobs');
+  const handleCloseFormWizard = () => {
+    setSelectedForm(null);
+    setWizardStep(1);
+    setFormData({});
+    setUploadedFiles({});
+    setSubmissionResult(null);
+    setAgreeCheckbox(false);
+    setDeletedSavedDocs({});
+    setDuplicateSubmissionError('');
+    if (activeTab !== 'apply') setActiveTab('apply');
+    try {
+      if (window.location.pathname !== '/user') {
+        window.history.pushState({}, '', '/user?tab=apply');
       }
-      if (selectedForm) {
-        setSelectedForm(null);
-        setActiveTab('apply');
-      }
-    };
-    window.addEventListener('popstate', handlePopState);
-    return () => window.removeEventListener('popstate', handlePopState);
-  }, [selectedJobDetails, selectedForm]);
+    } catch (e) {}
+  };
 
   const handleCloseJobDetails = () => {
     setSelectedJobDetails(null);
@@ -841,6 +842,23 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
       }
     } catch (e) {}
   };
+
+  // Handle browser popstate and back navigation for deep links
+  useEffect(() => {
+    const handlePopState = () => {
+      if (selectedJobDetails) {
+        handleCloseJobDetails();
+      } else if (selectedForm) {
+        handleCloseFormWizard();
+      } else if (window.location.pathname !== '/user' && window.location.pathname !== '/') {
+        try {
+          window.history.pushState({}, '', '/user');
+        } catch (e) {}
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [selectedJobDetails, selectedForm]);
 
   // Dynamic Document Title and Description Updater
   useEffect(() => {
@@ -1101,7 +1119,12 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
 
   const handleTabChange = (tabName) => {
     setSearchParams({ tab: tabName });
-    // Reset wizard states
+    if (window.location.pathname !== '/user' && window.location.pathname !== '/') {
+      try {
+        window.history.pushState({}, '', `/user?tab=${tabName}`);
+      } catch (e) {}
+    }
+    // Reset wizard & job states
     if (tabName !== 'apply') {
       setSelectedForm(null);
       setWizardStep(1);
@@ -1111,6 +1134,9 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
       setAgreeCheckbox(false);
       setDeletedSavedDocs({});
       setDuplicateSubmissionError('');
+    }
+    if (tabName !== 'jobs') {
+      setSelectedJobDetails(null);
     }
   };
 
@@ -2663,7 +2689,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
             ) : (selectedForm.coming_soon === true || String(selectedForm.coming_soon).toLowerCase() === 'true') ? (
               <div style={{ minHeight: 'calc(100vh - 270px)', display: 'flex', flexDirection: 'column' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 16px', borderBottom: '1px solid var(--border-light)' }}>
-                  <button onClick={() => setSelectedForm(null)} className="premium-btn premium-btn-secondary" style={{ width: '40px', height: '40px', padding: 0, borderRadius: '50%' }}>
+                  <button onClick={handleCloseFormWizard} className="premium-btn premium-btn-secondary" style={{ width: '40px', height: '40px', padding: 0, borderRadius: '50%' }}>
                     <ArrowLeft size={18} />
                   </button>
                   <div>
@@ -2685,7 +2711,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
               // Active 5-Step Application Wizard
               <div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '10px 16px', borderBottom: '1px solid var(--border-light)' }}>
-                  <button onClick={() => setSelectedForm(null)} className="premium-btn premium-btn-secondary" style={{ width: '40px', height: '40px', padding: 0, borderRadius: '50%' }}>
+                  <button onClick={handleCloseFormWizard} className="premium-btn premium-btn-secondary" style={{ width: '40px', height: '40px', padding: 0, borderRadius: '50%' }}>
                     <ArrowLeft size={18} />
                   </button>
                   <div>

@@ -3442,9 +3442,15 @@ export default function AdminPortal() {
                     <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, minWidth: '180px' }}>
                         <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-light-muted)' }}>Target Aspect Ratio</label>
-                        <div className="premium-input" style={{ padding: '8px 10px', fontSize: '0.8rem', height: '38px', width: '100%', display: 'flex', alignItems: 'center', fontWeight: 700, color: 'var(--primary)' }}>
-                          1.91:1 Landscape (1200x630)
-                        </div>
+                        <select 
+                          value={ogAspect}
+                          onChange={(e) => setOgAspect(e.target.value)}
+                          className="premium-input" 
+                          style={{ padding: '8px 10px', fontSize: '0.8rem', height: '38px', width: '100%', fontWeight: 700, color: 'var(--primary)' }}
+                        >
+                          <option value="landscape">1.91:1 Landscape (1200x630)</option>
+                          <option value="square">1:1 Square (1024x1024)</option>
+                        </select>
                       </div>
 
                       <div style={{ flexShrink: 0 }}>
@@ -3479,7 +3485,7 @@ export default function AdminPortal() {
                                   targetPath: normalizedTarget.targetPath,
                                   targetUrl: normalizedTarget.targetPath,
                                   imageFile: file,
-                                  aspect: 'landscape',
+                                  aspect: ogAspect,
                                   overwrite: Boolean(existingRecord),
                                   previousKey: existingRecord?.target_path || ''
                                 });

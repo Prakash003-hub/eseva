@@ -245,17 +245,24 @@ const processUpload = async (json) => {
       return { statusCode: 400, body: { success: false, error: 'Invalid or corrupted image file.' } };
     }
 
-    if (width / height > TARGET_RATIO) {
-      const targetWidth = Math.floor(height * TARGET_RATIO);
-      const cropX = Math.max(0, Math.floor((width - targetWidth) / 2));
-      image.crop({ x: cropX, y: 0, w: targetWidth, h: height });
-    } else if (width / height < TARGET_RATIO) {
-      const targetHeight = Math.floor(width / TARGET_RATIO);
-      const cropY = Math.max(0, Math.floor((height - targetHeight) / 2));
-      image.crop({ x: 0, y: cropY, w: width, h: targetHeight });
+    const aspectOption = String(json.aspect || json.aspectRatio || 'landscape').toLowerCase();
+    const isSquare = aspectOption === 'square' || aspectOption === '1:1' || aspectOption === '1.1' || aspectOption === '1-1';
+
+    const targetW = isSquare ? 1024 : LANDSCAPE_WIDTH;
+    const targetH = isSquare ? 1024 : LANDSCAPE_HEIGHT;
+    const targetRatio = targetW / targetH;
+
+    if (width / height > targetRatio) {
+      const cropW = Math.floor(height * targetRatio);
+      const cropX = Math.max(0, Math.floor((width - cropW) / 2));
+      image.crop({ x: cropX, y: 0, w: cropW, h: height });
+    } else if (width / height < targetRatio) {
+      const cropH = Math.floor(width / targetRatio);
+      const cropY = Math.max(0, Math.floor((height - cropH) / 2));
+      image.crop({ x: 0, y: cropY, w: width, h: cropH });
     }
 
-    image.resize({ w: LANDSCAPE_WIDTH, h: LANDSCAPE_HEIGHT });
+    image.resize({ w: targetW, h: targetH });
     if (typeof image.quality === 'function') {
       image.quality(85);
     }

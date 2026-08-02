@@ -54,9 +54,13 @@ export const normalizeOgTargetPath = (input) => {
   }
 
   const parts = pathname.split('/').filter(Boolean);
-  const routeType = (parts[0] || '').toLowerCase();
+  let routeType = (parts[0] || '').toLowerCase();
+  
   if (!ROUTE_TYPES.has(routeType)) {
-    return { valid: false, error: `Invalid route type: ${routeType || pathname}` };
+    if (routeType.startsWith('form')) routeType = 'form';
+    else if (routeType.startsWith('post')) routeType = 'post';
+    else if (routeType.startsWith('job')) routeType = 'job';
+    else routeType = 'job'; // Default to job for numeric / raw IDs
   }
 
   if (routeType === 'default') {
@@ -69,10 +73,8 @@ export const normalizeOgTargetPath = (input) => {
     };
   }
 
-  const slug = sanitizeOgSlug(parts.slice(1).join('/'));
-  if (!slug) {
-    return { valid: false, error: 'Missing slug when required.' };
-  }
+  const slugParts = ROUTE_TYPES.has(parts[0]?.toLowerCase()) ? parts.slice(1) : parts;
+  const slug = sanitizeOgSlug(slugParts.join('/')) || sanitizeOgSlug(parts.join('/')) || 'default';
 
   return {
     valid: true,
@@ -183,23 +185,67 @@ export const parseOgConfig = (ogConfig) => {
   };
 };
 
+export const findMatchingOgRecord = (ogConfig, targetInput) => {
+  if (!ogConfig) return null;
+  const rawStr = String(targetInput || '').trim();
+  if (!rawStr) return null;
+
+  const normalized = normalizeOgTargetPath(rawStr);
+  const parsed = parseOgConfig(ogConfig);
+
+  if (normalized.valid && parsed.routesByKey[normalized.routeKey]) {
+    return parsed.routesByKey[normalized.routeKey];
+  }
+
+  const routeMatch = parsed.routes.find((r) =>
+    r.slug === normalized.slug ||
+    r.id === normalized.slug ||
+    r.target_path === normalized.targetPath ||
+    r.route_key === normalized.routeKey
+  );
+  if (routeMatch) return routeMatch;
+
+  if (ogConfig.custom && typeof ogConfig.custom === 'object') {
+    for (const [k, v] of Object.entries(ogConfig.custom)) {
+      if (!v || typeof v !== 'object') continue;
+      const kClean = String(k || '').toLowerCase();
+      const targetClean = String(v.target_path || v.target_url || v.public_url || '').toLowerCase();
+      const slugClean = String(v.slug || v.id || '').toLowerCase();
+
+      if (
+        kClean === normalized.slug ||
+        kClean === normalized.routeKey ||
+        kClean === rawStr.toLowerCase() ||
+        slugClean === normalized.slug ||
+        targetClean.endsWith(normalized.targetPath.toLowerCase())
+      ) {
+        return {
+          id: v.id || normalized.slug,
+          route_type: v.route_type || normalized.routeType,
+          slug: v.slug || normalized.slug,
+          target_path: v.target_path || normalized.targetPath,
+          route_key: normalized.routeKey,
+          image: normalizeOgImagePath(v.image || v.asset_path || ''),
+          title: v.title || '',
+          description: v.description || '',
+          created_at: v.created_at || '',
+          updated_at: v.updated_at || ''
+        };
+      }
+    }
+  }
+
+  return null;
+};
+
 export const resolveOgRecordForTarget = (ogConfig, targetPath) => {
+  const matched = findMatchingOgRecord(ogConfig, targetPath);
+  if (matched) return matched;
+
   const normalized = normalizeOgTargetPath(targetPath);
   const parsed = parseOgConfig(ogConfig);
 
-  if (!normalized.valid) {
-    return {
-      ...parsed.default,
-      image: normalizeOgImagePath(parsed.default.image || '/income_og_preview.jpg')
-    };
-  }
-
-  const exact = parsed.routesByKey[normalized.routeKey];
-  if (exact) {
-    return exact;
-  }
-
-  if (normalized.routeType !== 'default') {
+  if (normalized.valid && normalized.routeType !== 'default') {
     const routeFallback = parsed.routesByKey[normalized.routeType];
     if (routeFallback) {
       return routeFallback;
@@ -213,3 +259,4 @@ export const resolveOgRecordForTarget = (ogConfig, targetPath) => {
 };
 
 export const getSupportedImageExtensions = () => Array.from(SUPPORTED_IMAGE_EXTENSIONS);
+

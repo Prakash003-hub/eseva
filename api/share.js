@@ -1,6 +1,7 @@
 import fs from 'fs';
 import path from 'path';
 import {
+  findMatchingOgRecord,
   getOgFallbackAssetNames,
   normalizeOgImagePath,
   normalizeOgTargetPath,
@@ -243,20 +244,20 @@ export default async function handler(req, res) {
       : (['post', 'form', 'job'].includes(type) ? `/${type}/${id}` : '');
 
     let customRedirect = null;
-    const pageOgRecord = pageTargetPath ? resolveOgRecordForTarget(ogConfig, pageTargetPath) : null;
+    const pageOgRecord = findMatchingOgRecord(ogConfig, pageTargetPath || targetId) || (pageTargetPath ? resolveOgRecordForTarget(ogConfig, pageTargetPath) : null);
 
-    if (pageOgRecord && pageOgRecord.target_path && pageOgRecord.target_path !== '/') {
+    if (pageOgRecord) {
       if (pageOgRecord.title) title = pageOgRecord.title;
       if (pageOgRecord.description) description = pageOgRecord.description;
-      imageUrl = resolveRouteImage(ogConfig, pageTargetPath, baseUrl);
-    }
-
-    if (targetId && ogConfig?.custom?.[targetId]) {
-      const cItem = ogConfig.custom[targetId];
+      if (pageOgRecord.image) {
+        imageUrl = getImageUrl(pageOgRecord.image, baseUrl, defaults.image);
+      } else {
+        imageUrl = resolveRouteImage(ogConfig, pageTargetPath, baseUrl);
+      }
       customRedirect = {
-        title: cItem.title,
-        description: cItem.description,
-        img_url: cItem.image
+        title: pageOgRecord.title,
+        description: pageOgRecord.description,
+        img_url: pageOgRecord.image
       };
     }
 

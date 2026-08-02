@@ -27,24 +27,24 @@
       "destination": "/api/share?type=home"
     },
     {
-      "source": "/post/:id",
-      "destination": "/api/share?type=post&id=:id"
+      "source": "/post/:id*",
+      "destination": "/api/share?type=post&id=:id*"
     },
     {
-      "source": "/job/:id",
-      "destination": "/api/share?type=job&id=:id"
+      "source": "/job/:id*",
+      "destination": "/api/share?type=job&id=:id*"
     },
     {
-      "source": "/form/:id",
-      "destination": "/api/share?type=form&id=:id"
+      "source": "/form/:id*",
+      "destination": "/api/share?type=form&id=:id*"
     },
     {
-      "source": "/accessories/:id",
-      "destination": "/api/share?type=accessories&id=:id"
+      "source": "/accessories/:id*",
+      "destination": "/api/share?type=accessories&id=:id*"
     },
     {
-      "source": "/product/:id",
-      "destination": "/api/share?type=product&id=:id"
+      "source": "/product/:id*",
+      "destination": "/api/share?type=product&id=:id*"
     },
     {
       "source": "/go/:id",

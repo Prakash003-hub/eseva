@@ -284,7 +284,17 @@ export const createRedirect = async (payload) => {
   return await callApi("createRedirect", { payload });
 };
 
-export const saveLocalOgImage = async ({ key, targetUrl, title, description, imageFile, aspect = 'landscape' }) => {
+export const saveLocalOgImage = async ({
+  key,
+  targetPath,
+  targetUrl,
+  title,
+  description,
+  imageFile,
+  aspect = 'landscape',
+  overwrite = false,
+  previousKey = ''
+}) => {
   let imageBase64 = '';
   if (imageFile) {
     imageBase64 = await fileToBase64(imageFile);
@@ -296,11 +306,17 @@ export const saveLocalOgImage = async ({ key, targetUrl, title, description, ima
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         key,
+        targetPath,
         targetUrl,
         title,
         description,
         image: imageBase64,
-        aspect
+        fileName: imageFile?.name || '',
+        mimeType: imageFile?.type || '',
+        publicBaseUrl: 'https://subi-eseva-service.vercel.app',
+        aspect,
+        overwrite,
+        previousKey
       })
     });
     if (res.ok) {

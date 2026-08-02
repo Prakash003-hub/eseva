@@ -179,6 +179,7 @@ export default function OgGenerator() {
       // Save strictly to local project files (public/uploads/ & public/data/og.json)
       const res = await saveLocalOgImage({
         key,
+        targetPath: finalTarget,
         targetUrl: finalTarget,
         title: finalTitle,
         description: finalDesc,

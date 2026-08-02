@@ -1,256 +1,402 @@
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-import fs from 'fs'
-import path from 'path'
+import { defineConfig } from 'vite';
+import react from '@vitejs/plugin-react';
+import fs from 'fs';
+import path from 'path';
+import {
+  buildOgAssetPath,
+  buildOgPublicUrl,
+  normalizeOgTargetPath,
+  parseOgConfig,
+  sanitizeOgSlug
+} from './src/utils/og.js';
 
-// Custom plugin to handle local OG image upload, auto-crop, resize & compress
+const UPLOAD_LIMIT_BYTES = 10 * 1024 * 1024;
+const LANDSCAPE_WIDTH = 1200;
+const LANDSCAPE_HEIGHT = 630;
+const TARGET_RATIO = LANDSCAPE_WIDTH / LANDSCAPE_HEIGHT;
+
+const readJsonFile = (filePath, fallback = {}) => {
+  try {
+    if (!fs.existsSync(filePath)) return fallback;
+    return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+  } catch (error) {
+    console.error(`[OG] Failed to read ${filePath}:`, error);
+    return fallback;
+  }
+};
+
+const writeJsonFile = (filePath, data) => {
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf8');
+};
+
+const ensureDir = (dirPath) => {
+  if (!fs.existsSync(dirPath)) {
+    fs.mkdirSync(dirPath, { recursive: true });
+  }
+};
+
+const readRequestBody = (req) => new Promise((resolve, reject) => {
+  const chunks = [];
+  req.on('data', (chunk) => chunks.push(chunk));
+  req.on('end', () => {
+    try {
+      resolve(Buffer.concat(chunks).toString('utf8'));
+    } catch (error) {
+      reject(error);
+    }
+  });
+  req.on('error', reject);
+});
+
+const sendJson = (res, statusCode, payload) => {
+  res.statusCode = statusCode;
+  res.setHeader('Content-Type', 'application/json');
+  res.end(JSON.stringify(payload));
+};
+
+const listOgRecords = (ogConfig) => {
+  return parseOgConfig(ogConfig).routes.map((record) => ({
+    id: record.id || record.slug,
+    route_type: record.route_type,
+    slug: record.slug,
+    target_path: record.target_path,
+    route_key: record.route_key,
+    local_asset_path: record.asset_path || record.local_asset_path || '',
+    public_page_url: record.public_url || record.public_page_url || '',
+    image: record.image || '',
+    title: record.title || '',
+    description: record.description || '',
+    created_at: record.created_at || '',
+    updated_at: record.updated_at || ''
+  }));
+};
+
+const upsertOgRecord = (ogConfig, record, imagePath, targetUrl, previousKey = '') => {
+  const next = {
+    ...ogConfig,
+    default: ogConfig.default || {
+      title: 'Subi e-sevai Portal',
+      description: 'Apply for E-Sevai services, view job alerts, and stay updated.',
+      image: '/income_og_preview.jpg'
+    },
+    routes: { ...(ogConfig.routes || {}) },
+    custom: { ...(ogConfig.custom || {}) }
+  };
+
+  const normalizedKey = record.route_key;
+  const legacyKey = sanitizeOgSlug(record.slug) || record.slug;
+  const now = new Date().toISOString();
+  const previousNormalized = previousKey ? normalizeOgTargetPath(previousKey) : null;
+
+  const previousRoute = previousNormalized && previousNormalized.valid ? next.routes?.[previousNormalized.routeKey] : null;
+  const previousLegacy = previousNormalized && previousNormalized.valid ? next.custom?.[previousNormalized.slug] : null;
+
+  if (previousRoute && previousNormalized.routeKey !== normalizedKey) {
+    delete next.routes[previousNormalized.routeKey];
+  }
+  if (previousLegacy && previousNormalized.slug !== legacyKey) {
+    delete next.custom[previousNormalized.slug];
+  }
+
+  const existingRoute = next.routes[normalizedKey];
+  const createdAt = existingRoute?.created_at || previousRoute?.created_at || now;
+
+  const finalRecord = {
+    id: record.id || record.slug,
+    route_type: record.route_type,
+    slug: record.slug,
+    target_path: record.target_path,
+    route_key: normalizedKey,
+    local_asset_path: imagePath.startsWith('/uploads/') ? `public${imagePath}` : imagePath,
+    public_page_url: targetUrl,
+    public_url: targetUrl,
+    asset_path: `public${imagePath}`,
+    image: imagePath,
+    title: record.title || '',
+    description: record.description || '',
+    created_at: createdAt,
+    updated_at: now
+  };
+
+  next.routes[normalizedKey] = finalRecord;
+  next.custom[legacyKey] = {
+    id: finalRecord.id,
+    route_type: finalRecord.route_type,
+    slug: finalRecord.slug,
+    target_path: finalRecord.target_path,
+    target_url: finalRecord.public_url,
+    public_url: finalRecord.public_url,
+    asset_path: finalRecord.asset_path,
+    local_asset_path: finalRecord.local_asset_path,
+    title: finalRecord.title,
+    description: finalRecord.description,
+    image: finalRecord.image,
+    created_at: createdAt,
+    updated_at: now
+  };
+
+  if (record.route_type === 'default') {
+    next.default = {
+      title: record.title || next.default.title,
+      description: record.description || next.default.description,
+      image: imagePath
+    };
+  }
+
+  return next;
+};
+
+const removeOgRecord = (ogConfig, normalizedKey) => {
+  const next = {
+    ...ogConfig,
+    routes: { ...(ogConfig.routes || {}) },
+    custom: { ...(ogConfig.custom || {}) }
+  };
+
+  const routeRecord = next.routes[normalizedKey.routeKey];
+  if (routeRecord) {
+    delete next.routes[normalizedKey.routeKey];
+  }
+
+  if (normalizedKey.slug && next.custom[normalizedKey.slug]) {
+    delete next.custom[normalizedKey.slug];
+  }
+
+  return { next, routeRecord };
+};
+
+const processUpload = async (json) => {
+  if (!json.image) {
+    return { statusCode: 400, body: { success: false, error: 'Missing image data.' } };
+  }
+
+  const normalized = normalizeOgTargetPath(json.targetPath || json.targetUrl || json.key || json.path);
+  if (!normalized.valid) {
+    return { statusCode: 400, body: { success: false, error: normalized.error } };
+  }
+
+  const routeType = normalized.routeType;
+  const slug = normalized.slug;
+  const targetPath = normalized.targetPath;
+  const routeKey = normalized.routeKey;
+  const overwrite = json.overwrite === true || String(json.overwrite).toLowerCase() === 'true';
+  const previousKey = json.previousKey || json.previous_key || '';
+
+  const ogJsonPath = path.join(process.cwd(), 'public/data/og.json');
+  const ogConfig = readJsonFile(ogJsonPath, {});
+  const parsed = parseOgConfig(ogConfig);
+  const existing = parsed.routesByKey[routeKey];
+
+  if (existing && !overwrite && (!previousKey || normalizeOgTargetPath(previousKey).routeKey !== routeKey)) {
+    return { statusCode: 409, body: { success: false, error: `An OG image already exists for ${targetPath}.` } };
+  }
+
+  const base64Data = String(json.image).replace(/^data:image\/\w+;base64,/, '');
+  const estimatedBytes = Buffer.byteLength(base64Data, 'base64');
+  if (!estimatedBytes || estimatedBytes > UPLOAD_LIMIT_BYTES) {
+    return { statusCode: 400, body: { success: false, error: 'File size limit exceeded. Please upload an image under 10MB.' } };
+  }
+
+  const mimeType = String(json.mimeType || '').toLowerCase();
+  const fileNameHint = String(json.fileName || '').toLowerCase();
+  const supportedMime =
+    mimeType.includes('jpeg') ||
+    mimeType.includes('jpg') ||
+    mimeType.includes('png') ||
+    mimeType.includes('webp') ||
+    fileNameHint.endsWith('.jpg') ||
+    fileNameHint.endsWith('.jpeg') ||
+    fileNameHint.endsWith('.png') ||
+    fileNameHint.endsWith('.webp');
+
+  if (!supportedMime) {
+    return { statusCode: 400, body: { success: false, error: 'Unsupported file type. Use JPG, JPEG, PNG, or WebP.' } };
+  }
+
+  const cleanBuffer = Buffer.from(base64Data, 'base64');
+  let image;
+  try {
+    const { Jimp } = await import('jimp');
+    image = await Jimp.read(cleanBuffer);
+  } catch (error) {
+    return { statusCode: 400, body: { success: false, error: 'Invalid or corrupted image file.' } };
+  }
+
+  try {
+    const width = image.bitmap?.width || image.width;
+    const height = image.bitmap?.height || image.height;
+
+    if (!width || !height) {
+      return { statusCode: 400, body: { success: false, error: 'Invalid or corrupted image file.' } };
+    }
+
+    if (width / height > TARGET_RATIO) {
+      const targetWidth = Math.floor(height * TARGET_RATIO);
+      const cropX = Math.max(0, Math.floor((width - targetWidth) / 2));
+      image.crop({ x: cropX, y: 0, w: targetWidth, h: height });
+    } else if (width / height < TARGET_RATIO) {
+      const targetHeight = Math.floor(width / TARGET_RATIO);
+      const cropY = Math.max(0, Math.floor((height - targetHeight) / 2));
+      image.crop({ x: 0, y: cropY, w: width, h: targetHeight });
+    }
+
+    image.resize({ w: LANDSCAPE_WIDTH, h: LANDSCAPE_HEIGHT });
+    if (typeof image.quality === 'function') {
+      image.quality(85);
+    }
+  } catch (error) {
+    return { statusCode: 500, body: { success: false, error: 'Failed to process image.' } };
+  }
+
+  const uploadsDir = path.join(process.cwd(), 'public/uploads');
+  ensureDir(uploadsDir);
+
+  const fileName = buildOgAssetPath(routeType, slug).replace('/uploads/', '');
+  const assetPath = path.join(uploadsDir, fileName);
+
+  try {
+    await image.write(assetPath);
+  } catch (error) {
+    console.error('[OG] Failed to write upload:', error);
+    return { statusCode: 500, body: { success: false, error: 'Failed to write image file.' } };
+  }
+
+  const targetUrl = buildOgPublicUrl(
+    targetPath,
+    json.publicBaseUrl || json.baseUrl || json.origin || 'https://subi-eseva-service.vercel.app'
+  );
+  const record = {
+    id: slug,
+    route_type: routeType,
+    slug,
+    target_path: targetPath,
+    route_key: routeKey,
+    title: String(json.title || '').trim(),
+    description: String(json.description || '').trim()
+  };
+
+  const nextConfig = upsertOgRecord(ogConfig, record, `/uploads/${fileName}`, targetUrl, previousKey);
+  try {
+    writeJsonFile(ogJsonPath, nextConfig);
+
+    const distDataDir = path.join(process.cwd(), 'dist/data');
+    if (fs.existsSync(distDataDir)) {
+      writeJsonFile(path.join(distDataDir, 'og.json'), nextConfig);
+    }
+  } catch (error) {
+    console.error('[OG] Failed to write metadata:', error);
+    return { statusCode: 500, body: { success: false, error: 'Failed to update metadata.' } };
+  }
+
+  if (previousKey && normalizeOgTargetPath(previousKey).routeKey !== routeKey) {
+    const previousNormalized = normalizeOgTargetPath(previousKey);
+    const previousRecord = parsed.routesByKey[previousNormalized.routeKey];
+    if (previousRecord?.image && previousRecord.image.startsWith('/uploads/') && previousRecord.image !== `/uploads/${fileName}`) {
+      const oldFile = path.join(process.cwd(), 'public', previousRecord.image);
+      if (fs.existsSync(oldFile)) {
+        try { fs.unlinkSync(oldFile); } catch {}
+      }
+    }
+  }
+
+  return {
+    statusCode: 200,
+    body: {
+      success: true,
+      imagePath: `/uploads/${fileName}`,
+      record: nextConfig.routes[routeKey],
+      message: `OG image saved to public/uploads/${fileName}`
+    }
+  };
+};
+
+const processDelete = async (json) => {
+  const normalized = normalizeOgTargetPath(json.targetPath || json.key || json.path || json.route);
+  if (!normalized.valid) {
+    return { statusCode: 400, body: { success: false, error: normalized.error } };
+  }
+
+  const ogJsonPath = path.join(process.cwd(), 'public/data/og.json');
+  const ogConfig = readJsonFile(ogJsonPath, {});
+  const parsed = parseOgConfig(ogConfig);
+  const existing = parsed.routesByKey[normalized.routeKey];
+
+  if (!existing) {
+    return { statusCode: 404, body: { success: false, error: 'OG image record not found.' } };
+  }
+
+  const { next, routeRecord } = removeOgRecord(ogConfig, normalized);
+  const imagePath = routeRecord?.image || existing.image || '';
+
+  try {
+    if (imagePath.startsWith('/uploads/')) {
+      const localFile = path.join(process.cwd(), 'public', imagePath);
+      if (fs.existsSync(localFile)) {
+        fs.unlinkSync(localFile);
+      }
+    }
+  } catch (error) {
+    return { statusCode: 500, body: { success: false, error: 'Failed to delete image file.' } };
+  }
+
+  try {
+    writeJsonFile(ogJsonPath, next);
+    const distDataDir = path.join(process.cwd(), 'dist/data');
+    if (fs.existsSync(distDataDir)) {
+      writeJsonFile(path.join(distDataDir, 'og.json'), next);
+    }
+  } catch (error) {
+    console.error('[OG] Failed to update metadata after deletion:', error);
+    return { statusCode: 500, body: { success: false, error: 'Failed to update metadata.' } };
+  }
+
+  return {
+    statusCode: 200,
+    body: { success: true, message: `OG image '${normalized.routeKey}' deleted successfully.` }
+  };
+};
+
 function localOgUploadPlugin() {
   return {
     name: 'local-og-upload',
     configureServer(server) {
       server.middlewares.use(async (req, res, next) => {
-        if (req.url === '/api/upload-og-image' && req.method === 'POST') {
-          try {
-            const chunks = [];
-            req.on('data', chunk => chunks.push(chunk));
-            req.on('end', async () => {
-              try {
-                const buffer = Buffer.concat(chunks);
-                const bodyStr = buffer.toString('utf8');
-                const json = JSON.parse(bodyStr);
-                
-                if (!json.image) {
-                  res.statusCode = 400;
-                  res.setHeader('Content-Type', 'application/json');
-                  res.end(JSON.stringify({ success: false, error: 'No image provided' }));
-                  return;
-                }
-                
-                // Extract base64 data
-                const base64Data = json.image.replace(/^data:image\/\w+;base64,/, "");
-                const fileBuffer = Buffer.from(base64Data, 'base64');
-                
-                // Dynamic import jimp to process the image
-                const { Jimp } = await import('jimp');
-                const image = await Jimp.read(fileBuffer);
-                const width = image.width;
-                const height = image.height;
-                const aspect = json.aspect || 'landscape';
-                
-                console.log(`[Local OG Plugin] Processing image: ${width}x${height} | Target Aspect: ${aspect}`);
-                
-                // Auto crop to target ratio before resizing
-                if (aspect === 'square') {
-                  if (width !== height) {
-                    const minDim = Math.min(width, height);
-                    const cropX = Math.max(0, Math.floor((width - minDim) / 2));
-                    const cropY = Math.max(0, Math.floor((height - minDim) / 2));
-                    image.crop({ x: cropX, y: cropY, w: minDim, h: minDim });
-                  }
-                  image.resize({ w: 1024, h: 1024 });
-                } else {
-                  // Landscape 1.91:1 (1200x630)
-                  const targetRatio = 1200 / 630;
-                  const currentRatio = width / height;
-                  
-                  if (currentRatio > targetRatio) {
-                    const targetWidth = Math.floor(height * targetRatio);
-                    const cropX = Math.max(0, Math.floor((width - targetWidth) / 2));
-                    image.crop({ x: cropX, y: 0, w: targetWidth, h: height });
-                  } else if (currentRatio < targetRatio) {
-                    const targetHeight = Math.floor(width / targetRatio);
-                    const cropY = Math.max(0, Math.floor((height - targetHeight) / 2));
-                    image.crop({ x: 0, y: cropY, w: width, h: targetHeight });
-                  }
-                  image.resize({ w: 1200, h: 630 });
-                }
-                
-                // Helper to extract clean key (target ID) from path or URL
-                const extractCleanKey = (str) => {
-                  if (!str) return 'link';
-                  const cleanStr = String(str).trim();
-                  if (cleanStr === '/' || cleanStr === 'default') return 'default';
-
-                  const matchParam = cleanStr.match(/(?:formId|jobId|postId|productId|id)=([a-zA-Z0-9_-]+)/i);
-                  if (matchParam && matchParam[1]) return matchParam[1].toLowerCase();
-
-                  const matchPath = cleanStr.match(/(?:^\/|\/)?(?:form|post|job|product|accessories)\/([a-zA-Z0-9_-]+)/i);
-                  if (matchPath && matchPath[1]) return matchPath[1].toLowerCase();
-
-                  const matchLast = cleanStr.match(/([a-zA-Z0-9_-]+)(?:\?|#|$)/);
-                  if (matchLast && matchLast[1]) {
-                    const token = matchLast[1].toLowerCase();
-                    if (!['http', 'https', 'user', 'index.html', 'com', 'app'].includes(token)) {
-                      return token;
-                    }
-                  }
-
-                  return cleanStr.toLowerCase().replace(/[^a-z0-9_-]/g, '');
-                };
-
-                const cleanKey = extractCleanKey(json.key || json.path || json.targetUrl || 'link');
-
-                // Determine destination file name & path
-                let fileName = '';
-                let relImagePath = '';
-
-                if (json.routeType === 'default' || cleanKey === 'default') {
-                  fileName = 'income_og_preview.jpg';
-                  relImagePath = '/income_og_preview.jpg';
-                } else if (json.routeType === 'post') {
-                  fileName = 'post_og_preview.jpg';
-                  relImagePath = '/post_og_preview.jpg';
-                } else if (json.routeType === 'form') {
-                  fileName = 'form_og_preview.jpg';
-                  relImagePath = '/form_og_preview.jpg';
-                } else if (json.routeType === 'job') {
-                  fileName = 'job_og_preview.jpg';
-                  relImagePath = '/job_og_preview.jpg';
-                } else if (json.routeType === 'product') {
-                  fileName = 'product_og_preview.jpg';
-                  relImagePath = '/product_og_preview.jpg';
-                } else {
-                  fileName = `og_${cleanKey}.jpg`;
-                  relImagePath = `/uploads/${fileName}`;
-                }
-
-                if (relImagePath.startsWith('/uploads/')) {
-                  const uploadsDir = path.join(process.cwd(), 'public/uploads');
-                  if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-                  await image.write(path.join(uploadsDir, fileName), { quality: 85 });
-
-                  // Save to dist/uploads as well if dist exists
-                  const distUploadsDir = path.join(process.cwd(), 'dist/uploads');
-                  if (fs.existsSync(path.join(process.cwd(), 'dist'))) {
-                    if (!fs.existsSync(distUploadsDir)) fs.mkdirSync(distUploadsDir, { recursive: true });
-                    await image.write(path.join(distUploadsDir, fileName), { quality: 85 });
-                  }
-                } else {
-                  const publicPath = path.join(process.cwd(), `public/${fileName}`);
-                  await image.write(publicPath, { quality: 85 });
-                  
-                  if (fs.existsSync(path.join(process.cwd(), 'dist'))) {
-                    await image.write(path.join(process.cwd(), `dist/${fileName}`), { quality: 85 });
-                  }
-                }
-
-                // Update public/data/og.json
-                const ogJsonPath = path.join(process.cwd(), 'public/data/og.json');
-                let ogConfig = {};
-                try {
-                  if (fs.existsSync(ogJsonPath)) {
-                    ogConfig = JSON.parse(fs.readFileSync(ogJsonPath, 'utf8'));
-                  }
-                } catch (e) {
-                  console.error('Error reading og.json:', e);
-                }
-
-                if (['default', 'post', 'form', 'job', 'product'].includes(json.routeType)) {
-                  if (ogConfig[json.routeType]) {
-                    ogConfig[json.routeType].image = relImagePath;
-                  }
-                } else {
-                  if (!ogConfig.custom) ogConfig.custom = {};
-                  ogConfig.custom[cleanKey] = {
-                    target_url: json.targetUrl || json.path || '',
-                    title: json.title || '',
-                    description: json.description || '',
-                    image: relImagePath,
-                    created_at: new Date().toISOString()
-                  };
-                }
-
-                fs.writeFileSync(ogJsonPath, JSON.stringify(ogConfig, null, 2), 'utf8');
-
-                const distOgJsonPath = path.join(process.cwd(), 'dist/data/og.json');
-                if (fs.existsSync(path.join(process.cwd(), 'dist/data'))) {
-                  fs.writeFileSync(distOgJsonPath, JSON.stringify(ogConfig, null, 2), 'utf8');
-                }
-
-                console.log(`[Local OG Plugin] Saved cropped & compressed OG image to public${relImagePath}`);
-                
-                res.statusCode = 200;
-                res.setHeader('Content-Type', 'application/json');
-                res.end(JSON.stringify({
-                  success: true,
-                  imagePath: `/uploads/${fileName}`,
-                  message: `OG Image auto-cropped, resized & saved locally to public/uploads/${fileName}!`
-                }));
-              } catch (e) {
-                console.error('[Local OG Plugin] Error processing image:', e);
-                res.statusCode = 500;
-                res.setHeader('Content-Type', 'application/json');
-                res.end(JSON.stringify({ success: false, error: e.message }));
-              }
-            });
-          } catch (e) {
-            console.error('[Local OG Plugin] Connection error:', e);
-            res.statusCode = 500;
-            res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ success: false, error: e.message }));
-          }
-        } else if (req.url === '/api/delete-og-image' && req.method === 'POST') {
-          try {
-            const chunks = [];
-            req.on('data', chunk => chunks.push(chunk));
-            req.on('end', async () => {
-              try {
-                const json = JSON.parse(Buffer.concat(chunks).toString('utf8'));
-                const key = (json.key || '').trim().toLowerCase();
-                
-                if (!key) {
-                  res.statusCode = 400;
-                  res.setHeader('Content-Type', 'application/json');
-                  res.end(JSON.stringify({ success: false, error: 'No key provided' }));
-                  return;
-                }
-
-                const ogJsonPath = path.join(process.cwd(), 'public/data/og.json');
-                let ogConfig = {};
-                if (fs.existsSync(ogJsonPath)) {
-                  ogConfig = JSON.parse(fs.readFileSync(ogJsonPath, 'utf8'));
-                }
-
-                if (ogConfig.custom && ogConfig.custom[key]) {
-                  const imagePath = ogConfig.custom[key].image;
-                  delete ogConfig.custom[key];
-                  fs.writeFileSync(ogJsonPath, JSON.stringify(ogConfig, null, 2), 'utf8');
-
-                  if (imagePath && imagePath.startsWith('/uploads/')) {
-                    const localImgFile = path.join(process.cwd(), 'public', imagePath);
-                    if (fs.existsSync(localImgFile)) {
-                      try { fs.unlinkSync(localImgFile); } catch (err) {}
-                    }
-                  }
-
-                  const distOgJson = path.join(process.cwd(), 'dist/data/og.json');
-                  if (fs.existsSync(path.join(process.cwd(), 'dist/data'))) {
-                    fs.writeFileSync(distOgJson, JSON.stringify(ogConfig, null, 2), 'utf8');
-                  }
-                }
-
-                res.statusCode = 200;
-                res.setHeader('Content-Type', 'application/json');
-                res.end(JSON.stringify({ success: true, message: `OG entry '${key}' deleted successfully!` }));
-              } catch (e) {
-                res.statusCode = 500;
-                res.setHeader('Content-Type', 'application/json');
-                res.end(JSON.stringify({ success: false, error: e.message }));
-              }
-            });
-          } catch (e) {
-            res.statusCode = 500;
-            res.setHeader('Content-Type', 'application/json');
-            res.end(JSON.stringify({ success: false, error: e.message }));
-          }
-        } else {
+        if (!req.url) {
           next();
+          return;
         }
+
+        if (req.url.startsWith('/api/upload-og-image') && req.method === 'POST') {
+          try {
+            const body = JSON.parse(await readRequestBody(req));
+            const result = await processUpload(body);
+            sendJson(res, result.statusCode, result.body);
+          } catch (error) {
+            console.error('[OG] Upload error:', error);
+            sendJson(res, 500, { success: false, error: error.message || 'Unexpected upload failure.' });
+          }
+          return;
+        }
+
+        if (req.url.startsWith('/api/delete-og-image') && req.method === 'POST') {
+          try {
+            const body = JSON.parse(await readRequestBody(req));
+            const result = await processDelete(body);
+            sendJson(res, result.statusCode, result.body);
+          } catch (error) {
+            console.error('[OG] Delete error:', error);
+            sendJson(res, 500, { success: false, error: error.message || 'Unexpected deletion failure.' });
+          }
+          return;
+        }
+
+        next();
       });
     }
   };
 }
 
 export default defineConfig({
-  plugins: [react(), localOgUploadPlugin()],
-})
+  plugins: [react(), localOgUploadPlugin()]
+});

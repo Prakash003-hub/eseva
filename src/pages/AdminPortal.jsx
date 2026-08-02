@@ -53,6 +53,7 @@ import {
   deleteJob,
   uploadJobImage
 } from '../services/db';
+import { normalizeOgTargetPath, parseOgConfig } from '../utils/og.js';
 import { 
   Plus, 
   Trash2, 
@@ -191,7 +192,7 @@ const getImageUrl = (url) => {
     return url;
   }
   if (url.startsWith('/uploads/') || url.startsWith('uploads/')) {
-    return `http://${window.location.hostname}:8000${url.startsWith('/') ? '' : '/'}${url}`;
+    return `${window.location.origin}${url.startsWith('/') ? '' : '/'}${url}`;
   }
   return url;
 };
@@ -754,7 +755,25 @@ export default function AdminPortal() {
       const res = await fetch(`/data/og.json?t=${Date.now()}`);
       if (res.ok) {
         const json = await res.json();
-        setOgSavedList(json.custom || {});
+        const parsed = parseOgConfig(json);
+        const nextList = {};
+        parsed.routes.forEach((record) => {
+          nextList[record.route_key || record.slug] = {
+            id: record.id || record.slug,
+            route_type: record.route_type,
+            slug: record.slug,
+            target_path: record.target_path,
+            route_key: record.route_key || record.slug,
+            local_asset_path: record.local_asset_path || record.asset_path || '',
+            public_page_url: record.public_page_url || record.public_url || '',
+            image: record.image || '',
+            title: record.title || '',
+            description: record.description || '',
+            created_at: record.created_at || '',
+            updated_at: record.updated_at || ''
+          };
+        });
+        setOgSavedList(nextList);
       }
     } catch (e) {
       console.warn('Failed to load local og.json:', e);
@@ -915,6 +934,7 @@ export default function AdminPortal() {
       // Save strictly to local project files (public/uploads/ & public/data/og.json)
       const res = await saveLocalOgImage({
         key,
+        targetPath: finalTarget,
         targetUrl: finalTarget,
         title: finalTitle,
         description: finalDesc,
@@ -3421,15 +3441,10 @@ export default function AdminPortal() {
                     {/* Aspect Ratio & File Upload Row */}
                     <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, minWidth: '180px' }}>
-                        <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-light-muted)' }}>Target Aspect Ratio for all uploads:</label>
-                        <select 
-                          id="og-aspect-ratio-select" 
-                          className="premium-input" 
-                          style={{ padding: '8px 10px', fontSize: '0.8rem', height: '38px', width: '100%' }}
-                        >
-                          <option value="landscape">1.91:1 Landscape (1200x630)</option>
-                          <option value="square">1:1 Square (1024x1024)</option>
-                        </select>
+                        <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-light-muted)' }}>Target Aspect Ratio</label>
+                        <div className="premium-input" style={{ padding: '8px 10px', fontSize: '0.8rem', height: '38px', width: '100%', display: 'flex', alignItems: 'center', fontWeight: 700, color: 'var(--primary)' }}>
+                          1.91:1 Landscape (1200x630)
+                        </div>
                       </div>
 
                       <div style={{ flexShrink: 0 }}>
@@ -3447,41 +3462,36 @@ export default function AdminPortal() {
                                 return;
                               }
                               
-                              if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                              if (!['localhost', '127.0.0.1', '::1'].includes(window.location.hostname)) {
                                 alert("This feature is only available during local development (localhost) because it writes directly to your local 'public/' directory.");
                                 return;
                               }
-                              
-                              const aspect = document.getElementById('og-aspect-ratio-select').value;
+
+                              const normalizedTarget = normalizeOgTargetPath(ogCustomPath.trim());
+                              if (!normalizedTarget.valid) {
+                                alert(normalizedTarget.error || 'Invalid target path.');
+                                return;
+                              }
+
+                              const existingRecord = ogSavedList[normalizedTarget.routeKey];
                               try {
-                                const reader = new FileReader();
-                                reader.readAsDataURL(file);
-                                reader.onload = async () => {
-                                  try {
-                                    const base64Str = reader.result;
-                                    const response = await fetch('/api/upload-og-image', {
-                                      method: 'POST',
-                                      headers: { 'Content-Type': 'application/json' },
-                                      body: JSON.stringify({
-                                        image: base64Str,
-                                        aspect: aspect,
-                                        path: ogCustomPath.trim(),
-                                        targetUrl: ogCustomPath.trim()
-                                      })
-                                    });
-                                    const resData = await response.json();
-                                    if (resData.success) {
-                                      alert(`OG Image for '${ogCustomPath}' successfully auto-cropped, compressed, and saved locally to public directory! Please commit & push to deploy.`);
-                                      window.location.reload();
-                                    } else {
-                                      alert("Failed to process image: " + resData.error);
-                                    }
-                                  } catch (err) {
-                                    alert("Error uploading image: " + err.message);
-                                  }
-                                };
+                                const resData = await saveLocalOgImage({
+                                  targetPath: normalizedTarget.targetPath,
+                                  targetUrl: normalizedTarget.targetPath,
+                                  imageFile: file,
+                                  aspect: 'landscape',
+                                  overwrite: Boolean(existingRecord),
+                                  previousKey: existingRecord?.target_path || ''
+                                });
+
+                                if (resData?.success) {
+                                  alert(`✅ OG Image for '${normalizedTarget.targetPath}' successfully auto-cropped, compressed, and saved locally! Run 'git push' to deploy.`);
+                                  fetchLocalOgList();
+                                } else {
+                                  alert("Failed to process image: " + (resData?.error || 'Unknown error'));
+                                }
                               } catch (err) {
-                                alert("Failed to read file: " + err.message);
+                                alert("Error uploading image: " + err.message);
                               }
                             }}
                             style={{ display: 'none' }}
@@ -3528,7 +3538,7 @@ export default function AdminPortal() {
                             {/* Thumbnail preview */}
                             <div style={{ width: '120px', height: '64px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #cbd5e1', background: '#e2e8f0', flexShrink: 0 }}>
                               <img 
-                                src={`${item.image}?t=${Date.now()}`} 
+                                src={`${item.image || item.local_asset_path || '/income_og_preview.jpg'}?t=${Date.now()}`} 
                                 alt={key} 
                                 style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
                                 onError={(e) => { e.target.src = '/whatsbro_logo.png'; }}
@@ -3537,20 +3547,39 @@ export default function AdminPortal() {
 
                             {/* Info */}
                             <div style={{ flex: 1, minWidth: '160px' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px', flexWrap: 'wrap' }}>
                                 <span style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--primary)', wordBreak: 'break-all' }}>
-                                  {item.target_url || `/form/${key}`}
+                                  {item.target_path || item.target_url || `/form/${key}`}
                                 </span>
                                 <span style={{ fontSize: '0.65rem', background: '#e0f2fe', color: '#0369a1', padding: '1px 6px', borderRadius: '4px', fontWeight: '700', whiteSpace: 'nowrap' }}>
                                   ID: {key}
                                 </span>
+                                <span style={{ fontSize: '0.65rem', background: '#ecfccb', color: '#3f6212', padding: '1px 6px', borderRadius: '4px', fontWeight: '700', whiteSpace: 'nowrap' }}>
+                                  {item.route_type || 'route'}
+                                </span>
                               </div>
+                              <span style={{ fontSize: '0.7rem', color: '#475569', display: 'block' }}>
+                                Slug: {item.slug || key}
+                              </span>
+                              <span style={{ fontSize: '0.7rem', color: '#64748b', fontFamily: 'monospace', display: 'block', wordBreak: 'break-all' }}>
+                                Asset: {item.local_asset_path || item.asset_path || `public/uploads/${item.image?.split('/').pop() || ''}`}
+                              </span>
                               <span style={{ fontSize: '0.7rem', color: '#64748b', fontFamily: 'monospace', display: 'block' }}>
-                                public{item.image}
+                                Page: {item.public_page_url || item.public_url || item.target_url || ''}
                               </span>
                               {item.title && (
                                 <span style={{ fontSize: '0.75rem', color: 'var(--text-light-muted)', display: 'block', marginTop: '2px' }}>
                                   Title: {item.title}
+                                </span>
+                              )}
+                              {item.created_at && (
+                                <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block', marginTop: '2px' }}>
+                                  Created: {new Date(item.created_at).toLocaleString()}
+                                </span>
+                              )}
+                              {item.updated_at && item.updated_at !== item.created_at && (
+                                <span style={{ fontSize: '0.7rem', color: '#94a3b8', display: 'block' }}>
+                                  Updated: {new Date(item.updated_at).toLocaleString()}
                                 </span>
                               )}
                             </div>
@@ -3560,7 +3589,7 @@ export default function AdminPortal() {
                               <button
                                 type="button"
                                 onClick={() => {
-                                  setOgCustomPath(item.target_url || `/form/${key}`);
+                                  setOgCustomPath(item.target_path || item.target_url || `/form/${key}`);
                                   if (item.title) setOgTitle(item.title);
                                   if (item.description) setOgDescription(item.description);
                                   window.scrollTo({ top: 350, behavior: 'smooth' });
@@ -3576,10 +3605,11 @@ export default function AdminPortal() {
                                 onClick={async () => {
                                   if (!window.confirm(`Are you sure you want to delete local OG image for '${key}'?`)) return;
                                   try {
+                                    const normalizedTarget = normalizeOgTargetPath(item.target_path || item.target_url || key);
                                     const res = await fetch('/api/delete-og-image', {
                                       method: 'POST',
                                       headers: { 'Content-Type': 'application/json' },
-                                      body: JSON.stringify({ key })
+                                      body: JSON.stringify({ targetPath: normalizedTarget.valid ? normalizedTarget.targetPath : item.target_path || item.target_url || key })
                                     });
                                     const data = await res.json();
                                     if (data.success) {

@@ -161,7 +161,7 @@ const getImageUrl = (url) => {
     return url;
   }
   if (url.startsWith('/uploads/') || url.startsWith('uploads/')) {
-    return `http://${window.location.hostname}:8000${url.startsWith('/') ? '' : '/'}${url}`;
+    return `${window.location.origin}${url.startsWith('/') ? '' : '/'}${url}`;
   }
   return url;
 };
@@ -810,23 +810,36 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
     let currentTitle = 'Subi e sevai - Portal';
     let currentDesc = 'Apply for online services, check products, and stay updated.';
 
+    const formOgRecord = formIdParam
+      ? (ogMetadata?.routes?.[`form/${formIdParam}`] || ogMetadata?.custom?.[formIdParam])
+      : null;
+    const postOgRecord = postIdParam
+      ? (ogMetadata?.routes?.[`post/${postIdParam}`] || ogMetadata?.custom?.[postIdParam])
+      : null;
+
     if (formIdParam) {
       const targetForm = forms.find(f => String(f.id) === String(formIdParam));
       if (targetForm) {
         currentTitle = targetForm.title;
         currentDesc = targetForm.description || currentDesc;
-      } else if (ogMetadata && ogMetadata.form) {
-        currentTitle = ogMetadata.form.title;
-        currentDesc = ogMetadata.form.description;
+      }
+      if (formOgRecord?.title) {
+        currentTitle = formOgRecord.title;
+      }
+      if (formOgRecord?.description) {
+        currentDesc = formOgRecord.description;
       }
     } else if (postIdParam) {
       const targetPost = posts.find(p => String(p.id) === String(postIdParam));
       if (targetPost) {
         currentTitle = targetPost.title;
         currentDesc = targetPost.description || currentDesc;
-      } else if (ogMetadata && ogMetadata.post) {
-        currentTitle = ogMetadata.post.title;
-        currentDesc = ogMetadata.post.description;
+      }
+      if (postOgRecord?.title) {
+        currentTitle = postOgRecord.title;
+      }
+      if (postOgRecord?.description) {
+        currentDesc = postOgRecord.description;
       }
     }
 
@@ -846,18 +859,26 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
     let currentImg = '/income_og_preview.jpg';
 
     if (formIdParam) {
-      const targetForm = forms.find(f => String(f.id) === String(formIdParam));
-      if (targetForm && targetForm.img_url) {
-        currentImg = getImageUrl(targetForm.img_url);
+      if (formOgRecord?.image) {
+        currentImg = formOgRecord.image;
       } else {
-        currentImg = '/form_og_preview.jpg';
+        const targetForm = forms.find(f => String(f.id) === String(formIdParam));
+        if (targetForm && targetForm.img_url) {
+          currentImg = getImageUrl(targetForm.img_url);
+        } else {
+          currentImg = '/form_og_preview.jpg';
+        }
       }
     } else if (postIdParam) {
-      const targetPost = posts.find(p => String(p.id) === String(postIdParam));
-      if (targetPost && targetPost.img_url) {
-        currentImg = getImageUrl(targetPost.img_url);
+      if (postOgRecord?.image) {
+        currentImg = postOgRecord.image;
       } else {
-        currentImg = '/post_og_preview.jpg';
+        const targetPost = posts.find(p => String(p.id) === String(postIdParam));
+        if (targetPost && targetPost.img_url) {
+          currentImg = getImageUrl(targetPost.img_url);
+        } else {
+          currentImg = '/post_og_preview.jpg';
+        }
       }
     } else {
       // Fallback based on activeTab

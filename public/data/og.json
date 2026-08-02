@@ -1,26 +1,16 @@
 {
-  "post": {
-    "title": "Subi e sevai - Latest Post",
-    "description": "Stay updated with the latest service posts and announcements on Subi e sevai.",
-    "image": "/post_og_preview.jpg"
+  "default": {
+    "title": "Subi e-sevai Portal",
+    "description": "Apply for E-Sevai services, view job alerts, and stay updated.",
+    "image": "/income_og_preview.jpg"
   },
-  "job": {
-    "title": "Subi e sevai - Job Alerts",
-    "description": "Check current job openings, notifications, eligibility, and apply online easily.",
-    "image": "/job_og_preview.jpg"
-  },
-  "product": {
-    "title": "Subi e sevai - Accessories & Products",
-    "description": "Browse quality mobile cases, tempered glass, and premium phone accessories in our catalog.",
-    "image": "/product_og_preview.jpg"
-  },
-  "form": {
+  "custom": {
     "form-slzjghgr": {
       "target_url": "https://subi-eseva-service.vercel.app/form/form-slzjghgr",
-      "title": "",
-      "description": "",
+      "title": "Income Certificate Online Application",
+      "description": "Apply for Income Certificate easily online on Subi e-sevai.",
       "image": "/uploads/og_form-slzjghgr.jpg",
-      "created_at": "2026-08-02T02:26:39.303Z"
+      "created_at": "2026-08-02T08:00:00.000Z"
     }
   }
 }

@@ -183,8 +183,8 @@ export default async function handler(req, res) {
     typeKey = 'product';
   }
 
-  const defaults = ogConfig[typeKey] || {
-    title: 'Subi e sevai Portal',
+  const defaults = (ogConfig && ogConfig.default) || {
+    title: 'Subi e-sevai Portal',
     description: 'Apply for E-Sevai services, view job alerts, and stay updated.',
     image: '/income_og_preview.jpg'
   };

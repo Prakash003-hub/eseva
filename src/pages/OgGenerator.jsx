@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Upload, Copy, ExternalLink, Check, X, Link } from 'lucide-react';
+import { ArrowLeft, Upload, Copy, ExternalLink, Check, X, Sparkles } from 'lucide-react';
 import { verifyAdminLogin, uploadFileToDrive, createRedirect } from '../services/db';
 
 export default function OgGenerator() {
@@ -16,7 +16,6 @@ export default function OgGenerator() {
   const [targetUrl, setTargetUrl] = useState('');
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [slug, setSlug] = useState('');
   const [imageFile, setImageFile] = useState(null);
   const [imagePreview, setImagePreview] = useState('');
   const [aspectRatio, setAspectRatio] = useState('landscape'); // 'landscape' (1200x630) or 'square' (1024x1024)
@@ -25,56 +24,71 @@ export default function OgGenerator() {
   // Generator Output States
   const [isGenerating, setIsGenerating] = useState(false);
   const [isGenerated, setIsGenerated] = useState(false);
-  const [generatedUrl, setGeneratedUrl] = useState('');
-  const [copied, setCopied] = useState(false);
+  const [generatedTargetUrl, setGeneratedTargetUrl] = useState('');
+  const [copiedTarget, setCopiedTarget] = useState(false);
 
-  // Auto-slugify function
-  const slugify = (text) => {
-    return text
-      .toLowerCase()
-      .trim()
-      .replace(/[^a-z0-9\s-]/g, '')
-      .replace(/\s+/g, '-')
-      .replace(/-+/g, '-')
-      .replace(/(^-|-$)/g, '');
+  // Helper: Auto extract ID or key from Target Link
+  const extractKeyFromTargetUrl = (urlStr) => {
+    if (!urlStr) return '';
+    const cleanStr = urlStr.trim();
+    
+    try {
+      const parsed = new URL(cleanStr.startsWith('http') ? cleanStr : `https://${cleanStr}`);
+      const params = parsed.searchParams;
+      const paramId = params.get('formId') || params.get('jobId') || params.get('postId') || params.get('productId') || params.get('id');
+      if (paramId) return paramId.trim().toLowerCase();
+
+      // Colon syntax (e.g. ?tab=jobs:JOB759562 or ?tab=apply:FORM123)
+      if (cleanStr.includes(':')) {
+        const parts = cleanStr.split(':');
+        const paramSuffix = parts[parts.length - 1].trim();
+        if (paramSuffix) return paramSuffix.toLowerCase().replace(/[^a-z0-9-]/g, '');
+      }
+
+      // Path segments e.g. /form/form-slzjghgr, /post/post-123, /job/job-123
+      const pathParts = parsed.pathname.split('/').filter(Boolean);
+      if (pathParts.length >= 2) {
+        const lastPart = pathParts[pathParts.length - 1];
+        if (lastPart && lastPart.length > 2 && lastPart !== 'index.html') {
+          return lastPart.toLowerCase().replace(/[^a-z0-9-]/g, '');
+        }
+      } else if (pathParts.length === 1) {
+        const singlePart = pathParts[0];
+        if (singlePart && singlePart !== 'user' && singlePart !== 'index.html') {
+          return singlePart.toLowerCase().replace(/[^a-z0-9-]/g, '');
+        }
+      }
+
+      // Check tab query param
+      const tabParam = params.get('tab');
+      if (tabParam) return tabParam.toLowerCase();
+    } catch (e) {
+      // Fallback
+    }
+
+    const matchForm = cleanStr.match(/(?:formId=|^\/form\/|form\/)([a-zA-Z0-9_-]+)/i);
+    if (matchForm && matchForm[1]) return matchForm[1].toLowerCase();
+
+    const matchJob = cleanStr.match(/(?:jobId=|^\/job\/|job\/)([a-zA-Z0-9_-]+)/i);
+    if (matchJob && matchJob[1]) return matchJob[1].toLowerCase();
+
+    const matchPost = cleanStr.match(/(?:postId=|^\/post\/|post\/)([a-zA-Z0-9_-]+)/i);
+    if (matchPost && matchPost[1]) return matchPost[1].toLowerCase();
+
+    return 'link-' + Math.random().toString(36).substring(2, 8);
   };
 
-  const [slugModified, setSlugModified] = useState(false);
-  
   const handleTargetUrlChange = (val) => {
     setTargetUrl(val);
     setIsGenerated(false);
 
-    // Auto extract slug and title from URL format (e.g. .../user?tab=jobs:JOB759562 or .../user?tab=apply:FORM123)
-    if (val && val.includes(':')) {
-      const parts = val.split(':');
-      const paramSuffix = parts[parts.length - 1].trim();
-      if (paramSuffix && !slugModified) {
-        const cleanSlug = paramSuffix.toLowerCase().replace(/[^a-z0-9-]/g, '');
-        setSlug(cleanSlug);
-        if (!title) {
-          setTitle(`Details for ${paramSuffix.toUpperCase()}`);
-        }
-      }
-    } else if (val && val.includes('tab=')) {
-      const match = val.match(/tab=([a-z0-9_-]+)/i);
-      if (match && match[1] && !slugModified && !slug) {
-        setSlug(match[1].toLowerCase());
-      }
+    const extractedKey = extractKeyFromTargetUrl(val);
+    if (extractedKey && !title) {
+      const formattedTitle = extractedKey
+        .replace(/[-_]/g, ' ')
+        .replace(/\b\w/g, c => c.toUpperCase());
+      setTitle(formattedTitle);
     }
-  };
-
-  const handleTitleChange = (e) => {
-    const val = e.target.value;
-    setTitle(val);
-    if (!slugModified) {
-      setSlug(slugify(val));
-    }
-  };
-
-  const handleSlugChange = (e) => {
-    setSlugModified(true);
-    setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''));
   };
 
   // Canvas Image Resizer Helper
@@ -138,19 +152,11 @@ export default function OgGenerator() {
     }
   };
 
-  // Form submission / Generate Action
+  // Form submission / Save OG Action
   const handleGenerate = async (e) => {
     e.preventDefault();
     if (!targetUrl) {
-      alert("Please enter a Target URL.");
-      return;
-    }
-    if (!title) {
-      alert("Please enter a Title.");
-      return;
-    }
-    if (!slug) {
-      alert("Please enter a Slug.");
+      alert("Please paste your Target Link.");
       return;
     }
     if (!imageFile) {
@@ -158,12 +164,15 @@ export default function OgGenerator() {
       return;
     }
 
-    // Verify target URL has protocol
     let finalTarget = targetUrl.trim();
     if (!/^https?:\/\//i.test(finalTarget)) {
       finalTarget = 'https://' + finalTarget;
       setTargetUrl(finalTarget);
     }
+
+    const key = extractKeyFromTargetUrl(finalTarget);
+    const finalTitle = title.trim() || 'Subi e sevai Service';
+    const finalDesc = description.trim() || 'Click to view details on Subi e-sevai portal.';
 
     setIsGenerating(true);
     try {
@@ -174,37 +183,33 @@ export default function OgGenerator() {
         throw new Error("Failed to upload image to Google Drive storage.");
       }
 
-      // 2. Call API to save link configuration to database
+      // 2. Call API to save image mapping directly for target link key
       const payload = {
-        id: slug.trim().toLowerCase(),
+        id: key,
         target_url: finalTarget,
-        title: title.trim(),
-        description: description.trim(),
+        title: finalTitle,
+        description: finalDesc,
         img_url: driveUrl
       };
 
       await createRedirect(payload);
 
-      // 3. Form short-link URL using dynamic origin
-      // Wait, if running on local dev it uses http://localhost:5173/go/slug
-      // If deployed on Vercel it uses https://subionlineservice.vercel.app/go/slug
-      const shareUrl = `${window.location.origin}/go/${payload.id}`;
-      setGeneratedUrl(shareUrl);
+      setGeneratedTargetUrl(finalTarget);
       setIsGenerated(true);
     } catch (err) {
       console.error(err);
-      alert("Failed to generate dynamic OG link: " + (err.message || err));
+      alert("Failed to save OG Image for target link: " + (err.message || err));
     } finally {
       setIsGenerating(false);
     }
   };
 
-  // Copy Link Action
-  const handleCopyLink = () => {
-    if (!generatedUrl) return;
-    navigator.clipboard.writeText(generatedUrl);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
+  // Copy Target Link
+  const handleCopyTarget = () => {
+    if (!generatedTargetUrl) return;
+    navigator.clipboard.writeText(generatedTargetUrl);
+    setCopiedTarget(true);
+    setTimeout(() => setCopiedTarget(false), 2000);
   };
 
   // Handle Admin Login Pin code verification
@@ -230,7 +235,7 @@ export default function OgGenerator() {
         <div className="app-mobile-container" style={{ justifyContent: 'center', alignItems: 'center', background: 'white' }}>
           <div className="premium-card" style={{ width: '90%', maxWidth: '400px', textAlign: 'center', borderTop: '6px solid var(--primary)', padding: '32px 24px', borderRadius: '16px', boxShadow: 'var(--shadow-lg)' }}>
             <div style={{ fontSize: '2.5rem', marginBottom: '16px' }}>🔒</div>
-            <h2 style={{ marginBottom: '8px', color: 'var(--text-light-main)' }}>OG Generator Secure Gate</h2>
+            <h2 style={{ marginBottom: '8px', color: 'var(--text-light-main)' }}>OG Image Manager Secure Gate</h2>
             <p style={{ fontSize: '0.85rem', color: 'var(--text-light-muted)', marginBottom: '24px' }}>Restricted Access. Please enter the Admin Code to continue.</p>
             
             <form onSubmit={handleAdminLogin}>
@@ -258,7 +263,7 @@ export default function OgGenerator() {
                 disabled={isLoggingIn}
                 style={{ width: '100%', padding: '12px', borderRadius: '8px', background: 'var(--primary)', color: 'white', border: 'none', fontWeight: '700', cursor: 'pointer' }}
               >
-                {isLoggingIn ? 'Verifying...' : 'Unlock Generator'}
+                {isLoggingIn ? 'Verifying...' : 'Unlock Manager'}
               </button>
             </form>
           </div>
@@ -299,8 +304,8 @@ export default function OgGenerator() {
             <ArrowLeft size={18} />
           </button>
           <div>
-            <h2 style={{ fontSize: '1.25rem', margin: 0, fontWeight: '800', color: 'var(--text-light-main)' }}>Dynamic OG URL Generator</h2>
-            <span style={{ fontSize: '0.75rem', color: 'var(--text-light-muted)' }}>Generate database-driven short-links with instant previews</span>
+            <h2 style={{ fontSize: '1.25rem', margin: 0, fontWeight: '800', color: 'var(--text-light-main)' }}>Direct Link OG Manager</h2>
+            <span style={{ fontSize: '0.75rem', color: 'var(--text-light-muted)' }}>Paste any website link & set custom WhatsApp cover image directly</span>
           </div>
         </div>
 
@@ -317,14 +322,31 @@ export default function OgGenerator() {
             {/* Form Section */}
             <div className="premium-card" style={{ borderTop: '6px solid var(--primary)', padding: '24px', borderRadius: '16px', background: 'white', boxShadow: 'var(--shadow-md)', border: '1px solid var(--border-light)' }}>
               <h3 style={{ fontSize: '1.1rem', marginBottom: '20px', color: 'var(--text-light-main)', borderBottom: '1px solid var(--border-light)', paddingBottom: '8px' }}>
-                Create Redirect Link
+                Set OG Cover Image for Target Link
               </h3>
               
               <form onSubmit={handleGenerate} style={{ display: 'flex', flexDirection: 'column', gap: '18px' }}>
                 
+                {/* Target Link */}
+                <div className="premium-input-group" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                  <label className="premium-label" style={{ fontWeight: '700', fontSize: '0.85rem' }}>Paste Target Link *</label>
+                  <input 
+                    type="text" 
+                    value={targetUrl} 
+                    onChange={(e) => handleTargetUrlChange(e.target.value)} 
+                    placeholder="https://subi-eseva-service.vercel.app/form/form-slzjghgr"
+                    required
+                    className="premium-input"
+                    style={{ padding: '12px', border: '2px solid var(--primary)', borderRadius: '8px', fontSize: '0.85rem', width: '100%', fontWeight: '600' }}
+                  />
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-light-muted)' }}>
+                    Paste the target link (e.g. <code>https://subi-eseva-service.vercel.app/form/form-slzjghgr</code>). When shared on WhatsApp, your uploaded OG image will show up!
+                  </span>
+                </div>
+
                 {/* OG Image Upload */}
                 <div className="premium-input-group" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label className="premium-label" style={{ fontWeight: '700', fontSize: '0.85rem' }}>Upload OG Image *</label>
+                  <label className="premium-label" style={{ fontWeight: '700', fontSize: '0.85rem' }}>Upload OG Cover Image *</label>
                   
                   <div style={{
                     border: '2px dashed var(--primary)',
@@ -416,32 +438,14 @@ export default function OgGenerator() {
                   </select>
                 </div>
 
-                {/* Target URL */}
-                <div className="premium-input-group" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label className="premium-label" style={{ fontWeight: '700', fontSize: '0.85rem' }}>Target URL *</label>
-                  <input 
-                    type="text" 
-                    value={targetUrl} 
-                    onChange={(e) => handleTargetUrlChange(e.target.value)} 
-                    placeholder="https://subionlineservice.vercel.app/user?tab=jobs:JOB759562"
-                    required
-                    className="premium-input"
-                    style={{ padding: '10px 12px', border: '1px solid var(--border-light)', borderRadius: '8px', fontSize: '0.85rem', width: '100%' }}
-                  />
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-light-muted)' }}>
-                    Paste your target destination link (e.g. <code>https://subi-e-sevai.vercel.app/user?tab=jobs:JOB759562</code>). Parameter tags are automatically extracted!
-                  </span>
-                </div>
-
                 {/* Title */}
                 <div className="premium-input-group" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label className="premium-label" style={{ fontWeight: '700', fontSize: '0.85rem' }}>Title *</label>
+                  <label className="premium-label" style={{ fontWeight: '700', fontSize: '0.85rem' }}>Title (Optional)</label>
                   <input 
                     type="text" 
                     value={title} 
-                    onChange={handleTitleChange} 
-                    placeholder="e.g. TNPSC Recruitment"
-                    required
+                    onChange={(e) => { setTitle(e.target.value); setIsGenerated(false); }} 
+                    placeholder="e.g. E-Sevai Service Application"
                     className="premium-input"
                     style={{ padding: '10px 12px', border: '1px solid var(--border-light)', borderRadius: '8px', fontSize: '0.85rem', width: '100%' }}
                   />
@@ -449,30 +453,15 @@ export default function OgGenerator() {
 
                 {/* Description */}
                 <div className="premium-input-group" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label className="premium-label" style={{ fontWeight: '700', fontSize: '0.85rem' }}>Description</label>
+                  <label className="premium-label" style={{ fontWeight: '700', fontSize: '0.85rem' }}>Description (Optional)</label>
                   <textarea 
                     value={description} 
                     onChange={(e) => { setDescription(e.target.value); setIsGenerated(false); }} 
-                    placeholder="Latest updates on TNPSC Recruitment"
+                    placeholder="Apply online with simple details on Subi e-sevai portal."
                     className="premium-input"
-                    rows={3}
+                    rows={2}
                     style={{ padding: '10px 12px', border: '1px solid var(--border-light)', borderRadius: '8px', fontSize: '0.85rem', width: '100%', fontFamily: 'inherit', resize: 'vertical' }}
                   />
-                </div>
-
-                {/* Slug */}
-                <div className="premium-input-group" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label className="premium-label" style={{ fontWeight: '700', fontSize: '0.85rem' }}>Slug/Custom ID *</label>
-                  <input 
-                    type="text" 
-                    value={slug} 
-                    onChange={handleSlugChange} 
-                    placeholder="e.g. tnpsc-2026"
-                    required
-                    className="premium-input"
-                    style={{ padding: '10px 12px', border: '1px solid var(--border-light)', borderRadius: '8px', fontSize: '0.85rem', width: '100%', fontWeight: '600', color: 'var(--primary)' }}
-                  />
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-light-muted)' }}>Unique short code. URL will be: <code>{window.location.origin}/go/{"{slug}"}</code></span>
                 </div>
 
                 {/* Submit button */}
@@ -485,7 +474,7 @@ export default function OgGenerator() {
                     borderRadius: '10px',
                     border: 'none',
                     fontWeight: '800',
-                    fontSize: '0.9rem',
+                    fontSize: '0.95rem',
                     cursor: 'pointer',
                     marginTop: '8px',
                     display: 'flex',
@@ -495,7 +484,8 @@ export default function OgGenerator() {
                     opacity: isGenerating ? 0.7 : 1
                   }}
                 >
-                  {isGenerating ? 'Uploading & Creating Link...' : 'Generate Short Link'}
+                  <Sparkles size={18} />
+                  {isGenerating ? 'Uploading & Saving OG Image...' : 'Save OG Image for Link'}
                 </button>
               </form>
             </div>
@@ -503,7 +493,7 @@ export default function OgGenerator() {
             {/* Live WhatsApp Preview Section */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
               <h3 style={{ fontSize: '1.05rem', margin: 0, fontWeight: '700', color: 'var(--text-light-main)' }}>
-                Live WhatsApp Preview
+                Live WhatsApp Link Preview
               </h3>
               
               {/* Mock Chat Window */}
@@ -525,7 +515,7 @@ export default function OgGenerator() {
                 {/* WhatsApp Chat Bubble */}
                 <div style={{
                   alignSelf: 'flex-end',
-                  maxWidth: '85%',
+                  maxWidth: '88%',
                   background: '#d9fdd3', 
                   borderRadius: '12px 0px 12px 12px',
                   padding: '8px',
@@ -575,8 +565,8 @@ export default function OgGenerator() {
                   </div>
 
                   {/* Share Link text */}
-                  <div style={{ fontSize: '0.85rem', color: '#1f2c34', wordBreak: 'break-all', padding: '4px 6px 0px 4px' }}>
-                    {window.location.origin}/go/{slug || 'slug'}
+                  <div style={{ fontSize: '0.8rem', color: '#1f2c34', wordBreak: 'break-all', padding: '4px 6px 0px 4px' }}>
+                    {targetUrl || `${window.location.origin}/form/form-slzjghgr`}
                   </div>
 
                   {/* Timestamp & double tick */}
@@ -615,57 +605,57 @@ export default function OgGenerator() {
               `}</style>
 
               <div>
-                <h3 style={{ fontSize: '1.1rem', margin: '0 0 4px 0', color: '#166534', fontWeight: '800' }}>🎉 Dynamic Redirect Link is Active!</h3>
-                <span style={{ fontSize: '0.8rem', color: '#15803d' }}>Your short URL is configured in the database. Share it on WhatsApp to see previews.</span>
+                <h3 style={{ fontSize: '1.1rem', margin: '0 0 4px 0', color: '#166534', fontWeight: '800' }}>🎉 OG Image Saved for Target Link!</h3>
+                <span style={{ fontSize: '0.82rem', color: '#15803d' }}>
+                  Your uploaded cover image is stored in Google Drive and set for this link. Share this link directly on WhatsApp to see your cover image!
+                </span>
               </div>
 
               {/* URL Display Box */}
-              <div style={{
-                background: 'white',
-                border: '1px solid #cbd5e1',
-                borderRadius: '8px',
-                padding: '12px 16px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '12px'
-              }}>
-                <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-light-main)', wordBreak: 'break-all', flex: 1 }}>
-                  {generatedUrl}
-                </span>
-                
-                <button
-                  onClick={handleCopyLink}
-                  style={{
-                    background: copied ? '#10b981' : '#f1f5f9',
-                    color: copied ? 'white' : 'var(--text-light-main)',
-                    border: '1px solid #cbd5e1',
-                    borderRadius: '8px',
-                    padding: '8px 16px',
-                    fontSize: '0.8rem',
-                    fontWeight: '700',
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    transition: 'all 0.2s',
-                    whiteSpace: 'nowrap'
-                  }}
-                >
-                  {copied ? <Check size={14} /> : <Copy size={14} />}
-                  {copied ? 'Copied!' : 'Copy URL'}
-                </button>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <span style={{ fontSize: '0.75rem', fontWeight: '700', color: '#166534' }}>Target Link (Share on WhatsApp):</span>
+                <div style={{
+                  background: 'white',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: '8px',
+                  padding: '10px 14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px'
+                }}>
+                  <span style={{ fontSize: '0.85rem', fontWeight: '700', color: 'var(--text-light-main)', wordBreak: 'break-all', flex: 1 }}>
+                    {generatedTargetUrl}
+                  </span>
+                  
+                  <button
+                    onClick={handleCopyTarget}
+                    style={{
+                      background: copiedTarget ? '#10b981' : 'var(--primary)',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '8px 14px',
+                      fontSize: '0.8rem',
+                      fontWeight: '700',
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '6px',
+                      transition: 'all 0.2s',
+                      whiteSpace: 'nowrap'
+                    }}
+                  >
+                    {copiedTarget ? <Check size={14} /> : <Copy size={14} />}
+                    {copiedTarget ? 'Copied!' : 'Copy Link'}
+                  </button>
+                </div>
               </div>
 
               {/* Action Buttons Row */}
-              <div style={{
-                display: 'flex',
-                gap: '12px'
-              }}>
-                
-                {/* Open Preview */}
+              <div style={{ display: 'flex', gap: '12px', marginTop: '4px' }}>
                 <a
-                  href={generatedUrl}
+                  href={generatedTargetUrl}
                   target="_blank"
                   rel="noreferrer"
                   style={{
@@ -686,38 +676,8 @@ export default function OgGenerator() {
                     fontSize: '0.85rem'
                   }}
                 >
-                  <ExternalLink size={16} /> Test Redirection Link
+                  <ExternalLink size={16} /> Open Target Page
                 </a>
-
-              </div>
-
-              {/* Guide/Instructions Box */}
-              <div style={{
-                background: '#ffffff',
-                border: '1px solid #e2e8f0',
-                borderRadius: '12px',
-                padding: '16px',
-                fontSize: '0.8rem',
-                color: 'var(--text-light-muted)',
-                lineHeight: '1.5'
-              }}>
-                <strong style={{ display: 'block', color: 'var(--text-light-main)', marginBottom: '4px', fontSize: '0.85rem' }}>
-                  💡 How it works:
-                </strong>
-                <ul style={{ paddingLeft: '20px', margin: 0, display: 'flex', flexDirection: 'column', gap: '4px' }}>
-                  <li>
-                    The image was uploaded to Google Drive storage, and metadata is saved to Google Sheets.
-                  </li>
-                  <li>
-                    When shared on WhatsApp, the Vercel function <code>/api/go</code> returns the Open Graph tags dynamically.
-                  </li>
-                  <li>
-                    When clicked by users, they are redirected automatically to the target URL.
-                  </li>
-                  <li>
-                    <strong>No manual file placements or git pushes are required!</strong>
-                  </li>
-                </ul>
               </div>
 
             </div>

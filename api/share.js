@@ -209,10 +209,33 @@ export default async function handler(req, res) {
   let title = defaults.title;
   let description = defaults.description;
   let imageUrl = `${baseUrl}/${defaults.image.replace(/^\/+/, '')}`;
-  let item = null;
-
   try {
     const scriptUrl = process.env.VITE_GOOGLE_SCRIPT_URL || process.env.GOOGLE_SCRIPT_URL;
+
+    // Check if custom redirect/OG metadata exists in Redirects table for this target ID
+    const targetId = (id || req.query.formId || req.query.jobId || req.query.postId || req.query.productId || req.query.id || '').toString().trim().toLowerCase();
+    let customRedirect = null;
+
+    if (targetId && scriptUrl) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 1200);
+        const redirectRes = await fetch(`${scriptUrl}?action=getRedirectById&id=${encodeURIComponent(targetId)}`, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' },
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        if (redirectRes.ok) {
+          const json = await redirectRes.json();
+          if (json.success && json.data) {
+            customRedirect = json.data;
+          }
+        }
+      } catch (err) {
+        console.warn(`Failed to fetch custom redirect for targetId [${targetId}]:`, err);
+      }
+    }
 
     // 1. Read local database first to minimize time delay for static items
     const dataPath = path.join(process.cwd(), 'src/data.json');
@@ -291,6 +314,15 @@ export default async function handler(req, res) {
         title = item.title;
         description = item.description;
         imageUrl = getImageUrl(item.img_url, baseUrl, defaults.image);
+      }
+    }
+
+    // Apply custom uploaded OG image/title/description override if present
+    if (customRedirect) {
+      if (customRedirect.title) title = customRedirect.title;
+      if (customRedirect.description) description = customRedirect.description;
+      if (customRedirect.img_url) {
+        imageUrl = getImageUrl(customRedirect.img_url, baseUrl, defaults.image);
       }
     }
 

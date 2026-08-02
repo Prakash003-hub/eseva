@@ -616,14 +616,12 @@ export default function AdminPortal() {
   const [ogTargetUrl, setOgTargetUrl] = useState('');
   const [ogTitle, setOgTitle] = useState('');
   const [ogDescription, setOgDescription] = useState('');
-  const [ogSlug, setOgSlug] = useState(() => Math.random().toString(36).substring(2, 8));
   const [ogImageFile, setOgImageFile] = useState(null);
   const [ogImagePreview, setOgImagePreview] = useState('');
   const [ogIsGenerating, setOgIsGenerating] = useState(false);
   const [ogIsGenerated, setOgIsGenerated] = useState(false);
   const [ogGeneratedUrl, setOgGeneratedUrl] = useState('');
   const [ogCopied, setOgCopied] = useState(false);
-  const [ogSlugModified, setOgSlugModified] = useState(false);
   
   // Selected user details (Aadhaar click)
   const [selectedUser, setSelectedUser] = useState(null);
@@ -748,40 +746,68 @@ export default function AdminPortal() {
   const [ogAspect, setOgAspect] = useState('landscape');
   const [ogIsProcessingImg, setOgIsProcessingImg] = useState(false);
 
+  const extractKeyFromTargetUrl = (urlStr) => {
+    if (!urlStr) return '';
+    const cleanStr = urlStr.trim();
+    
+    try {
+      const parsed = new URL(cleanStr.startsWith('http') ? cleanStr : `https://${cleanStr}`);
+      const params = parsed.searchParams;
+      const paramId = params.get('formId') || params.get('jobId') || params.get('postId') || params.get('productId') || params.get('id');
+      if (paramId) return paramId.trim().toLowerCase();
+
+      if (cleanStr.includes(':')) {
+        const parts = cleanStr.split(':');
+        const paramSuffix = parts[parts.length - 1].trim();
+        if (paramSuffix) return paramSuffix.toLowerCase().replace(/[^a-z0-9-]/g, '');
+      }
+
+      const pathParts = parsed.pathname.split('/').filter(Boolean);
+      if (pathParts.length >= 2) {
+        const lastPart = pathParts[pathParts.length - 1];
+        if (lastPart && lastPart.length > 2 && lastPart !== 'index.html') {
+          return lastPart.toLowerCase().replace(/[^a-z0-9-]/g, '');
+        }
+      } else if (pathParts.length === 1) {
+        const singlePart = pathParts[0];
+        if (singlePart && singlePart !== 'user' && singlePart !== 'index.html') {
+          return singlePart.toLowerCase().replace(/[^a-z0-9-]/g, '');
+        }
+      }
+
+      const tabParam = params.get('tab');
+      if (tabParam) return tabParam.toLowerCase();
+    } catch (e) {
+      // Fallback
+    }
+
+    const matchForm = cleanStr.match(/(?:formId=|^\/form\/|form\/)([a-zA-Z0-9_-]+)/i);
+    if (matchForm && matchForm[1]) return matchForm[1].toLowerCase();
+
+    const matchJob = cleanStr.match(/(?:jobId=|^\/job\/|job\/)([a-zA-Z0-9_-]+)/i);
+    if (matchJob && matchJob[1]) return matchJob[1].toLowerCase();
+
+    const matchPost = cleanStr.match(/(?:postId=|^\/post\/|post\/)([a-zA-Z0-9_-]+)/i);
+    if (matchPost && matchPost[1]) return matchPost[1].toLowerCase();
+
+    return 'link-' + Math.random().toString(36).substring(2, 8);
+  };
+
   const handleOgTargetUrlChange = (val) => {
     setOgTargetUrl(val);
     setOgIsGenerated(false);
 
-    // Auto extract parameter tag or slug (e.g. .../user?tab=jobs:JOB759562)
-    if (val && val.includes(':')) {
-      const parts = val.split(':');
-      const paramSuffix = parts[parts.length - 1].trim();
-      if (paramSuffix && !ogSlugModified) {
-        const cleanSlug = paramSuffix.toLowerCase().replace(/[^a-z0-9-]/g, '');
-        setOgSlug(cleanSlug);
-        if (!ogTitle) {
-          setOgTitle(`Details for ${paramSuffix.toUpperCase()}`);
-        }
-      }
-    } else if (val && val.includes('tab=')) {
-      const match = val.match(/tab=([a-z0-9_-]+)/i);
-      if (match && match[1] && !ogSlugModified && !ogSlug) {
-        setOgSlug(match[1].toLowerCase());
-      }
+    const key = extractKeyFromTargetUrl(val);
+    if (key && !ogTitle) {
+      const formattedTitle = key
+        .replace(/[-_]/g, ' ')
+        .replace(/\b\w/g, c => c.toUpperCase());
+      setOgTitle(formattedTitle);
     }
   };
 
   const handleOgTitleChange = (e) => {
-    const val = e.target.value;
-    setOgTitle(val);
-    if (!ogSlugModified) {
-      setOgSlug(slugify(val));
-    }
-  };
-
-  const handleOgSlugChange = (e) => {
-    setOgSlugModified(true);
-    setOgSlug(e.target.value.toLowerCase().replace(/[^a-z0-9-]/g, ''));
+    setOgTitle(e.target.value);
   };
 
   // Canvas Image Resizer Helper
@@ -847,15 +873,7 @@ export default function AdminPortal() {
   const handleOgGenerate = async (e) => {
     e.preventDefault();
     if (!ogTargetUrl) {
-      alert("Please enter a Target URL.");
-      return;
-    }
-    if (!ogTitle) {
-      alert("Please enter a Title.");
-      return;
-    }
-    if (!ogSlug) {
-      alert("Please enter a Slug.");
+      alert("Please paste a Target Link.");
       return;
     }
     if (!ogImageFile) {
@@ -869,6 +887,10 @@ export default function AdminPortal() {
       setOgTargetUrl(finalTarget);
     }
 
+    const key = extractKeyFromTargetUrl(finalTarget);
+    const finalTitle = ogTitle.trim() || 'Subi e-sevai Service';
+    const finalDesc = ogDescription.trim() || 'Click to view details on Subi e-sevai portal.';
+
     setOgIsGenerating(true);
     try {
       const folderPath = ["WhatsBroTNService_Uploads", "OG_Images"];
@@ -878,35 +900,25 @@ export default function AdminPortal() {
       }
 
       const payload = {
-        id: ogSlug.trim().toLowerCase(),
+        id: key,
         target_url: finalTarget,
-        title: ogTitle.trim(),
-        description: ogDescription.trim(),
+        title: finalTitle,
+        description: finalDesc,
         img_url: driveUrl
       };
 
       await createRedirect(payload);
 
-      const shareUrl = `${window.location.origin}/go/${payload.id}`;
-      setOgGeneratedUrl(shareUrl);
+      setOgGeneratedUrl(finalTarget);
       setOgIsGenerated(true);
       
       // Refresh redirects list
       handleRefreshRedirects();
       
-      // Clear form
-      setOgTargetUrl('');
-      setOgTitle('');
-      setOgDescription('');
-      setOgSlug(Math.random().toString(36).substring(2, 8));
-      setOgImageFile(null);
-      setOgImagePreview('');
-      setOgSlugModified(false);
-      
-      alert("OG Link successfully generated!");
+      alert("OG Cover Image saved successfully for Target Link!");
     } catch (err) {
       console.error(err);
-      alert("Failed to generate dynamic OG link: " + (err.message || err));
+      alert("Failed to save OG Image: " + (err.message || err));
     } finally {
       setOgIsGenerating(false);
     }
@@ -3799,7 +3811,7 @@ export default function AdminPortal() {
                       style={{ padding: '10px 12px', border: '1px solid var(--border-light)', borderRadius: '8px', fontSize: '0.85rem', width: '100%' }}
                     />
                     <span style={{ fontSize: '0.7rem', color: 'var(--text-light-muted)' }}>
-                      Paste your target link (e.g. <code>https://subi-e-sevai.vercel.app/user?tab=jobs:JOB759562</code>). Slugs are extracted automatically!
+                      Paste your target link (e.g. <code>https://subi-eseva-service.vercel.app/form/form-slzjghgr</code>). Upload your OG cover image and click save!
                     </span>
                   </div>
 
@@ -3829,21 +3841,6 @@ export default function AdminPortal() {
                     />
                   </div>
 
-                  {/* Slug */}
-                  <div className="premium-input-group" style={{ display: 'flex', flexDirection: 'column', gap: '6px', margin: 0 }}>
-                    <label className="premium-label" style={{ fontWeight: '700', fontSize: '0.85rem' }}>Slug/Custom ID *</label>
-                    <input 
-                      type="text" 
-                      value={ogSlug} 
-                      onChange={handleOgSlugChange} 
-                      placeholder="e.g. tnpsc-2026"
-                      required
-                      className="premium-input"
-                      style={{ padding: '10px 12px', border: '1px solid var(--border-light)', borderRadius: '8px', fontSize: '0.85rem', width: '100%', fontWeight: '600', color: 'var(--primary)' }}
-                    />
-                    <span style={{ fontSize: '0.7rem', color: 'var(--text-light-muted)' }}>Unique short code. URL will be: <code>{window.location.origin}/go/{"{slug}"}</code></span>
-                  </div>
-
                   {/* Submit button */}
                   <button
                     type="submit"
@@ -3864,7 +3861,7 @@ export default function AdminPortal() {
                       opacity: ogIsGenerating ? 0.7 : 1
                     }}
                   >
-                    {ogIsGenerating ? 'Generating Link...' : 'Generate Link'}
+                    {ogIsGenerating ? 'Saving OG Image...' : 'Save OG Image for Link'}
                   </button>
                 </form>
               </div>
@@ -3945,7 +3942,7 @@ export default function AdminPortal() {
 
                     {/* Share Link text */}
                     <div style={{ fontSize: '0.85rem', color: '#1f2c34', wordBreak: 'break-all', padding: '4px 6px 0px 4px' }}>
-                      {window.location.origin}/go/{ogSlug || 'slug'}
+                      {ogTargetUrl || `${window.location.origin}/form/form-slzjghgr`}
                     </div>
 
                     {/* Timestamp & double tick */}
@@ -4185,21 +4182,6 @@ export default function AdminPortal() {
                   />
                 </div>
 
-                {/* Slug */}
-                <div className="premium-input-group" style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                  <label className="premium-label" style={{ fontWeight: '700', fontSize: '0.85rem' }}>Slug/Custom ID *</label>
-                  <input 
-                    type="text" 
-                    value={ogSlug} 
-                    onChange={handleOgSlugChange} 
-                    placeholder="e.g. tnpsc-2026"
-                    required
-                    className="premium-input"
-                    style={{ padding: '10px 12px', border: '1px solid var(--border-light)', borderRadius: '8px', fontSize: '0.85rem', width: '100%', fontWeight: '600', color: 'var(--primary)' }}
-                  />
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-light-muted)' }}>Unique short code. URL will be: <code>{window.location.origin}/go/{"{slug}"}</code></span>
-                </div>
-
                 {/* Submit button */}
                 <button
                   type="submit"
@@ -4220,7 +4202,7 @@ export default function AdminPortal() {
                     opacity: ogIsGenerating ? 0.7 : 1
                   }}
                 >
-                  {ogIsGenerating ? 'Uploading & Creating Link...' : 'Generate Short Link'}
+                  {ogIsGenerating ? 'Saving OG Image...' : 'Save OG Image for Link'}
                 </button>
               </form>
             </div>
@@ -4304,7 +4286,7 @@ export default function AdminPortal() {
 
                     {/* Share Link text */}
                     <div style={{ fontSize: '0.85rem', color: '#1f2c34', wordBreak: 'break-all', padding: '4px 6px 0px 4px' }}>
-                      {window.location.origin}/go/{ogSlug || 'slug'}
+                      {ogTargetUrl || `${window.location.origin}/form/form-slzjghgr`}
                     </div>
 
                     {/* Timestamp & double tick */}

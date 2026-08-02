@@ -284,6 +284,59 @@ export const createRedirect = async (payload) => {
   return await callApi("createRedirect", { payload });
 };
 
+const processImageClientCanvas = (file, aspect = 'landscape') => {
+  return new Promise((resolve, reject) => {
+    if (!file || !(file instanceof Blob)) {
+      return reject(new Error('Invalid file object.'));
+    }
+    const isSquare = aspect === 'square' || aspect === '1:1' || aspect === '1.1' || aspect === '1-1';
+    const targetW = isSquare ? 1024 : 1200;
+    const targetH = isSquare ? 1024 : 630;
+    const targetRatio = targetW / targetH;
+
+    const img = new Image();
+    const url = URL.createObjectURL(file);
+
+    img.onload = () => {
+      try {
+        const width = img.naturalWidth || img.width;
+        const height = img.naturalHeight || img.height;
+
+        let srcX = 0, srcY = 0, srcW = width, srcH = height;
+
+        if (width / height > targetRatio) {
+          srcW = Math.floor(height * targetRatio);
+          srcX = Math.max(0, Math.floor((width - srcW) / 2));
+        } else if (width / height < targetRatio) {
+          srcH = Math.floor(width / targetRatio);
+          srcY = Math.max(0, Math.floor((height - srcH) / 2));
+        }
+
+        const canvas = document.createElement('canvas');
+        canvas.width = targetW;
+        canvas.height = targetH;
+        const ctx = canvas.getContext('2d');
+
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, targetW, targetH);
+        ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, targetW, targetH);
+
+        const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+        URL.revokeObjectURL(url);
+        resolve(dataUrl);
+      } catch (err) {
+        URL.revokeObjectURL(url);
+        reject(err);
+      }
+    };
+    img.onerror = (err) => {
+      URL.revokeObjectURL(url);
+      reject(new Error('Failed to load image into browser canvas.'));
+    };
+    img.src = url;
+  });
+};
+
 export const saveLocalOgImage = async ({
   key,
   targetPath,
@@ -297,7 +350,12 @@ export const saveLocalOgImage = async ({
 }) => {
   let imageBase64 = '';
   if (imageFile) {
-    imageBase64 = await fileToBase64(imageFile);
+    try {
+      imageBase64 = await processImageClientCanvas(imageFile, aspect);
+    } catch (e) {
+      console.warn('[Canvas Crop Warning - Falling back to raw file]:', e);
+      imageBase64 = await fileToBase64(imageFile);
+    }
   }
 
   try {
@@ -312,7 +370,7 @@ export const saveLocalOgImage = async ({
         description,
         image: imageBase64,
         fileName: imageFile?.name || '',
-        mimeType: imageFile?.type || '',
+        mimeType: 'image/jpeg',
         publicBaseUrl: 'https://subi-eseva-service.vercel.app',
         aspect,
         overwrite,

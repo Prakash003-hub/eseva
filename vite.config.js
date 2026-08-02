@@ -229,46 +229,52 @@ const processUpload = async (json) => {
   }
 
   const cleanBuffer = Buffer.from(base64Data, 'base64');
-  let image;
+  let finalBuffer = cleanBuffer;
+
   try {
     const { Jimp } = await import('jimp');
-    image = await Jimp.read(cleanBuffer);
+    const image = await Jimp.read(cleanBuffer);
+    const width = image?.bitmap?.width || image?.width;
+    const height = image?.bitmap?.height || image?.height;
+
+    if (width && height) {
+      const aspectOption = String(json.aspect || json.aspectRatio || 'landscape').toLowerCase();
+      const isSquare = aspectOption === 'square' || aspectOption === '1:1' || aspectOption === '1.1' || aspectOption === '1-1';
+
+      const targetW = isSquare ? 1024 : LANDSCAPE_WIDTH;
+      const targetH = isSquare ? 1024 : LANDSCAPE_HEIGHT;
+      const targetRatio = targetW / targetH;
+
+      if (typeof image.crop === 'function') {
+        if (width / height > targetRatio) {
+          const cropW = Math.floor(height * targetRatio);
+          const cropX = Math.max(0, Math.floor((width - cropW) / 2));
+          image.crop(cropX, 0, cropW, height);
+        } else if (width / height < targetRatio) {
+          const cropH = Math.floor(width / targetRatio);
+          const cropY = Math.max(0, Math.floor((height - cropH) / 2));
+          image.crop(0, cropY, width, cropH);
+        }
+      }
+
+      if (typeof image.resize === 'function') {
+        image.resize(targetW, targetH);
+      }
+      if (typeof image.quality === 'function') {
+        image.quality(85);
+      }
+
+      if (typeof image.getBufferAsync === 'function') {
+        finalBuffer = await image.getBufferAsync('image/jpeg');
+      } else if (typeof image.getBuffer === 'function') {
+        finalBuffer = await new Promise((resolve) => {
+          image.getBuffer('image/jpeg', (err, buf) => resolve(err ? cleanBuffer : buf));
+        });
+      }
+    }
   } catch (error) {
-    return { statusCode: 400, body: { success: false, error: 'Invalid or corrupted image file.' } };
-  }
-
-  try {
-    const width = image.bitmap?.width || image.width;
-    const height = image.bitmap?.height || image.height;
-
-    if (!width || !height) {
-      return { statusCode: 400, body: { success: false, error: 'Invalid or corrupted image file.' } };
-    }
-
-    const aspectOption = String(json.aspect || json.aspectRatio || 'landscape').toLowerCase();
-    const isSquare = aspectOption === 'square' || aspectOption === '1:1' || aspectOption === '1.1' || aspectOption === '1-1';
-
-    const targetW = isSquare ? 1024 : LANDSCAPE_WIDTH;
-    const targetH = isSquare ? 1024 : LANDSCAPE_HEIGHT;
-    const targetRatio = targetW / targetH;
-
-    if (width / height > targetRatio) {
-      const cropW = Math.floor(height * targetRatio);
-      const cropX = Math.max(0, Math.floor((width - cropW) / 2));
-      image.crop(cropX, 0, cropW, height);
-    } else if (width / height < targetRatio) {
-      const cropH = Math.floor(width / targetRatio);
-      const cropY = Math.max(0, Math.floor((height - cropH) / 2));
-      image.crop(0, cropY, width, cropH);
-    }
-
-    image.resize(targetW, targetH);
-    if (typeof image.quality === 'function') {
-      image.quality(85);
-    }
-  } catch (error) {
-    console.error('[OG Upload Error]:', error);
-    return { statusCode: 500, body: { success: false, error: error.message || 'Failed to process image.' } };
+    console.warn('[OG Server Process Warning - Falling back to Canvas Buffer]:', error?.message || error);
+    finalBuffer = cleanBuffer;
   }
 
   const uploadsDir = path.join(process.cwd(), 'public/uploads');
@@ -278,7 +284,7 @@ const processUpload = async (json) => {
   const assetPath = path.join(uploadsDir, fileName);
 
   try {
-    await image.write(assetPath);
+    fs.writeFileSync(assetPath, finalBuffer);
   } catch (error) {
     console.error('[OG] Failed to write upload:', error);
     return { statusCode: 500, body: { success: false, error: 'Failed to write image file.' } };

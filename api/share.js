@@ -48,27 +48,33 @@ const getGoogleDriveId = (url) => {
   return null;
 };
 
-const getImageUrl = (url, baseUrl, fallbackImage = '/income_og_preview.jpg') => {
-  if (!url) return `${baseUrl}/${fallbackImage.replace(/^\/+/, '')}`;
-  if (url.startsWith('http://') || url.startsWith('https://')) {
+const getImageUrl = (url, baseUrl, fallbackImage = '/uploads/og_default.jpg', timestamp = null) => {
+  let finalUrl = '';
+  if (!url) {
+    finalUrl = `${baseUrl}/${fallbackImage.replace(/^\/+/, '')}`;
+  } else if (url.startsWith('http://') || url.startsWith('https://')) {
     if (url.includes('drive.google.com')) {
       const driveId = getGoogleDriveId(url);
       if (driveId) {
-        return `https://drive.google.com/thumbnail?id=${driveId}&sz=w1000`;
+        finalUrl = `https://drive.google.com/thumbnail?id=${driveId}&sz=w1000`;
+      } else {
+        finalUrl = url;
       }
+    } else {
+      finalUrl = url;
     }
-    return url;
+  } else {
+    finalUrl = `${baseUrl}/${url.replace(/^\/+/, '')}`;
   }
-  if (url.startsWith('/uploads/') || url.startsWith('uploads/')) {
-    return `${baseUrl}/${url.replace(/^\/+/, '')}`;
-  }
-  return `${baseUrl}/${url.replace(/^\/+/, '')}`;
+
+  const vParam = timestamp ? (new Date(timestamp).getTime() || timestamp) : Date.now();
+  return finalUrl.includes('?') ? `${finalUrl}&v=${vParam}` : `${finalUrl}?v=${vParam}`;
 };
 
 const resolveRouteImage = (ogConfig, targetPath, baseUrl) => {
   const normalized = normalizeOgTargetPath(targetPath);
   const parsed = parseOgConfig(ogConfig);
-  const defaultImage = normalizeOgImagePath(parsed.default?.image || '/income_og_preview.jpg') || '/income_og_preview.jpg';
+  const defaultImage = normalizeOgImagePath(parsed.default?.image || '/uploads/og_default.jpg') || '/uploads/og_default.jpg';
 
   if (!normalized.valid) {
     return getImageUrl(defaultImage, baseUrl, defaultImage);
@@ -82,7 +88,7 @@ const resolveRouteImage = (ogConfig, targetPath, baseUrl) => {
     candidates.push(...getOgFallbackAssetNames(normalized.routeType));
   }
 
-  candidates.push(defaultImage, '/income_og_preview.jpg');
+  candidates.push(defaultImage, '/uploads/og_default.jpg');
 
   const chosen = candidates.find((candidate) => {
     const clean = normalizeOgImagePath(candidate);
@@ -92,7 +98,7 @@ const resolveRouteImage = (ogConfig, targetPath, baseUrl) => {
     return fs.existsSync(localFile);
   }) || defaultImage;
 
-  return getImageUrl(chosen, baseUrl, defaultImage);
+  return getImageUrl(chosen, baseUrl, defaultImage, exact?.updated_at);
 };
 
 const defaultMockJobs = [
@@ -196,16 +202,19 @@ const defaultMockProducts = [
 ];
 
 export default async function handler(req, res) {
-  const { type, id } = req.query;
   const userAgent = req.headers['user-agent'] || '';
+  const { type, id } = req.query;
+
   const protocol = req.headers['x-forwarded-proto'] || 'https';
   const host = req.headers['x-forwarded-host'] || req.headers.host || 'subi-eseva-service.vercel.app';
   const baseUrl = `${protocol}://${host}`;
 
-  const ogConfigPath = path.join(process.cwd(), 'public/data/og.json');
-  let ogConfig = {};
+  const ogJsonPath = path.join(process.cwd(), 'public/data/og.json');
+  let ogConfig = null;
   try {
-    ogConfig = JSON.parse(fs.readFileSync(ogConfigPath, 'utf8'));
+    if (fs.existsSync(ogJsonPath)) {
+      ogConfig = JSON.parse(fs.readFileSync(ogJsonPath, 'utf8'));
+    }
   } catch (error) {
     console.error('Failed to read public/data/og.json:', error);
   }
@@ -213,7 +222,7 @@ export default async function handler(req, res) {
   const defaults = (ogConfig && ogConfig.default) || {
     title: 'Subi e-sevai Portal',
     description: 'Apply for E-Sevai services, view job alerts, and stay updated.',
-    image: '/income_og_preview.jpg'
+    image: '/uploads/og_default.jpg'
   };
 
   let redirectPath = '/user';
@@ -246,42 +255,6 @@ export default async function handler(req, res) {
     let customRedirect = null;
     const pageOgRecord = findMatchingOgRecord(ogConfig, pageTargetPath || targetId) || (pageTargetPath ? resolveOgRecordForTarget(ogConfig, pageTargetPath) : null);
 
-    if (pageOgRecord) {
-      if (pageOgRecord.title) title = pageOgRecord.title;
-      if (pageOgRecord.description) description = pageOgRecord.description;
-      if (pageOgRecord.image) {
-        imageUrl = getImageUrl(pageOgRecord.image, baseUrl, defaults.image);
-      } else {
-        imageUrl = resolveRouteImage(ogConfig, pageTargetPath, baseUrl);
-      }
-      customRedirect = {
-        title: pageOgRecord.title,
-        description: pageOgRecord.description,
-        img_url: pageOgRecord.image
-      };
-    }
-
-    if (!customRedirect && targetId && scriptUrl) {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 1200);
-        const redirectRes = await fetch(`${scriptUrl}?action=getRedirectById&id=${encodeURIComponent(targetId)}`, {
-          method: 'GET',
-          headers: { 'Accept': 'application/json' },
-          signal: controller.signal
-        });
-        clearTimeout(timeoutId);
-        if (redirectRes.ok) {
-          const json = await redirectRes.json();
-          if (json.success && json.data) {
-            customRedirect = json.data;
-          }
-        }
-      } catch (error) {
-        console.warn(`Failed to fetch custom redirect for targetId [${targetId}]:`, error);
-      }
-    }
-
     const dataPath = path.join(process.cwd(), 'src/data.json');
     let mockData = { forms: [], posts: [] };
     try {
@@ -308,30 +281,53 @@ export default async function handler(req, res) {
       item = localItems.find((x) => String(x.id) === String(id));
     }
 
-    if (!pageOgRecord || pageOgRecord.target_path === '/') {
-      if (type === 'post' || type === 'form' || type === 'job') {
-        imageUrl = resolveRouteImage(ogConfig, pageTargetPath, baseUrl);
-      }
-    }
-
     if (item) {
       if (type === 'product' || type === 'accessories') {
         title = item.ProductName || `${item.Brand} ${item.ModelName} (${item.Category})`;
         description = `Price: ₹${item.Price} | Category: ${item.Category} | Brand: ${item.Brand} ${item.ModelName ? `- ${item.ModelName}` : ''}`;
-        if (!customRedirect && !pageTargetPath) {
-          imageUrl = getImageUrl(item.ImageURL || item.img_url, baseUrl, defaults.image);
-        }
       } else {
         title = item.title || title;
         description = item.description || description;
       }
     }
 
-    if (customRedirect) {
-      if (customRedirect.title) title = customRedirect.title;
-      if (customRedirect.description) description = customRedirect.description;
-      if (customRedirect.img_url) {
-        imageUrl = getImageUrl(customRedirect.img_url, baseUrl, defaults.image);
+    if (pageOgRecord) {
+      if (pageOgRecord.title) title = pageOgRecord.title;
+      if (pageOgRecord.description) description = pageOgRecord.description;
+      if (pageOgRecord.image) {
+        imageUrl = getImageUrl(pageOgRecord.image, baseUrl, defaults.image, pageOgRecord.updated_at);
+      } else {
+        imageUrl = resolveRouteImage(ogConfig, pageTargetPath, baseUrl);
+      }
+    } else if (item && (item.ImageURL || item.img_url)) {
+      imageUrl = getImageUrl(item.ImageURL || item.img_url, baseUrl, defaults.image);
+    } else if (pageTargetPath) {
+      imageUrl = resolveRouteImage(ogConfig, pageTargetPath, baseUrl);
+    }
+
+    if (!pageOgRecord && targetId && scriptUrl) {
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 1200);
+        const redirectRes = await fetch(`${scriptUrl}?action=getRedirectById&id=${encodeURIComponent(targetId)}`, {
+          method: 'GET',
+          headers: { 'Accept': 'application/json' },
+          signal: controller.signal
+        });
+        clearTimeout(timeoutId);
+        if (redirectRes.ok) {
+          const json = await redirectRes.json();
+          if (json.success && json.data) {
+            customRedirect = json.data;
+            if (customRedirect.title) title = customRedirect.title;
+            if (customRedirect.description) description = customRedirect.description;
+            if (customRedirect.img_url) {
+              imageUrl = getImageUrl(customRedirect.img_url, baseUrl, defaults.image);
+            }
+          }
+        }
+      } catch (error) {
+        console.warn(`Failed to fetch custom redirect for targetId [${targetId}]:`, error);
       }
     }
 

@@ -798,7 +798,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
     if (targetJobId && jobs.length > 0) {
       const targetJob = jobs.find(j => String(j.id).toLowerCase() === targetJobId.toLowerCase());
       if (targetJob && (!selectedJobDetails || String(selectedJobDetails.id) !== String(targetJob.id))) {
-        if (activeTab !== 'home') setActiveTab('home');
+        if (activeTab !== 'jobs') setActiveTab('jobs');
         setSelectedJobDetails(targetJob);
       }
     }
@@ -815,6 +815,32 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
       }, 500);
     }
   }, [forms, jobs, posts, searchParams, activeTab, selectedForm, selectedJobDetails]);
+
+  // Handle browser popstate and back navigation for deep links
+  useEffect(() => {
+    const handlePopState = () => {
+      if (selectedJobDetails) {
+        setSelectedJobDetails(null);
+        setActiveTab('jobs');
+      }
+      if (selectedForm) {
+        setSelectedForm(null);
+        setActiveTab('apply');
+      }
+    };
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [selectedJobDetails, selectedForm]);
+
+  const handleCloseJobDetails = () => {
+    setSelectedJobDetails(null);
+    if (activeTab !== 'jobs') setActiveTab('jobs');
+    try {
+      if (window.location.pathname !== '/user') {
+        window.history.pushState({}, '', '/user?tab=jobs');
+      }
+    } catch (e) {}
+  };
 
   // Dynamic Document Title and Description Updater
   useEffect(() => {
@@ -3615,7 +3641,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
                 <div style={{ gridColumn: 'span 2', minHeight: 'calc(100vh - 270px)', display: 'flex', flexDirection: 'column' }}>
                   <div className="premium-card text-center" style={{ flex: 1, padding: '32px 24px', borderTop: '6px solid #f59e0b', background: 'white', borderRadius: '16px', display: 'flex', flexDirection: 'column', gap: '16px', alignItems: 'center', justifyContent: 'center' }}>
                     <button
-                      onClick={() => setSelectedJobDetails(null)}
+                      onClick={handleCloseJobDetails}
                       className="premium-btn premium-btn-secondary"
                       style={{ width: 'fit-content', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', alignSelf: 'flex-start' }}
                     >
@@ -3639,7 +3665,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
 
                     {/* Nested Details Back Button */}
                     <button
-                      onClick={() => setSelectedJobDetails(null)}
+                      onClick={handleCloseJobDetails}
                       className="premium-btn premium-btn-secondary"
                       style={{ width: 'fit-content', padding: '8px 16px', display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}
                     >

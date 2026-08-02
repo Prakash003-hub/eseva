@@ -147,23 +147,37 @@ const upsertOgRecord = (ogConfig, record, imagePath, targetUrl, previousKey = ''
   return next;
 };
 
-const removeOgRecord = (ogConfig, normalizedKey) => {
+const removeOgRecord = (ogConfig, rawInput) => {
   const next = {
     ...ogConfig,
     routes: { ...(ogConfig.routes || {}) },
     custom: { ...(ogConfig.custom || {}) }
   };
 
-  const routeRecord = next.routes[normalizedKey.routeKey];
-  if (routeRecord) {
-    delete next.routes[normalizedKey.routeKey];
+  let imagePath = '';
+  const rawStr = String(rawInput || '').trim();
+  const normalized = normalizeOgTargetPath(rawStr);
+
+  const keysToCheck = Array.from(new Set([
+    rawStr,
+    normalized.slug,
+    normalized.routeKey,
+    normalized.targetPath,
+    rawStr.toLowerCase().replace(/[^a-z0-9_-]/g, '')
+  ].filter(Boolean)));
+
+  for (const k of keysToCheck) {
+    if (next.routes && next.routes[k]) {
+      if (!imagePath) imagePath = next.routes[k].image || next.routes[k].asset_path || '';
+      delete next.routes[k];
+    }
+    if (next.custom && next.custom[k]) {
+      if (!imagePath) imagePath = next.custom[k].image || next.custom[k].asset_path || '';
+      delete next.custom[k];
+    }
   }
 
-  if (normalizedKey.slug && next.custom[normalizedKey.slug]) {
-    delete next.custom[normalizedKey.slug];
-  }
-
-  return { next, routeRecord };
+  return { next, imagePath };
 };
 
 const processUpload = async (json) => {
@@ -312,28 +326,21 @@ const processUpload = async (json) => {
 };
 
 const processDelete = async (json) => {
-  const normalized = normalizeOgTargetPath(json.targetPath || json.key || json.path || json.route);
-  if (!normalized.valid) {
-    return { statusCode: 400, body: { success: false, error: normalized.error } };
+  const rawKey = json.targetPath || json.key || json.path || json.route || json.slug || json.id || '';
+  if (!rawKey) {
+    return { statusCode: 400, body: { success: false, error: 'Missing target path or key for deletion.' } };
   }
 
   const ogJsonPath = path.join(process.cwd(), 'public/data/og.json');
   const ogConfig = readJsonFile(ogJsonPath, {});
-  const parsed = parseOgConfig(ogConfig);
-  const existing = parsed.routesByKey[normalized.routeKey];
 
-  if (!existing) {
-    return { statusCode: 404, body: { success: false, error: 'OG image record not found.' } };
-  }
-
-  const { next, routeRecord } = removeOgRecord(ogConfig, normalized);
-  const imagePath = routeRecord?.image || existing.image || '';
+  const { next, imagePath } = removeOgRecord(ogConfig, rawKey);
 
   try {
-    if (imagePath.startsWith('/uploads/')) {
+    if (imagePath && imagePath.startsWith('/uploads/')) {
       const localFile = path.join(process.cwd(), 'public', imagePath);
       if (fs.existsSync(localFile)) {
-        fs.unlinkSync(localFile);
+        try { fs.unlinkSync(localFile); } catch (err) {}
       }
     }
   } catch (error) {
@@ -353,7 +360,7 @@ const processDelete = async (json) => {
 
   return {
     statusCode: 200,
-    body: { success: true, message: `OG image '${normalized.routeKey}' deleted successfully.` }
+    body: { success: true, message: `OG image for '${rawKey}' deleted successfully.` }
   };
 };
 

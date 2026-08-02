@@ -3605,11 +3605,15 @@ export default function AdminPortal() {
                                 onClick={async () => {
                                   if (!window.confirm(`Are you sure you want to delete local OG image for '${key}'?`)) return;
                                   try {
-                                    const normalizedTarget = normalizeOgTargetPath(item.target_path || item.target_url || key);
                                     const res = await fetch('/api/delete-og-image', {
                                       method: 'POST',
                                       headers: { 'Content-Type': 'application/json' },
-                                      body: JSON.stringify({ targetPath: normalizedTarget.valid ? normalizedTarget.targetPath : item.target_path || item.target_url || key })
+                                      body: JSON.stringify({
+                                        key: key,
+                                        targetPath: item.target_path || item.target_url || key,
+                                        slug: item.slug || key,
+                                        path: item.target_path || key
+                                      })
                                     });
                                     const data = await res.json();
                                     if (data.success) {

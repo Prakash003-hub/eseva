@@ -255,19 +255,20 @@ const processUpload = async (json) => {
     if (width / height > targetRatio) {
       const cropW = Math.floor(height * targetRatio);
       const cropX = Math.max(0, Math.floor((width - cropW) / 2));
-      image.crop({ x: cropX, y: 0, w: cropW, h: height });
+      image.crop(cropX, 0, cropW, height);
     } else if (width / height < targetRatio) {
       const cropH = Math.floor(width / targetRatio);
       const cropY = Math.max(0, Math.floor((height - cropH) / 2));
-      image.crop({ x: 0, y: cropY, w: width, h: cropH });
+      image.crop(0, cropY, width, cropH);
     }
 
-    image.resize({ w: targetW, h: targetH });
+    image.resize(targetW, targetH);
     if (typeof image.quality === 'function') {
       image.quality(85);
     }
   } catch (error) {
-    return { statusCode: 500, body: { success: false, error: 'Failed to process image.' } };
+    console.error('[OG Upload Error]:', error);
+    return { statusCode: 500, body: { success: false, error: error.message || 'Failed to process image.' } };
   }
 
   const uploadsDir = path.join(process.cwd(), 'public/uploads');

@@ -4,11 +4,14 @@ const SUPPORTED_IMAGE_EXTENSIONS = new Set(['jpg', 'jpeg', 'png', 'webp']);
 const stripQueryHash = (value) => String(value || '').split('?')[0].split('#')[0];
 
 export const sanitizeOgSlug = (value) => {
-  const cleaned = String(value || '')
+  let cleaned = String(value || '')
     .trim()
     .replace(/\.(jpg|jpeg|png|webp)$/i, '')
     .replace(/\\/g, '/')
     .replace(/^\/+|\/+$/g, '');
+
+  cleaned = cleaned.replace(/^(form|job|post|product)\//i, '');
+  cleaned = cleaned.replace(/^(form|job|post|product)-(form|job|post|product)-/i, '$1-');
 
   if (!cleaned || cleaned === '.' || cleaned === '..') {
     return '';

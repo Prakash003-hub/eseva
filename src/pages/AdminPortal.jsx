@@ -746,6 +746,24 @@ export default function AdminPortal() {
 
   const [ogAspect, setOgAspect] = useState('landscape');
   const [ogIsProcessingImg, setOgIsProcessingImg] = useState(false);
+  const [ogCustomPath, setOgCustomPath] = useState('/form/form-slzjghgr');
+  const [ogSavedList, setOgSavedList] = useState({});
+
+  const fetchLocalOgList = async () => {
+    try {
+      const res = await fetch(`/data/og.json?t=${Date.now()}`);
+      if (res.ok) {
+        const json = await res.json();
+        setOgSavedList(json.custom || {});
+      }
+    } catch (e) {
+      console.warn('Failed to load local og.json:', e);
+    }
+  };
+
+  useEffect(() => {
+    fetchLocalOgList();
+  }, []);
 
   const extractKeyFromTargetUrl = (urlStr) => {
     if (!urlStr) return '';
@@ -3358,119 +3376,239 @@ export default function AdminPortal() {
                   </span>
                 </div>
 
-                {/* OG Image Upload */}
+                {/* OG Image Upload - Path to Slug Local Dev Manager */}
                 <div className="premium-input-group" style={{ margin: 0, borderTop: '1px solid var(--border-light)', paddingTop: '20px' }}>
-                  <label className="premium-label" style={{ marginBottom: '4px' }}>Open Graph (OG) Image Upload (Local Dev Only)</label>
-                  <span style={{ fontSize: '0.7rem', color: 'var(--text-light-muted)', display: 'block', marginBottom: '16px' }}>
-                    Upload any image (square, landscape, or letterboxed). The local development server will automatically crop, resize, compress, and save it to the corresponding asset file in your public directory.
+                  <label className="premium-label" style={{ marginBottom: '4px', fontSize: '0.95rem', fontWeight: '800', color: 'var(--text-light-main)' }}>
+                    Open Graph (OG) Image Upload (Local Dev Only)
+                  </label>
+                  <span style={{ fontSize: '0.75rem', color: 'var(--text-light-muted)', display: 'block', marginBottom: '16px', lineHeight: '1.4' }}>
+                    Upload any image (square, landscape, or letterboxed). Enter the target path to set the OG image for (e.g. <code>/form/form-slzjghgr</code> or <code>/post/post-101</code> or <code>/</code>). The local development server will automatically crop, resize, compress, and save it to the corresponding asset file in your public directory.
                   </span>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '16px' }}>
-                    <span style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-light-muted)' }}>Target Aspect Ratio for all uploads:</span>
-                    <select 
-                      id="og-aspect-ratio-select" 
-                      className="premium-input" 
-                      style={{ padding: '6px 10px', fontSize: '0.8rem', height: '34px', width: 'fit-content' }}
-                    >
-                      <option value="landscape">1.91:1 Landscape (1200x630)</option>
-                      <option value="square">1:1 Square (1024x1024)</option>
-                    </select>
+                  {/* Single Upload Card for Custom Path */}
+                  <div style={{
+                    background: '#f8fafc',
+                    border: '1.5px solid var(--border-light)',
+                    borderRadius: '16px',
+                    padding: '20px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '16px',
+                    marginBottom: '24px'
+                  }}>
+                    {/* Path / Slug Input */}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                      <label style={{ fontSize: '0.82rem', fontWeight: '700', color: '#1e293b' }}>
+                        Target Path / Route (Path to Slug) *
+                      </label>
+                      <input 
+                        type="text" 
+                        value={ogCustomPath} 
+                        onChange={(e) => setOgCustomPath(e.target.value)}
+                        placeholder="e.g. /form/form-slzjghgr or /post/post-101 or /"
+                        className="premium-input"
+                        style={{ padding: '10px 12px', border: '1px solid var(--border-light)', borderRadius: '8px', fontSize: '0.85rem', width: '100%', fontWeight: '600', color: 'var(--primary)' }}
+                      />
+                      <span style={{ fontSize: '0.7rem', color: 'var(--text-light-muted)' }}>
+                        Quick Select: {' '}
+                        <button type="button" onClick={() => setOgCustomPath('/form/form-slzjghgr')} style={{ border: 'none', background: '#e0f2fe', color: '#0369a1', borderRadius: '4px', padding: '2px 6px', fontSize: '0.65rem', cursor: 'pointer', fontWeight: '700' }}>/form/[slug]</button> {' '}
+                        <button type="button" onClick={() => setOgCustomPath('/post/post-101')} style={{ border: 'none', background: '#e0f2fe', color: '#0369a1', borderRadius: '4px', padding: '2px 6px', fontSize: '0.65rem', cursor: 'pointer', fontWeight: '700' }}>/post/[slug]</button> {' '}
+                        <button type="button" onClick={() => setOgCustomPath('/job/job-202')} style={{ border: 'none', background: '#e0f2fe', color: '#0369a1', borderRadius: '4px', padding: '2px 6px', fontSize: '0.65rem', cursor: 'pointer', fontWeight: '700' }}>/job/[slug]</button> {' '}
+                        <button type="button" onClick={() => setOgCustomPath('/')} style={{ border: 'none', background: '#e0f2fe', color: '#0369a1', borderRadius: '4px', padding: '2px 6px', fontSize: '0.65rem', cursor: 'pointer', fontWeight: '700' }}>/ (Default Fallback)</button>
+                      </span>
+                    </div>
+
+                    {/* Aspect Ratio & File Upload Row */}
+                    <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-end', flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', flex: 1, minWidth: '180px' }}>
+                        <label style={{ fontSize: '0.75rem', fontWeight: 700, color: 'var(--text-light-muted)' }}>Target Aspect Ratio for all uploads:</label>
+                        <select 
+                          id="og-aspect-ratio-select" 
+                          className="premium-input" 
+                          style={{ padding: '8px 10px', fontSize: '0.8rem', height: '38px', width: '100%' }}
+                        >
+                          <option value="landscape">1.91:1 Landscape (1200x630)</option>
+                          <option value="square">1:1 Square (1024x1024)</option>
+                        </select>
+                      </div>
+
+                      <div style={{ flexShrink: 0 }}>
+                        <label className="premium-btn premium-btn-primary" style={{ padding: '10px 18px', fontSize: '0.85rem', display: 'flex', gap: '8px', cursor: 'pointer', margin: 0, height: '38px', alignItems: 'center' }}>
+                          <Upload size={16} />
+                          <span>Upload & Save Asset</span>
+                          <input 
+                            type="file" 
+                            accept="image/*"
+                            onChange={async (e) => {
+                              const file = e.target.files[0];
+                              if (!file) return;
+                              if (!ogCustomPath.trim()) {
+                                alert("Please enter a Target Path first (e.g. /form/form-slzjghgr).");
+                                return;
+                              }
+                              
+                              if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
+                                alert("This feature is only available during local development (localhost) because it writes directly to your local 'public/' directory.");
+                                return;
+                              }
+                              
+                              const aspect = document.getElementById('og-aspect-ratio-select').value;
+                              try {
+                                const reader = new FileReader();
+                                reader.readAsDataURL(file);
+                                reader.onload = async () => {
+                                  try {
+                                    const base64Str = reader.result;
+                                    const response = await fetch('/api/upload-og-image', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({
+                                        image: base64Str,
+                                        aspect: aspect,
+                                        path: ogCustomPath.trim(),
+                                        targetUrl: ogCustomPath.trim()
+                                      })
+                                    });
+                                    const resData = await response.json();
+                                    if (resData.success) {
+                                      alert(`OG Image for '${ogCustomPath}' successfully auto-cropped, compressed, and saved locally to public directory! Please commit & push to deploy.`);
+                                      window.location.reload();
+                                    } else {
+                                      alert("Failed to process image: " + resData.error);
+                                    }
+                                  } catch (err) {
+                                    alert("Error uploading image: " + err.message);
+                                  }
+                                };
+                              } catch (err) {
+                                alert("Failed to read file: " + err.message);
+                              }
+                            }}
+                            style={{ display: 'none' }}
+                          />
+                        </label>
+                      </div>
+                    </div>
                   </div>
 
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                    {[
-                      { key: 'default', label: 'Default Site Fallback', file: 'income_og_preview.jpg', route: '/' },
-                      { key: 'post', label: 'Service Posts', file: 'post_og_preview.jpg', route: '/post/[slug]' },
-                      { key: 'form', label: 'Application Forms', file: 'form_og_preview.jpg', route: '/form/[slug]' },
-                      { key: 'job', label: 'Job Alerts', file: 'job_og_preview.jpg', route: '/job/[slug]' },
-                      { key: 'product', label: 'Products Catalog', file: 'product_og_preview.jpg', route: '/accessories/[slug]' }
-                    ].map((ogItem) => (
-                      <div key={ogItem.key} style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '16px',
-                        padding: '12px',
-                        background: '#f8fafc',
-                        border: '1.5px solid var(--border-light)',
-                        borderRadius: '12px',
-                        flexWrap: 'wrap'
-                      }}>
-                        {/* Thumbnail preview */}
-                        <div style={{ width: '130px', height: '68px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #cbd5e1', background: '#e2e8f0', flexShrink: 0 }}>
-                          <img 
-                            src={`/${ogItem.file}?t=${Date.now()}`} 
-                            alt={ogItem.label} 
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
-                            onError={(e) => { e.target.src = '/whatsbro_logo.png' }}
-                          />
-                        </div>
+                  {/* Saved Local OG Images List */}
+                  <div style={{ marginTop: '20px', borderTop: '1px dashed var(--border-light)', paddingTop: '20px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
+                      <h4 style={{ fontSize: '0.95rem', fontWeight: '800', margin: 0, color: 'var(--text-light-main)' }}>
+                        Saved Local OG Image Links ({Object.keys(ogSavedList).length})
+                      </h4>
+                      <button 
+                        type="button" 
+                        onClick={fetchLocalOgList} 
+                        className="premium-btn premium-btn-secondary" 
+                        style={{ padding: '6px 12px', fontSize: '0.75rem', width: 'auto' }}
+                      >
+                        Refresh List
+                      </button>
+                    </div>
 
-                        {/* Title and details */}
-                        <div style={{ flex: 1, minWidth: '150px' }}>
-                          <h4 style={{ fontSize: '0.85rem', fontWeight: '800', color: '#1e293b', margin: '0 0 2px 0' }}>
-                            {ogItem.label}
-                          </h4>
-                          <span style={{ fontSize: '0.65rem', background: '#e0f2fe', color: '#0369a1', padding: '2px 6px', borderRadius: '4px', fontWeight: '700', marginRight: '6px' }}>
-                            {ogItem.route}
-                          </span>
-                          <span style={{ fontSize: '0.65rem', color: '#64748b', fontFamily: 'monospace' }}>
-                            public/{ogItem.file}
-                          </span>
-                        </div>
-
-                        {/* Upload Button */}
-                        <div style={{ flexShrink: 0 }}>
-                          <label className="premium-btn premium-btn-secondary" style={{ padding: '8px 12px', fontSize: '0.75rem', display: 'flex', gap: '6px', cursor: 'pointer', background: 'white', border: '1px solid var(--border-light)', margin: 0, width: 'fit-content' }}>
-                            <Upload size={14} style={{ color: 'var(--primary)' }} />
-                            <span>Upload Image</span>
-                            <input 
-                              type="file" 
-                              accept="image/*"
-                              onChange={async (e) => {
-                                const file = e.target.files[0];
-                                if (file) {
-                                  const aspect = document.getElementById('og-aspect-ratio-select').value;
-                                  
-                                  if (window.location.hostname !== 'localhost' && window.location.hostname !== '127.0.0.1') {
-                                    alert("This feature is only available during local development (localhost) because it writes directly to your local 'public/' directory.");
-                                    return;
-                                  }
-                                  
-                                  try {
-                                    const reader = new FileReader();
-                                    reader.readAsDataURL(file);
-                                    reader.onload = async () => {
-                                      try {
-                                        const base64Str = reader.result;
-                                        const response = await fetch('/api/upload-og-image', {
-                                          method: 'POST',
-                                          headers: {
-                                            'Content-Type': 'application/json'
-                                          },
-                                          body: JSON.stringify({ image: base64Str, aspect: aspect, routeType: ogItem.key })
-                                        });
-                                        const resData = await response.json();
-                                        if (resData.success) {
-                                          alert(`OG Image for ${ogItem.label} successfully updated and saved locally! Please push your code to GitHub to deploy.`);
-                                          window.location.reload();
-                                        } else {
-                                          alert("Failed to process image: " + resData.error);
-                                        }
-                                      } catch (err) {
-                                        alert("Error uploading image: " + err.message);
-                                      }
-                                    };
-                                  } catch (err) {
-                                    alert("Failed to read file: " + err.message);
-                                  }
-                                }
-                              }}
-                              style={{ display: 'none' }}
-                            />
-                          </label>
-                        </div>
+                    {Object.keys(ogSavedList).length === 0 ? (
+                      <div style={{ padding: '20px', textAlign: 'center', background: '#f8fafc', borderRadius: '12px', border: '1px solid var(--border-light)', fontSize: '0.82rem', color: 'var(--text-light-muted)' }}>
+                        No custom OG image paths saved yet. Enter a path above and click Upload & Save Asset!
                       </div>
-                    ))}
+                    ) : (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                        {Object.entries(ogSavedList).map(([key, item]) => (
+                          <div key={key} style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: '16px',
+                            padding: '14px 16px',
+                            background: 'white',
+                            border: '1px solid var(--border-light)',
+                            borderRadius: '12px',
+                            boxShadow: 'var(--shadow-sm)',
+                            flexWrap: 'wrap'
+                          }}>
+                            {/* Thumbnail preview */}
+                            <div style={{ width: '120px', height: '64px', borderRadius: '8px', overflow: 'hidden', border: '1px solid #cbd5e1', background: '#e2e8f0', flexShrink: 0 }}>
+                              <img 
+                                src={`${item.image}?t=${Date.now()}`} 
+                                alt={key} 
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                                onError={(e) => { e.target.src = '/whatsbro_logo.png'; }}
+                              />
+                            </div>
+
+                            {/* Info */}
+                            <div style={{ flex: 1, minWidth: '160px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                                <span style={{ fontSize: '0.85rem', fontWeight: '800', color: 'var(--primary)', wordBreak: 'break-all' }}>
+                                  {item.target_url || `/form/${key}`}
+                                </span>
+                                <span style={{ fontSize: '0.65rem', background: '#e0f2fe', color: '#0369a1', padding: '1px 6px', borderRadius: '4px', fontWeight: '700', whiteSpace: 'nowrap' }}>
+                                  ID: {key}
+                                </span>
+                              </div>
+                              <span style={{ fontSize: '0.7rem', color: '#64748b', fontFamily: 'monospace', display: 'block' }}>
+                                public{item.image}
+                              </span>
+                              {item.title && (
+                                <span style={{ fontSize: '0.75rem', color: 'var(--text-light-muted)', display: 'block', marginTop: '2px' }}>
+                                  Title: {item.title}
+                                </span>
+                              )}
+                            </div>
+
+                            {/* Actions: Edit & Delete */}
+                            <div style={{ display: 'flex', gap: '8px', flexShrink: 0 }}>
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setOgCustomPath(item.target_url || `/form/${key}`);
+                                  if (item.title) setOgTitle(item.title);
+                                  if (item.description) setOgDescription(item.description);
+                                  window.scrollTo({ top: 350, behavior: 'smooth' });
+                                }}
+                                className="premium-btn premium-btn-secondary"
+                                style={{ padding: '6px 12px', fontSize: '0.75rem', width: 'auto', margin: 0 }}
+                              >
+                                ✏️ Edit / Replace
+                              </button>
+
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  if (!window.confirm(`Are you sure you want to delete local OG image for '${key}'?`)) return;
+                                  try {
+                                    const res = await fetch('/api/delete-og-image', {
+                                      method: 'POST',
+                                      headers: { 'Content-Type': 'application/json' },
+                                      body: JSON.stringify({ key })
+                                    });
+                                    const data = await res.json();
+                                    if (data.success) {
+                                      fetchLocalOgList();
+                                    } else {
+                                      alert("Delete failed: " + data.error);
+                                    }
+                                  } catch (err) {
+                                    alert("Error deleting OG image: " + err.message);
+                                  }
+                                }}
+                                style={{
+                                  padding: '6px 12px',
+                                  fontSize: '0.75rem',
+                                  borderRadius: '8px',
+                                  border: '1px solid #fecaca',
+                                  background: '#fef2f2',
+                                  color: '#dc2626',
+                                  fontWeight: '700',
+                                  cursor: 'pointer'
+                                }}
+                              >
+                                🗑️ Delete
+                              </button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
                 

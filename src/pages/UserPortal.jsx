@@ -2155,20 +2155,23 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
   const handleUpiPay = (fee, submissionId, paymentNo, method) => {
     const pa = formatUpiVpa(paymentNo, method);
     const am = fee;
+    const pn = 'SUBI Online Service';
+    const tn = `Payment for SUBI e-sevai Application ${submissionId ? '#' + submissionId : ''}`.trim();
 
-    let targetUrl = `upi://pay?pa=${pa}&am=${am}&cu=INR`;
+    let targetUrl = `upi://pay?pa=${encodeURIComponent(pa)}&pn=${encodeURIComponent(pn)}&am=${am}&cu=INR&tn=${encodeURIComponent(tn)}`;
     if (method === 'phonepe') {
-      targetUrl = `phonepe://pay?pa=${pa}&am=${am}&cu=INR`;
+      targetUrl = `phonepe://pay?pa=${encodeURIComponent(pa)}&pn=${encodeURIComponent(pn)}&am=${am}&cu=INR&tn=${encodeURIComponent(tn)}`;
     } else if (method === 'gpay') {
-      targetUrl = `gpay://upi/pay?pa=${pa}&am=${am}&cu=INR`;
+      // tez:// is Google Pay India's direct registered URI scheme
+      targetUrl = `tez://upi/pay?pa=${encodeURIComponent(pa)}&pn=${encodeURIComponent(pn)}&am=${am}&cu=INR&tn=${encodeURIComponent(tn)}`;
     }
 
-    // Attempt to open the specific payment application
+    // Attempt to open the specific payment application directly
     window.location.href = targetUrl;
 
     // Smart Fallback: If the target app is not installed, the browser remains in focus.
     // After 1.5 seconds, we fall back to the generic upi:// scheme to trigger the system chooser.
-    const fallbackUrl = `upi://pay?pa=${pa}&am=${am}&cu=INR`;
+    const fallbackUrl = `upi://pay?pa=${encodeURIComponent(pa)}&pn=${encodeURIComponent(pn)}&am=${am}&cu=INR&tn=${encodeURIComponent(tn)}`;
     setTimeout(() => {
       if (document.hasFocus()) {
         window.location.href = fallbackUrl;
@@ -2395,16 +2398,38 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
     ? forms
     : forms.filter(f => f.category.toLowerCase() === selectedCategory.toLowerCase());
 
-  const serverConfig = (() => {
+  const isMaintenanceMode = (() => {
+    // 1. Check local storage first (explicit admin toggle)
     try {
       const saved = localStorage.getItem('whatsbro_server_config');
-      return saved ? JSON.parse(saved) : { active: true, message: 'Server issues, so pls wait...' };
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        // ON (Active) means parsed.active === true -> maintenance is FALSE
+        // OFF (Maintenance) means parsed.active === false -> maintenance is TRUE
+        if (parsed.active !== undefined) return parsed.active === false;
+        if (parsed.maintenance !== undefined) return Boolean(parsed.maintenance);
+      }
     } catch (e) {
-      return { active: true, message: 'Server issues, so pls wait...' };
+      console.error('Error reading server config:', e);
     }
+    // 2. Check systemSettings from database
+    if (systemSettings && systemSettings.server_maintenance !== undefined) {
+      return String(systemSettings.server_maintenance).toLowerCase() === 'true';
+    }
+    // Default: Server is ONLINE (Active, working normally)
+    return false;
   })();
 
-  if (!serverConfig.active) {
+  const maintenanceMessage = systemSettings?.server_maintenance_message || (() => {
+    try {
+      const saved = localStorage.getItem('whatsbro_server_config');
+      return saved ? JSON.parse(saved)?.message : 'Server issues, so pls wait...';
+    } catch (e) {
+      return 'Server issues, so pls wait...';
+    }
+  })() || 'Server issues, so pls wait...';
+
+  if (isMaintenanceMode) {
     return (
       <div style={{ padding: '24px 16px', display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: '60vh' }}>
         <div className="premium-card text-center" style={{ borderTop: '6px solid #ef4444', maxWidth: '400px', width: '100%', padding: '32px 24px', borderRadius: '16px', boxShadow: '0 10px 25px -5px rgba(239, 68, 68, 0.1)' }}>
@@ -2412,7 +2437,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
           <h3 style={{ fontSize: '1.25rem', fontWeight: '800', color: '#1e293b', marginBottom: '8px' }}>server issues ,so pls wait...</h3>
           <div style={{ background: '#f8fafc', border: '1.5px solid #e2e8f0', borderRadius: '12px', padding: '14px', marginTop: '12px' }}>
             <p style={{ fontSize: '0.85rem', color: '#475569', margin: 0, fontWeight: '600', lineHeight: '1.5' }}>
-              {serverConfig.message || 'The system is undergoing routine upgrades. Please check back later.'}
+              {maintenanceMessage}
             </p>
           </div>
         </div>
@@ -2594,7 +2619,6 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
                           title="Share on WhatsApp"
                         >
                           <Share2 size={18} />
-                          {!(post.apply_url && post.apply_url.trim() !== '' && post.apply_url.trim().toLowerCase() !== 'none') && <span>Share on WhatsApp</span>}
                         </button>
                       </div>
                     )}
@@ -3472,9 +3496,10 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
                         if (!fee || fee <= 0) return null;
 
                         const paymentNo = systemSettings.payment_number || '';
-                        const formattedVpa = formatUpiVpa(paymentNo);
-                        // Keep UPI URL simple: just pa (payment address) and am (amount)
-                        const upiUrl = `upi://pay?pa=${formattedVpa}&am=${fee}`;
+                        const formattedVpa = formatUpiVpa(paymentNo, 'gpay');
+                        const payeeName = 'SUBI Online Service';
+                        const transactionNote = `Payment for SUBI e-sevai Application ${submissionResult.id ? '#' + submissionResult.id : ''}`.trim();
+                        const upiUrl = `upi://pay?pa=${encodeURIComponent(formattedVpa)}&pn=${encodeURIComponent(payeeName)}&am=${fee}&cu=INR&tn=${encodeURIComponent(transactionNote)}`;
                         const qrCodeUrl = systemSettings.qr_code_url;
 
                         return (

@@ -642,10 +642,15 @@ export default function AdminPortal() {
     return saved ? JSON.parse(saved) : { active: true, message: 'Server issues, so pls wait...' };
   });
 
-  const handleServerToggle = (active) => {
-    const nextConfig = { ...serverConfig, active };
+  const handleServerToggle = async (active) => {
+    const nextConfig = { ...serverConfig, active, maintenance: !active };
     localStorage.setItem('whatsbro_server_config', JSON.stringify(nextConfig));
     setServerConfig(nextConfig);
+    try {
+      await updateSettings({ server_maintenance: active ? 'false' : 'true' });
+    } catch (e) {
+      console.error('Failed to sync server status to database:', e);
+    }
   };
 
   const handleServerMessageChange = (msg) => {
@@ -3299,6 +3304,35 @@ export default function AdminPortal() {
                   </div>
                   <span style={{ fontSize: '0.7rem', color: 'var(--text-light-muted)', marginTop: '4px', display: 'block' }}>
                     If ON, users will see a prompt suggesting they "Add Subi e sevai to Home Screen".
+                  </span>
+                </form>
+
+                {/* Server Status / Maintenance Mode Toggle */}
+                <form onSubmit={async (e) => {
+                  e.preventDefault();
+                  try {
+                    const isCurrentMaintenance = String(settings.server_maintenance).toLowerCase() === 'true';
+                    const newVal = isCurrentMaintenance ? 'false' : 'true';
+                    await updateSettings({ server_maintenance: newVal });
+                    setSettings({ ...settings, server_maintenance: newVal });
+                    const localConfig = { active: newVal !== 'true', message: settings.server_maintenance_message || 'Server issues, so pls wait...' };
+                    localStorage.setItem('whatsbro_server_config', JSON.stringify(localConfig));
+                    alert(`Server Maintenance Mode turned ${newVal === 'true' ? 'ON (Maintenance Overlay Active)' : 'OFF (Server Active & Online)'}!`);
+                  } catch (err) {
+                    alert('Failed to toggle server maintenance mode setting.');
+                  }
+                }} className="premium-input-group" style={{ margin: 0 }}>
+                  <label className="premium-label">Server Status / Maintenance Mode</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                    <div style={{ flex: 1, padding: '12px 16px', background: '#f8fafc', border: '1.5px solid var(--border-light)', borderRadius: '10px', fontSize: '0.9rem', fontWeight: 'bold' }}>
+                      Status: {String(settings.server_maintenance).toLowerCase() === 'true' ? <span style={{ color: 'var(--error)' }}>OFFLINE / MAINTENANCE MODE (Showing "Server issues...")</span> : <span style={{ color: 'var(--success)' }}>ONLINE (Normal User Access)</span>}
+                    </div>
+                    <button type="submit" className="premium-btn premium-btn-secondary" style={{ width: 'auto', padding: '0 24px', height: '48px' }}>
+                      Toggle
+                    </button>
+                  </div>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-light-muted)', marginTop: '4px', display: 'block' }}>
+                    When Maintenance Mode is ON, users will see the "Server issues, so pls wait..." screen. Toggle OFF to restore normal user access.
                   </span>
                 </form>
 

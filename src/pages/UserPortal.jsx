@@ -46,7 +46,11 @@ import {
   Megaphone,
   Share2,
   ExternalLink,
-  Briefcase
+  Briefcase,
+  Search,
+  Layers,
+  Grid,
+  Tag
 } from 'lucide-react';
 
 const safeJsonParse = (str, fallback = []) => {
@@ -511,6 +515,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
 
 
   const [selectedCategory, setSelectedCategory] = useState(initialCategory || 'all');
+  const [formSearchQuery, setFormSearchQuery] = useState('');
   const [systemSettings, setSystemSettings] = useState({});
 
   // Loading & error states
@@ -2393,7 +2398,112 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
     });
   };
 
-  // --- CATEGORIES HELPER ---
+  // --- CATEGORIES HELPER & DYNAMIC GROUPING ---
+  const CATEGORY_META = {
+    'all': { label: 'All Services', tamilLabel: 'அனைத்து சேவைகள்', icon: '✨', accent: '#047857' },
+    'e sevai': { label: 'E-Sevai Services', tamilLabel: 'இ சேவை சேவைகள்', icon: '🏛️', accent: '#0284c7' },
+    'pan card': { label: 'PAN Card Services', tamilLabel: 'பான் கார்டு சேவைகள்', icon: '💳', accent: '#7c3aed' },
+    'voter id': { label: 'Voter ID Services', tamilLabel: 'வாக்காளர் அடையாள அட்டை', icon: '🆔', accent: '#059669' },
+    'aadhaar': { label: 'Aadhaar Services', tamilLabel: 'ஆதார் சேவைகள்', icon: '🪪', accent: '#d97706' },
+    'others': { label: 'Other Services & Downloads', tamilLabel: 'இதர சேவைகள்', icon: '📄', accent: '#64748b' }
+  };
+
+  const getCategoryMeta = (catName) => {
+    if (!catName) return { label: 'General Services', icon: '📄', accent: '#047857' };
+    const key = String(catName).toLowerCase().trim();
+    if (CATEGORY_META[key]) return CATEGORY_META[key];
+    const capitalized = catName.charAt(0).toUpperCase() + catName.slice(1);
+    return { label: `${capitalized} Services`, icon: '🏷️', accent: '#047857' };
+  };
+
+  // Derive unique category pills list with item counts
+  const categoriesList = React.useMemo(() => {
+    const preset = ['all', 'E sevai', 'pan card', 'voter id', 'others'];
+    const customSet = new Set(preset.map(c => c.toLowerCase()));
+    
+    (forms || []).forEach(f => {
+      if (f.category && f.category.trim()) {
+        customSet.add(f.category.trim().toLowerCase());
+      }
+    });
+
+    const uniqueCats = Array.from(customSet);
+    
+    return uniqueCats.map(catKey => {
+      let count = 0;
+      if (catKey === 'all') {
+        count = (forms || []).length;
+      } else {
+        count = (forms || []).filter(f => (f.category || 'others').toLowerCase().trim() === catKey).length;
+      }
+      const meta = getCategoryMeta(catKey);
+      return {
+        key: catKey,
+        label: meta.label || catKey,
+        icon: meta.icon,
+        count
+      };
+    });
+  }, [forms]);
+
+  // Group forms category-wise based on selectedCategory & search query
+  const categorizedFormGroups = React.useMemo(() => {
+    const query = formSearchQuery.trim().toLowerCase();
+    
+    // Filter by search query if present
+    let pool = forms || [];
+    if (query) {
+      pool = pool.filter(f => 
+        (f.title && f.title.toLowerCase().includes(query)) ||
+        (f.category && f.category.toLowerCase().includes(query)) ||
+        (f.description && f.description.toLowerCase().includes(query))
+      );
+    }
+
+    // If specific category selected (and not 'all')
+    if (selectedCategory !== 'all') {
+      const filtered = pool.filter(f => (f.category || 'others').toLowerCase().trim() === selectedCategory.toLowerCase().trim());
+      const meta = getCategoryMeta(selectedCategory);
+      return [{
+        categoryKey: selectedCategory,
+        categoryName: meta.label || selectedCategory,
+        meta,
+        items: sortItems(filtered)
+      }];
+    }
+
+    // If 'all' selected, group by category
+    const map = {};
+    pool.forEach(f => {
+      const rawCat = (f.category && f.category.trim()) ? f.category.trim() : 'others';
+      const key = rawCat.toLowerCase();
+      if (!map[key]) {
+        map[key] = {
+          categoryKey: key,
+          categoryName: rawCat,
+          meta: getCategoryMeta(key),
+          items: []
+        };
+      }
+      map[key].items.push(f);
+    });
+
+    const presetOrder = ['e sevai', 'pan card', 'voter id', 'aadhaar', 'others'];
+    return Object.values(map)
+      .map(group => ({
+        ...group,
+        items: sortItems(group.items)
+      }))
+      .sort((a, b) => {
+        const idxA = presetOrder.indexOf(a.categoryKey);
+        const idxB = presetOrder.indexOf(b.categoryKey);
+        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+        if (idxA !== -1) return -1;
+        if (idxB !== -1) return 1;
+        return a.categoryName.localeCompare(b.categoryName);
+      });
+  }, [forms, selectedCategory, formSearchQuery]);
+
   const filteredForms = selectedCategory === 'all'
     ? forms
     : forms.filter(f => f.category.toLowerCase() === selectedCategory.toLowerCase());
@@ -2636,85 +2746,166 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
             {!selectedForm ? (
               // Form selections
               <div style={{ padding: '0 16px' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '10px', margin: '16px 0 10px 0' }}>
-                  <Filter size={16} className="text-muted" />
-                  <span className="premium-label" style={{ margin: 0 }}>Service Category Filter</span>
+                
+                {/* Search Bar */}
+                <div className="category-search-input-wrapper" style={{ marginTop: '16px' }}>
+                  <Search size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
+                  <input
+                    type="text"
+                    value={formSearchQuery}
+                    onChange={(e) => setFormSearchQuery(e.target.value)}
+                    placeholder="Search services (e.g., Community, Patta, PAN Card, Income)..."
+                  />
+                  {formSearchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setFormSearchQuery('')}
+                      style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: '#94a3b8', cursor: 'pointer', display: 'flex', alignItems: 'center', padding: '4px' }}
+                    >
+                      <X size={16} />
+                    </button>
+                  )}
                 </div>
 
-                <select
-                  value={selectedCategory}
-                  onChange={(e) => setSelectedCategory(e.target.value)}
-                  className="premium-input"
-                  style={{ marginBottom: '16px', background: 'white' }}
-                >
-                  <option value="all">All Categories</option>
-                  <option value="E sevai">E Sevai</option>
-                  <option value="pan card">PAN Card</option>
-                  <option value="voter id">Voter ID</option>
-                  <option value="others">Others</option>
-                </select>
+                {/* Horizontal Scrollable Category Pills Bar */}
+                <div className="category-pills-scroll-container">
+                  {categoriesList.map(cat => {
+                    const isActive = selectedCategory.toLowerCase().trim() === cat.key.toLowerCase().trim();
+                    return (
+                      <button
+                        key={cat.key}
+                        type="button"
+                        onClick={() => setSelectedCategory(cat.key)}
+                        className={`category-pill-btn ${isActive ? 'active' : ''}`}
+                      >
+                        <span>{cat.icon}</span>
+                        <span>{cat.label}</span>
+                        <span className="category-pill-count">{cat.count}</span>
+                      </button>
+                    );
+                  })}
+                </div>
 
                 {formsLoading ? (
-                  renderMintGreenLoader("LOADING...")
-                ) : filteredForms.length === 0 ? (
-                  <div className="premium-card text-center" style={{ padding: '40px 20px' }}>
-                    <p className="text-muted">No form templates found in this category.</p>
+                  renderMintGreenLoader("LOADING SERVICES...")
+                ) : categorizedFormGroups.length === 0 || categorizedFormGroups.every(g => g.items.length === 0) ? (
+                  <div className="premium-card text-center" style={{ padding: '40px 20px', marginTop: '16px' }}>
+                    <AlertCircle size={36} style={{ color: '#94a3b8', margin: '0 auto 8px auto' }} />
+                    <p style={{ fontWeight: '700', color: '#334155', margin: 0 }}>No form templates found in this category.</p>
+                    {formSearchQuery && (
+                      <button
+                        onClick={() => setFormSearchQuery('')}
+                        className="premium-btn premium-btn-secondary"
+                        style={{ marginTop: '12px', padding: '6px 14px', fontSize: '0.8rem' }}
+                      >
+                        Clear Search Query
+                      </button>
+                    )}
                   </div>
                 ) : (
-                  <div className="desktop-grid-2">
-                    {sortItems(filteredForms).map((form) => {
-                      const fieldsCount = safeJsonParse(form.required_fields, []).length;
-                      const docsCount = safeJsonParse(form.required_docs, []).length;
-                      const isAutoUpcoming = fieldsCount === 0 && docsCount === 0;
-                      const isManualComingSoon = form.coming_soon === true || String(form.coming_soon).toLowerCase() === 'true';
-                      const isUpcoming = isAutoUpcoming; // only disable automatically upcoming forms (0 fields and 0 docs)
-                      const showUpcomingLabel = isAutoUpcoming || isManualComingSoon;
-
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '20px', marginBottom: '24px' }}>
+                    {categorizedFormGroups.map(group => {
+                      if (!group.items || group.items.length === 0) return null;
                       return (
-                        <div key={form.id} className="premium-card">
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
-                            <span className="badge badge-info">{form.category}</span>
-                            {showUpcomingLabel ? (
-                              <span style={{ fontSize: '0.7rem', color: '#f59e0b', fontWeight: 'bold' }}>Upcoming</span>
-                            ) : (
-                              <span style={{ fontSize: '0.7rem', color: 'var(--text-light-muted)' }}>Apply</span>
-                            )}
-                          </div>
-                          <h3 className="form-title-display" style={{ fontSize: '1.15rem', marginBottom: '6px', whiteSpace: 'pre-line', lineHeight: '1.3' }}>{form.title}</h3>
-
-                          {form.img_url && (
-                            <div style={{ width: '100%', aspectRatio: '1 / 1', borderRadius: '8px', overflow: 'hidden', marginBottom: '12px', border: '1px solid #e2e8f0' }}>
-                              <img src={getImageUrl(form.img_url)} alt={form.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                        <div key={group.categoryKey} style={{ display: 'flex', flexDirection: 'column' }}>
+                          
+                          {/* Category Header Banner */}
+                          <div className="category-section-banner">
+                            <div className="category-section-title">
+                              <div className="category-section-icon" style={{ background: `${group.meta.accent}15`, color: group.meta.accent }}>
+                                {group.meta.icon}
+                              </div>
+                              <div>
+                                <h3 style={{ margin: 0, fontSize: '1.05rem', fontWeight: '800', color: '#1e293b', lineHeight: '1.2' }}>
+                                  {group.categoryName.toUpperCase().includes('SERVICES') ? group.categoryName : `${group.categoryName} Services`}
+                                </h3>
+                                {group.meta.tamilLabel && (
+                                  <span style={{ fontSize: '0.72rem', color: '#64748b', fontWeight: '600' }}>
+                                    {group.meta.tamilLabel}
+                                  </span>
+                                )}
+                              </div>
                             </div>
-                          )}
-
-                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '16px' }}>
-                            <span style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#047857', background: '#ecfdf5', padding: '4px 10px', borderRadius: '6px' }}>
-                              Rs ₹{form.fee || 0}
+                            <span style={{
+                              fontSize: '0.75rem',
+                              fontWeight: '800',
+                              background: `${group.meta.accent}15`,
+                              color: group.meta.accent,
+                              padding: '4px 10px',
+                              borderRadius: '12px',
+                              flexShrink: 0
+                            }}>
+                              {group.items.length} {group.items.length === 1 ? 'Service' : 'Services'}
                             </span>
                           </div>
 
-                          <p className="text-muted" style={{ fontSize: '0.8rem', marginBottom: '16px' }}>{form.description}</p>
-                          <div style={{ display: 'flex', gap: '8px', width: '100%' }}>
-                            <button
-                              onClick={() => !isUpcoming && selectFormToFill(form)}
-                              className={`premium-btn ${isUpcoming ? 'premium-btn-secondary' : 'premium-btn-primary'}`}
-                              style={{ flex: 1, padding: '10px', opacity: isUpcoming ? 0.7 : 1, cursor: isUpcoming ? 'not-allowed' : 'pointer' }}
-                              disabled={isUpcoming}
-                            >
-                              {isManualComingSoon ? 'Upcoming soon' : isUpcoming ? 'Upcoming soon' : 'Click to Apply'}
-                            </button>
-                            {(!isUpcoming || isManualComingSoon) && (
-                              <button
-                                type="button"
-                                onClick={() => handleWhatsAppShare(form.title, `Apply for ${form.title} easily through our E-Sevai portal.`, `/form/${form.id}`)}
-                                className="premium-btn premium-btn-primary"
-                                style={{ width: '42px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                title="Share on WhatsApp"
-                              >
-                                <Share2 size={18} />
-                              </button>
-                            )}
+                          {/* Applications Grid under this Category */}
+                          <div className="desktop-grid-2">
+                            {group.items.map((form) => {
+                              const fieldsCount = safeJsonParse(form.required_fields, []).length;
+                              const docsCount = safeJsonParse(form.required_docs, []).length;
+                              const isAutoUpcoming = fieldsCount === 0 && docsCount === 0;
+                              const isManualComingSoon = form.coming_soon === true || String(form.coming_soon).toLowerCase() === 'true';
+                              const isUpcoming = isAutoUpcoming;
+                              const showUpcomingLabel = isAutoUpcoming || isManualComingSoon;
+
+                              return (
+                                <div key={form.id} className="premium-card" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
+                                    <span className="badge badge-info" style={{ background: `${group.meta.accent}15`, color: group.meta.accent, border: `1px solid ${group.meta.accent}30` }}>
+                                      {form.category || group.categoryName}
+                                    </span>
+                                    {showUpcomingLabel ? (
+                                      <span style={{ fontSize: '0.7rem', color: '#f59e0b', fontWeight: 'bold' }}>Upcoming</span>
+                                    ) : (
+                                      <span style={{ fontSize: '0.7rem', color: 'var(--text-light-muted)' }}>Apply</span>
+                                    )}
+                                  </div>
+                                  
+                                  <h3 className="form-title-display" style={{ fontSize: '1.1rem', marginBottom: '6px', whiteSpace: 'pre-line', lineHeight: '1.3' }}>
+                                    {form.title}
+                                  </h3>
+
+                                  {form.img_url && (
+                                    <div style={{ width: '100%', aspectRatio: '1 / 1', borderRadius: '8px', overflow: 'hidden', marginBottom: '12px', border: '1px solid #e2e8f0' }}>
+                                      <img src={getImageUrl(form.img_url)} alt={form.title} style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                                    </div>
+                                  )}
+
+                                  {Number(form.fee) > 0 && (
+                                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '12px' }}>
+                                      <span style={{ fontSize: '0.9rem', fontWeight: 'bold', color: '#047857', background: '#ecfdf5', padding: '4px 10px', borderRadius: '6px' }}>
+                                        Rs ₹{form.fee}
+                                      </span>
+                                    </div>
+                                  )}
+
+                                  <p className="text-muted" style={{ fontSize: '0.8rem', marginBottom: '16px', flex: 1 }}>{form.description}</p>
+                                  
+                                  <div style={{ display: 'flex', gap: '8px', width: '100%', marginTop: 'auto' }}>
+                                    <button
+                                      onClick={() => !isUpcoming && selectFormToFill(form)}
+                                      className={`premium-btn ${isUpcoming ? 'premium-btn-secondary' : 'premium-btn-primary'}`}
+                                      style={{ flex: 1, padding: '10px', opacity: isUpcoming ? 0.7 : 1, cursor: isUpcoming ? 'not-allowed' : 'pointer' }}
+                                      disabled={isUpcoming}
+                                    >
+                                      {isManualComingSoon ? 'Upcoming soon' : isUpcoming ? 'Upcoming soon' : 'Click to Apply'}
+                                    </button>
+                                    {(!isUpcoming || isManualComingSoon) && (
+                                      <button
+                                        type="button"
+                                        onClick={() => handleWhatsAppShare(form.title, `Apply for ${form.title} easily through our E-Sevai portal.`, `/form/${form.id}`)}
+                                        className="premium-btn premium-btn-primary"
+                                        style={{ width: '42px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                        title="Share on WhatsApp"
+                                      >
+                                        <Share2 size={18} />
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
+                              );
+                            })}
                           </div>
                         </div>
                       );
@@ -3995,6 +4186,8 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
                 {userApplications.map((app) => {
                   const targetForm = forms.find(f => f.id === app.form_id);
                   const title = targetForm?.title || app.form_title || `Application #${app.id}`;
+                  const categoryName = targetForm?.category || app.category || 'General';
+                  const categoryMeta = getCategoryMeta(categoryName);
                   const isDraft = app.payment_status === 'draft';
                   const isPaid = app.payment_status === 'paid';
                   const percent = Number(app.progress_percent) || 0;
@@ -4003,8 +4196,13 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
                     <div key={app.id} className="premium-card" style={{ padding: '20px', background: 'white', borderRadius: '16px', borderLeft: `6px solid ${isPaid ? '#10b981' : isDraft ? '#f59e0b' : '#3b82f6'}` }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                         <div>
-                          <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 'bold' }}>ID: {app.id}</span>
-                          <h4 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#1e293b', margin: '2px 0 0 0' }}>{title}</h4>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>
+                            <span style={{ fontSize: '0.7rem', color: '#64748b', fontWeight: 'bold' }}>ID: {app.id}</span>
+                            <span style={{ fontSize: '0.68rem', background: `${categoryMeta.accent}15`, color: categoryMeta.accent, border: `1px solid ${categoryMeta.accent}30`, padding: '1px 8px', borderRadius: '6px', fontWeight: '700', display: 'inline-flex', alignItems: 'center', gap: '3px' }}>
+                              {categoryMeta.icon} {categoryName}
+                            </span>
+                          </div>
+                          <h4 style={{ fontSize: '1.1rem', fontWeight: '800', color: '#1e293b', margin: '4px 0 0 0' }}>{title}</h4>
                         </div>
                         <span className={`badge ${isPaid ? 'badge-success' : isDraft ? 'badge-warning' : 'badge-info'}`} style={{ padding: '4px 10px', fontSize: '0.75rem', fontWeight: '800' }}>
                           {(app.payment_status || 'Submitted').toUpperCase()}

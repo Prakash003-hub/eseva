@@ -603,6 +603,10 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
   const [showOtpInput, setShowOtpInput] = useState(false);
   const [guestOtp, setGuestOtp] = useState('');
   const [lookupAadharStatus, setLookupAadharStatus] = useState(null); // 'checking', 'new_user', 'existing_user'
+
+  // Final Submission Pending Popup States
+  const [showPendingSuccessPopup, setShowPendingSuccessPopup] = useState(false);
+  const [popupLang, setPopupLang] = useState('tamil'); // 'tamil' or 'english'
   const [matchedUserPrefills, setMatchedUserPrefills] = useState(null);
   const [guestVerifyError, setGuestVerifyError] = useState('');
   const [verifyingAadhar, setVerifyingAadhar] = useState(false);
@@ -2078,6 +2082,8 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
 
       setUploadProgress('');
       setWizardStep(5); // Final Step: Get Receipt
+      setShowPendingSuccessPopup(true);
+      setPopupLang('tamil');
     } catch (err) {
       console.error(err);
       alert(err.message || 'Failed to complete document uploads.');
@@ -2085,6 +2091,41 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleUnderstandClick = async () => {
+    setShowPendingSuccessPopup(false);
+    const targetPhone = submissionResult?.phone || formData?.phone || currentUser?.phone || '';
+    const targetAadhar = submissionResult?.aadhar || formData?.aadhar || currentUser?.aadhar || '';
+
+    if (targetPhone) {
+      setLookupType('phone');
+      setLookupPhone(targetPhone);
+      try {
+        setSearchingStatus(true);
+        const data = await getUserStatus(targetPhone, '', '');
+        setUserApplications(data || []);
+        setHasSearchedStatus(true);
+      } catch (err) {
+        console.error('Failed to auto fetch status on transition:', err);
+      } finally {
+        setSearchingStatus(false);
+      }
+    } else if (targetAadhar) {
+      setLookupType('aadhar');
+      setLookupAadhar(targetAadhar);
+      try {
+        setSearchingStatus(true);
+        const data = await getUserStatus('', '', targetAadhar);
+        setUserApplications(data || []);
+        setHasSearchedStatus(true);
+      } catch (err) {
+        console.error('Failed to auto fetch status on transition:', err);
+      } finally {
+        setSearchingStatus(false);
+      }
+    }
+    setActiveTab('status');
   };
 
 
@@ -2630,8 +2671,8 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
                     <img src="/whatsbro_logo.png" alt="SUBI Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
                   </div>
                   <div>
-                    <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '800', color: 'white' }}>SUBI Direct App Installer</h4>
-                    <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', opacity: 0.9 }}>Add to your home screen for 1-tap quick access</p>
+                    <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '800', color: 'white' }}> App Installer</h4>
+                    <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', opacity: 0.9 }}>installed to quick access</p>
                   </div>
                 </div>
                 <button
@@ -3028,10 +3069,12 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
                             )}
                           </div>
 
-                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f0fdf4', padding: '12px 16px', borderRadius: '8px', border: '1px solid #a7f3d0' }}>
-                            <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#065f46' }}>Service Fee:</span>
-                            <span style={{ fontSize: '1rem', fontWeight: 800, color: '#047857' }}>Rs. {selectedForm.fee || 0}</span>
-                          </div>
+                          {Number(selectedForm.fee || 0) > 0 && (
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f0fdf4', padding: '12px 16px', borderRadius: '8px', border: '1px solid #a7f3d0' }}>
+                              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#065f46' }}>Service Fee:</span>
+                              <span style={{ fontSize: '1rem', fontWeight: 800, color: '#047857' }}>Rs. {selectedForm.fee}</span>
+                            </div>
+                          )}
                         </div>
 
                         <button
@@ -4518,6 +4561,217 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
           </div>
         );
       })()}
+
+      {/* FINAL SUBMISSION PENDING POPUP MODAL */}
+      {showPendingSuccessPopup && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(15, 23, 42, 0.75)',
+            backdropFilter: 'blur(4px)',
+            display: 'flex',
+            alignItems: 'center',
+            justify: 'center',
+            zIndex: 999999,
+            padding: '16px'
+          }}
+        >
+          <div
+            style={{
+              background: '#ffffff',
+              borderRadius: '20px',
+              maxWidth: '480px',
+              width: '100%',
+              padding: '24px',
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.25)',
+              border: '1px solid #e2e8f0',
+              maxHeight: '90vh',
+              overflowY: 'auto'
+            }}
+          >
+            {/* Language Toggle: Tamil / English (Default: Tamil) */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '20px', background: '#f1f5f9', padding: '4px', borderRadius: '12px' }}>
+              <button
+                type="button"
+                onClick={() => setPopupLang('tamil')}
+                style={{
+                  flex: 1,
+                  padding: '8px 16px',
+                  borderRadius: '9999px',
+                  border: 'none',
+                  fontWeight: '700',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  background: popupLang === 'tamil' ? 'var(--primary, #059669)' : 'transparent',
+                  color: popupLang === 'tamil' ? '#ffffff' : '#64748b',
+                  boxShadow: popupLang === 'tamil' ? '0 2px 8px rgba(5, 150, 105, 0.3)' : 'none'
+                }}
+              >
+                தமிழ்
+              </button>
+              <button
+                type="button"
+                onClick={() => setPopupLang('english')}
+                style={{
+                  flex: 1,
+                  padding: '8px 16px',
+                  borderRadius: '9999px',
+                  border: 'none',
+                  fontWeight: '700',
+                  fontSize: '0.85rem',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s ease',
+                  background: popupLang === 'english' ? 'var(--primary, #059669)' : 'transparent',
+                  color: popupLang === 'english' ? '#ffffff' : '#64748b',
+                  boxShadow: popupLang === 'english' ? '0 2px 8px rgba(5, 150, 105, 0.3)' : 'none'
+                }}
+              >
+                English
+              </button>
+            </div>
+
+            {/* Popup Content */}
+            {popupLang === 'tamil' ? (
+              <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#fef3c7', color: '#d97706', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto', fontSize: '1.8rem', boxShadow: '0 4px 12px rgba(217, 119, 6, 0.2)' }}>
+                  ⏳
+                </div>
+                
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#1e293b', marginBottom: '12px', lineHeight: '1.4' }}>
+                  உங்களது விண்ணப்பம் <span style={{ color: '#d97706', background: '#fffbeb', padding: '2px 8px', borderRadius: '6px', border: '1px solid #fde68a' }}>Pending</span> நிலையில் உள்ளது. ⏳
+                </h3>
+
+                <p style={{ fontSize: '0.875rem', color: '#475569', lineHeight: '1.5', marginBottom: '18px' }}>
+                  காத்திருக்கவும். எங்கள் குழுவினர் விண்ணப்பத்தை சரிபார்த்து <strong>WhatsApp மூலம் தொடர்புகொள்வார்கள்.</strong> 📲
+                </p>
+
+                {/* Official WhatsApp Button Format */}
+                <a
+                  href="https://wa.me/919787973615"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justify: 'center',
+                    gap: '8px',
+                    width: '100%',
+                    padding: '12px 20px',
+                    background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
+                    color: '#ffffff',
+                    fontWeight: '700',
+                    fontSize: '0.95rem',
+                    borderRadius: '12px',
+                    textDecoration: 'none',
+                    boxShadow: '0 4px 14px rgba(37, 211, 102, 0.4)',
+                    marginBottom: '18px',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  <span>📞</span>
+                  <span>Official WhatsApp: <strong>9787973615</strong></span>
+                </a>
+
+                {/* Warning Card */}
+                <div style={{ background: '#fff2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '12px 16px', marginBottom: '14px', textAlign: 'left' }}>
+                  <p style={{ fontSize: '0.825rem', color: '#991b1b', margin: 0, lineHeight: '1.5', fontWeight: '500' }}>
+                    ⚠️ வேறு எண்ணிலிருந்து Call/Message செய்து பணம் அல்லது GPay கேட்பவர்களை நம்ப வேண்டாம்.
+                  </p>
+                </div>
+
+                {/* Confirmation Box */}
+                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', padding: '10px 14px', textAlign: 'center' }}>
+                  <p style={{ fontSize: '0.85rem', color: '#166534', margin: 0, fontWeight: '600' }}>
+                    ✅ <strong>9787973615</strong> எண்ணை மட்டும் தொடர்புகொள்ளவும்.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                <div style={{ width: '60px', height: '60px', borderRadius: '50%', background: '#fef3c7', color: '#d97706', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px auto', fontSize: '1.8rem', boxShadow: '0 4px 12px rgba(217, 119, 6, 0.2)' }}>
+                  ⏳
+                </div>
+
+                <h3 style={{ fontSize: '1.1rem', fontWeight: 800, color: '#1e293b', marginBottom: '12px', lineHeight: '1.4' }}>
+                  Your application is currently <span style={{ color: '#d97706', background: '#fffbeb', padding: '2px 8px', borderRadius: '6px', border: '1px solid #fde68a' }}>Pending</span>. ⏳
+                </h3>
+
+                <p style={{ fontSize: '0.875rem', color: '#475569', lineHeight: '1.5', marginBottom: '18px' }}>
+                  Please wait. Our team will verify your application and contact you via <strong>WhatsApp</strong>. 📲
+                </p>
+
+                {/* Official WhatsApp Button Format */}
+                <a
+                  href="https://wa.me/919787973615"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justify: 'center',
+                    gap: '8px',
+                    width: '100%',
+                    padding: '12px 20px',
+                    background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
+                    color: '#ffffff',
+                    fontWeight: '700',
+                    fontSize: '0.95rem',
+                    borderRadius: '12px',
+                    textDecoration: 'none',
+                    boxShadow: '0 4px 14px rgba(37, 211, 102, 0.4)',
+                    marginBottom: '18px',
+                    boxSizing: 'border-box'
+                  }}
+                >
+                  <span>📞</span>
+                  <span>Official WhatsApp: <strong>9787973615</strong></span>
+                </a>
+
+                {/* Warning Card */}
+                <div style={{ background: '#fff2f2', border: '1px solid #fecaca', borderRadius: '12px', padding: '12px 16px', marginBottom: '14px', textAlign: 'left' }}>
+                  <p style={{ fontSize: '0.825rem', color: '#991b1b', margin: 0, lineHeight: '1.5', fontWeight: '500' }}>
+                    ⚠️ <strong>Note:</strong> Do not trust anyone contacting you from other numbers or asking for payment via <strong>GPay/PhonePe</strong>.
+                  </p>
+                </div>
+
+                {/* Confirmation Box */}
+                <div style={{ background: '#f0fdf4', border: '1px solid #bbf7d0', borderRadius: '12px', padding: '10px 14px', textAlign: 'center' }}>
+                  <p style={{ fontSize: '0.85rem', color: '#166534', margin: 0, fontWeight: '600' }}>
+                    ✅ For updates, contact only <strong>9787973615</strong>.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Bottom "I Understand" Button */}
+            <button
+              type="button"
+              onClick={handleUnderstandClick}
+              className="premium-btn premium-btn-primary"
+              style={{
+                width: '100%',
+                padding: '14px 24px',
+                borderRadius: '12px',
+                fontWeight: '800',
+                fontSize: '0.95rem',
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justify: 'center',
+                gap: '8px'
+              }}
+            >
+              <span>{popupLang === 'tamil' ? 'புரிந்துகொண்டேன் (I Understand)' : 'I Understand'}</span>
+              <ChevronRight size={18} />
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );

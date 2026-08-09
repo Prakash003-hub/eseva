@@ -999,7 +999,7 @@ export default function WhatsAppChatbot({ systemSettings }) {
             {/* Timestamp Badge */}
             <div style={{ textAlign: 'center', margin: '2px 0' }}>
               <span style={{ background: 'rgba(255,255,255,0.85)', color: '#64748b', fontSize: '0.62rem', padding: '3px 9px', borderRadius: '10px', fontWeight: '600', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
-                Today • Subi E-Sevai Smart Desk
+                Today • Subi E-Sevai 24 h chatservice
               </span>
             </div>
 

@@ -573,9 +573,22 @@ export default function WhatsAppChatbot({ systemSettings }) {
 
   if (hiddenByPage) return null;
 
+  // Helper to ensure phone number always has proper country code (e.g. 91 for India)
+  const formatWhatsAppNumber = (num) => {
+    let clean = String(num || '').replace(/\D/g, '');
+    if (!clean) return '919787973615';
+    if (clean.length === 11 && clean.startsWith('0')) {
+      clean = clean.slice(1);
+    }
+    if (clean.length === 10) {
+      return `91${clean}`;
+    }
+    return clean;
+  };
+
   // Extract phone number from settings or default to official support number
   const rawNumber = systemSettings?.admin_whatsapp_number || '919787973615';
-  const cleanNumber = rawNumber.replace(/\D/g, '') || '919787973615';
+  const cleanNumber = formatWhatsAppNumber(rawNumber);
 
   const sendToWhatsApp = (messageText) => {
     if (!messageText || !messageText.trim()) return;

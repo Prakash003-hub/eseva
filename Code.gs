@@ -1757,7 +1757,7 @@ function initSpreadsheet() {
   var settingsSheet = ensureSheetExists("Settings", ["key", "value"]);
   if (settingsSheet.getLastRow() <= 1) {
     appendObjectToSheet(settingsSheet, { key: "admin_email", value: "" });
-    appendObjectToSheet(settingsSheet, { key: "admin_whatsapp_number", value: "9385497906" });
+    appendObjectToSheet(settingsSheet, { key: "admin_whatsapp_number", value: "919787973615" });
   }
 
   // 7. SYSTEM ERROR/LOG SHEET

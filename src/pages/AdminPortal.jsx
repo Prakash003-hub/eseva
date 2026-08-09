@@ -3221,14 +3221,22 @@ export default function AdminPortal() {
                 {/* Admin WhatsApp Number */}
                 <form onSubmit={async (e) => {
                   e.preventDefault();
-                  const phoneNum = (settings.admin_whatsapp_number || '').trim();
+                  let phoneNum = (settings.admin_whatsapp_number || '').trim();
                   if (!phoneNum) {
                     alert('Please enter a WhatsApp number.');
                     return;
                   }
+                  let cleanPhone = phoneNum.replace(/\D/g, '');
+                  if (cleanPhone.length === 11 && cleanPhone.startsWith('0')) {
+                    cleanPhone = cleanPhone.slice(1);
+                  }
+                  if (cleanPhone.length === 10) {
+                    cleanPhone = `91${cleanPhone}`;
+                  }
                   try {
-                    await updateSettings({ admin_whatsapp_number: phoneNum });
-                    alert('Admin WhatsApp Number saved successfully!');
+                    await updateSettings({ admin_whatsapp_number: cleanPhone });
+                    setSettings((prev) => ({ ...prev, admin_whatsapp_number: cleanPhone }));
+                    alert(`Admin WhatsApp Number saved successfully as +${cleanPhone}!`);
                   } catch (err) {
                     alert('Failed to save WhatsApp number.');
                   }

@@ -14,6 +14,32 @@
       "destination": "/api/share?type=user"
     },
     {
+      "source": "/chatbot",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": {
+            "re": ".*([fF]acebook|[tT]witter|[wW]hats[aA]pp|[lL]inked[iI]n|[tT]elegram|[sS]lack|[dD]iscord|[gG]oogle|[bB]ing|[yY]andex|[pP]interest).*"
+          }
+        }
+      ],
+      "destination": "/api/share?type=chatbot"
+    },
+    {
+      "source": "/chat",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": {
+            "re": ".*([fF]acebook|[tT]witter|[wW]hats[aA]pp|[lL]inked[iI]n|[tT]elegram|[sS]lack|[dD]iscord|[gG]oogle|[bB]ing|[yY]andex|[pP]interest).*"
+          }
+        }
+      ],
+      "destination": "/api/share?type=chatbot"
+    },
+    {
       "source": "/",
       "has": [
         {

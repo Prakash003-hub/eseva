@@ -331,7 +331,11 @@ export default async function handler(req, res) {
       }
     }
 
-    if (type === 'post') {
+    if (type === 'chatbot') {
+      title = 'Subi E-Sevai 24/7 Chatbot Support';
+      description = 'இ-சேவை சான்றிதழ்கள், வாக்காளர் அட்டை, PAN கார்டு, ரேஷன் கார்டு மற்றும் அனைத்து ஆன்லைன் சேவைகளுக்கு 24/7 உதவி பெற அணுகவும்!';
+      redirectPath = '/chatbot';
+    } else if (type === 'post') {
       redirectPath = `/user?tab=home&postId=${id}`;
     } else if (type === 'job') {
       redirectPath = `/user?tab=jobs&jobId=${id}`;

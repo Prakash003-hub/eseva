@@ -18,7 +18,7 @@ const CATEGORY_COLORS = [
 
 export default function WhatsAppChatbot({ systemSettings }) {
   const location = useLocation();
-  const isChatPage = location.pathname.toLowerCase().startsWith('/chatbot') || location.pathname.toLowerCase().startsWith('/chat');
+  const isChatPage = location.pathname.toLowerCase().startsWith('/user/chatbot') || location.pathname.toLowerCase().startsWith('/chatbot') || location.pathname.toLowerCase().startsWith('/chat');
   const [isOpen, setIsOpen] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [customText, setCustomText] = useState('');

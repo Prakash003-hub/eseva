@@ -234,7 +234,7 @@ function PortalLayout() {
 
   // Determine if active route is admin or user or standalone chatbot
   const isAdmin = location.pathname.toLowerCase().startsWith('/tnkpadmin');
-  const isStandaloneChat = location.pathname.toLowerCase().startsWith('/chatbot') || location.pathname.toLowerCase().startsWith('/chat');
+  const isStandaloneChat = location.pathname.toLowerCase().startsWith('/user/chatbot') || location.pathname.toLowerCase().startsWith('/chatbot') || location.pathname.toLowerCase().startsWith('/chat');
 
   // Read active tab, default based on portal type with automatic bounds verification
   const rawTab = searchParams.get('tab');
@@ -340,8 +340,9 @@ function PortalLayout() {
               <Route path="/tnkpadmin" element={<AdminPortal systemSettings={systemSettings} />} />
               <Route path="/admin/chatbot" element={<Navigate to="/tnkpadmin?tab=chatbot" replace />} />
               <Route path="/admin/og-generator" element={<OgGenerator systemSettings={systemSettings} />} />
-              <Route path="/chatbot" element={<ChatbotPage systemSettings={systemSettings} />} />
-              <Route path="/chat" element={<Navigate to="/chatbot" replace />} />
+              <Route path="/user/chatbot" element={<ChatbotPage systemSettings={systemSettings} />} />
+              <Route path="/chatbot" element={<Navigate to="/user/chatbot" replace />} />
+              <Route path="/chat" element={<Navigate to="/user/chatbot" replace />} />
               <Route path="/form/:formId" element={<UserPortal currentUser={currentUser} onLoginTrigger={() => setIsAuthModalOpen(true)} systemSettings={systemSettings} />} />
               <Route path="/job/:jobId" element={<UserPortal currentUser={currentUser} onLoginTrigger={() => setIsAuthModalOpen(true)} systemSettings={systemSettings} />} />
               <Route path="/post/:postId" element={<UserPortal currentUser={currentUser} onLoginTrigger={() => setIsAuthModalOpen(true)} systemSettings={systemSettings} />} />

@@ -81,8 +81,10 @@ import {
   Star,
   Megaphone,
   Briefcase,
-  Package
+  Package,
+  Bot
 } from 'lucide-react';
+import ChatbotFlowManager from '../components/admin/ChatbotFlowManager';
 
 const safeJsonParse = (str, fallback = []) => {
   if (!str) return fallback;
@@ -1909,6 +1911,23 @@ export default function AdminPortal() {
         {/* Tab Navigation */}
         <div style={{ display: 'flex', gap: '8px', alignItems: 'center', margin: '16px 0', flexWrap: 'wrap' }}>
           <button
+            onClick={() => setActiveTab('chatbot')}
+            style={{
+              padding: '8px 12px',
+              borderRadius: '8px',
+              border: activeTab === 'chatbot' ? '2px solid var(--primary)' : '1px solid var(--border-light)',
+              background: activeTab === 'chatbot' ? 'rgba(16,185,129,0.06)' : 'white',
+              cursor: 'pointer',
+              fontWeight: activeTab === 'chatbot' ? 800 : 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              color: activeTab === 'chatbot' ? 'var(--primary)' : 'var(--text-light-main)'
+            }}
+          >
+            <Bot size={16} /> Chatbot Flow Manager
+          </button>
+          <button
             onClick={() => setActiveTab('announcements')}
             style={{
               padding: '8px 12px',
@@ -2372,6 +2391,11 @@ export default function AdminPortal() {
           </div>
         )}
 
+
+        {/* --- TAB: CHATBOT FLOW MANAGER --- */}
+        {activeTab === 'chatbot' && (
+          <ChatbotFlowManager />
+        )}
 
         {/* --- TAB: MANAGE ADVERTISEMENTS & POPUPS --- */}
         {activeTab === 'announcements' && (

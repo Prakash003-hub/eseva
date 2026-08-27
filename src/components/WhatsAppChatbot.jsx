@@ -1,7 +1,24 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { X, Send, Bot, ArrowLeft, RefreshCw, MessageCircle, ChevronRight, Globe, Maximize2, Minimize2 } from 'lucide-react';
+import { useLocation } from 'react-router-dom';
+import { X, Send, Bot, ArrowLeft, RefreshCw, MessageCircle, ChevronRight, Globe, Maximize2, Minimize2, ExternalLink, Share2, Home } from 'lucide-react';
+import { getPublishedFlows } from '../services/chatbotStorage';
+import { playSelectSound } from '../utils/sound';
+
+const CATEGORY_COLORS = [
+  { border: '#10b981', color: '#047857', bg: '#ecfdf5', chevron: '#10b981' }, // Emerald Green
+  { border: '#8b5cf6', color: '#6d28d9', bg: '#f5f3ff', chevron: '#8b5cf6' }, // Purple
+  { border: '#3b82f6', color: '#1d4ed8', bg: '#eff6ff', chevron: '#3b82f6' }, // Blue
+  { border: '#f59e0b', color: '#b45309', bg: '#fffbeb', chevron: '#f59e0b' }, // Amber
+  { border: '#14b8a6', color: '#0f766e', bg: '#f0fdfa', chevron: '#14b8a6' }, // Teal
+  { border: '#06b6d4', color: '#0e7490', bg: '#ecfeff', chevron: '#06b6d4' }, // Cyan
+  { border: '#eab308', color: '#a16207', bg: '#fefce8', chevron: '#eab308' }, // Yellow
+  { border: '#ec4899', color: '#be185d', bg: '#fdf2f8', chevron: '#ec4899' }, // Pink
+  { border: '#6366f1', color: '#4338ca', bg: '#eef2ff', chevron: '#6366f1' }  // Indigo
+];
 
 export default function WhatsAppChatbot({ systemSettings }) {
+  const location = useLocation();
+  const isChatPage = location.pathname.toLowerCase().startsWith('/chatbot') || location.pathname.toLowerCase().startsWith('/chat');
   const [isOpen, setIsOpen] = useState(false);
   const [isFullScreen, setIsFullScreen] = useState(false);
   const [customText, setCustomText] = useState('');
@@ -10,6 +27,7 @@ export default function WhatsAppChatbot({ systemSettings }) {
   const containerRef = useRef(null);
   const chatBodyRef = useRef(null);
   const chatEndRef = useRef(null);
+  const startMsgRef = useRef(null);
 
   // Full Service Categories Data in Tamil, English, and Tanglish
   const serviceCategories = [
@@ -533,6 +551,15 @@ export default function WhatsAppChatbot({ systemSettings }) {
   ];
 
   const [messages, setMessages] = useState(initialMessages);
+  const [publishedFlows, setPublishedFlows] = useState(() => getPublishedFlows());
+
+  useEffect(() => {
+    const handlePublishedUpdate = () => {
+      setPublishedFlows(getPublishedFlows());
+    };
+    window.addEventListener('chatbot-config-published', handlePublishedUpdate);
+    return () => window.removeEventListener('chatbot-config-published', handlePublishedUpdate);
+  }, []);
 
   useEffect(() => {
     const handleHideEvent = (e) => {
@@ -557,7 +584,7 @@ export default function WhatsAppChatbot({ systemSettings }) {
     };
   }, [isOpen]);
 
-  // Smart scroll: when chatbot opens or main menu is displayed, scroll to top so top categories show first
+  // Smart scroll: when chatbot opens or main menu is displayed, scroll to top; otherwise scroll to start line of new interaction
   useEffect(() => {
     if (isOpen) {
       const lastMsg = messages[messages.length - 1];
@@ -565,13 +592,15 @@ export default function WhatsAppChatbot({ systemSettings }) {
         if (chatBodyRef.current) {
           chatBodyRef.current.scrollTop = 0;
         }
+      } else if (startMsgRef.current) {
+        startMsgRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
       } else {
         chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
       }
     }
   }, [messages, isOpen]);
 
-  if (hiddenByPage) return null;
+  if (hiddenByPage || isChatPage) return null;
 
   // Helper to ensure phone number always has proper country code (e.g. 91 for India)
   const formatWhatsAppNumber = (num) => {
@@ -598,6 +627,7 @@ export default function WhatsAppChatbot({ systemSettings }) {
   };
 
   const handleCategoryClick = (category) => {
+    playSelectSound();
     const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const selectedTitle = getCategoryTitle(category);
 
@@ -624,6 +654,7 @@ export default function WhatsAppChatbot({ systemSettings }) {
   };
 
   const handleSubItemClick = (subItem) => {
+    playSelectSound();
     const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const itemName = getItemName(subItem);
     const waText = getItemWaText(subItem);
@@ -653,12 +684,13 @@ export default function WhatsAppChatbot({ systemSettings }) {
   };
 
   const handleBackToMainMenu = () => {
+    playSelectSound();
     const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
     const userMsg = {
       id: Date.now(),
       sender: 'user',
-      text: '🔙 Main Menu',
+      text: '🏠 Main Menu',
       timestamp: nowTime
     };
 
@@ -671,6 +703,62 @@ export default function WhatsAppChatbot({ systemSettings }) {
     };
 
     setMessages((prev) => [...prev, userMsg, botMsg]);
+  };
+
+  const handleDynamicNodeClick = (node, currentHistory = []) => {
+    playSelectSound();
+    const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const userMsg = {
+      id: Date.now(),
+      sender: 'user',
+      text: node.button_text || node.title,
+      timestamp: nowTime
+    };
+
+    const newHistory = [...currentHistory, node];
+
+    const botMsg = {
+      id: Date.now() + 1,
+      sender: 'bot',
+      text: node.response ? `📄 **${node.response.title}**` : `📁 **${node.title}**`,
+      description: node.response ? node.response.description : (node.description || 'கீழே உள்ள விருப்பங்களில் ஒன்றைத் தேர்ந்தெடுக்கவும்:'),
+      type: 'dynamic_flow_node',
+      node: node,
+      nodeHistory: newHistory,
+      children: Array.isArray(node.children) ? node.children.filter(c => c.status !== 'disabled') : [],
+      response: node.response,
+      timestamp: nowTime
+    };
+
+    setMessages((prev) => [...prev, userMsg, botMsg]);
+  };
+
+  const handleDynamicBack = (nodeHistory = []) => {
+    playSelectSound();
+    if (!nodeHistory || nodeHistory.length <= 1) {
+      handleBackToMainMenu();
+      return;
+    }
+    const prevHistory = nodeHistory.slice(0, -1);
+    const parentNode = prevHistory[prevHistory.length - 1];
+    handleDynamicNodeClick(parentNode, prevHistory.slice(0, -1));
+  };
+
+  const handleDynamicActionClick = (action) => {
+    playSelectSound();
+    if (!action) return;
+    if (action.type === 'url') {
+      if (action.url.startsWith('http://') || action.url.startsWith('https://')) {
+        window.open(action.url, '_blank', 'noopener,noreferrer');
+      } else {
+        window.location.href = action.url;
+      }
+    } else if (action.type === 'whatsapp_msg') {
+      sendToWhatsApp(action.message);
+    } else if (action.type === 'whatsapp_share') {
+      const shareUrl = `https://api.whatsapp.com/send?text=${encodeURIComponent(action.share_content || '')}`;
+      window.open(shareUrl, '_blank', 'noopener,noreferrer');
+    }
   };
 
   const handleCustomSend = (e) => {
@@ -934,69 +1022,6 @@ export default function WhatsAppChatbot({ systemSettings }) {
             </div>
           </div>
 
-          {/* LANGUAGE SELECTOR BAR */}
-          <div style={{
-            backgroundColor: '#054c44',
-            padding: '6px 12px',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '8px',
-            borderBottom: '1px solid #033630'
-          }}>
-            <span style={{ color: '#99f6e4', fontSize: '0.68rem', fontWeight: '700', display: 'flex', alignItems: 'center', gap: '3px' }}>
-              <Globe size={12} /> Language:
-            </span>
-            <button
-              onClick={() => setLang('tam')}
-              style={{
-                background: lang === 'tam' ? '#25d366' : 'rgba(255,255,255,0.12)',
-                color: lang === 'tam' ? '#ffffff' : '#cbd5e1',
-                border: 'none',
-                borderRadius: '12px',
-                padding: '4px 10px',
-                fontSize: '0.68rem',
-                fontWeight: '700',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-            >
-              தமிழ் (Tam)
-            </button>
-            <button
-              onClick={() => setLang('tanglish')}
-              style={{
-                background: lang === 'tanglish' ? '#25d366' : 'rgba(255,255,255,0.12)',
-                color: lang === 'tanglish' ? '#ffffff' : '#cbd5e1',
-                border: 'none',
-                borderRadius: '12px',
-                padding: '4px 10px',
-                fontSize: '0.68rem',
-                fontWeight: '700',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-            >
-              Tanglish
-            </button>
-            <button
-              onClick={() => setLang('eng')}
-              style={{
-                background: lang === 'eng' ? '#25d366' : 'rgba(255,255,255,0.12)',
-                color: lang === 'eng' ? '#ffffff' : '#cbd5e1',
-                border: 'none',
-                borderRadius: '12px',
-                padding: '4px 10px',
-                fontSize: '0.68rem',
-                fontWeight: '700',
-                cursor: 'pointer',
-                transition: 'all 0.2s'
-              }}
-            >
-              English (Eng)
-            </button>
-          </div>
-
           {/* CHAT BODY AREA */}
           <div
             ref={chatBodyRef}
@@ -1022,6 +1047,7 @@ export default function WhatsAppChatbot({ systemSettings }) {
               return (
                 <div
                   key={msg.id || index}
+                  ref={index === Math.max(0, messages.length - 2) ? startMsgRef : null}
                   style={{
                     display: 'flex',
                     flexDirection: 'column',
@@ -1068,37 +1094,36 @@ export default function WhatsAppChatbot({ systemSettings }) {
 
                   {/* INTERACTIVE CONTROLS BASED ON MESSAGE TYPE */}
                   
-                  {/* TYPE 1: MAIN MENU CATEGORIES */}
+                  {/* TYPE 1: MAIN MENU CATEGORIES (Admin Published Dynamic Flows + Default Service Categories) */}
                   {isBot && msg.type === 'main_menu' && (
                     <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '8px' }}>
-                      {serviceCategories.map((cat) => {
-                        const catTitle = getCategoryTitle(cat);
+                      
+                      {/* Published Dynamic Admin Flows */}
+                      {publishedFlows.filter(f => f.status !== 'disabled').map((flow, idx) => {
+                        const palette = CATEGORY_COLORS[idx % CATEGORY_COLORS.length];
                         return (
                           <button
-                            key={cat.id}
-                            onClick={() => handleCategoryClick(cat)}
+                            key={flow.id}
+                            onClick={() => handleDynamicNodeClick(flow, [])}
                             style={{
                               background: '#ffffff',
-                              border: `1.5px solid ${cat.color}`,
+                              border: `1.5px solid ${palette.border}`,
                               borderRadius: '10px',
                               padding: '9px 12px',
-                              fontSize: '0.76rem',
-                              fontWeight: '700',
-                              color: '#1e293b',
+                              fontSize: '0.78rem',
+                              fontWeight: '800',
+                              color: palette.color,
                               display: 'flex',
                               alignItems: 'center',
                               justifyContent: 'space-between',
                               cursor: 'pointer',
                               textAlign: 'left',
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                              boxShadow: '0 2px 4px rgba(0,0,0,0.03)',
                               transition: 'all 0.2s ease',
                               width: '100%'
                             }}
                             onMouseEnter={(e) => {
-                              e.currentTarget.style.background = cat.bg;
+                              e.currentTarget.style.background = palette.bg;
                               e.currentTarget.style.transform = 'translateX(3px)';
                             }}
                             onMouseLeave={(e) => {
@@ -1106,19 +1131,157 @@ export default function WhatsAppChatbot({ systemSettings }) {
                               e.currentTarget.style.transform = 'translateX(0)';
                             }}
                           >
-                            <span style={{
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              whiteSpace: 'nowrap',
-                              color: cat.color,
-                              fontWeight: '800'
-                            }}>
-                              {catTitle}
+                            <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                              {flow.button_text || flow.title}
                             </span>
-                            <ChevronRight size={15} style={{ color: cat.color, flexShrink: 0, marginLeft: '6px' }} />
+                            <ChevronRight size={15} style={{ color: palette.chevron, flexShrink: 0, marginLeft: '6px' }} />
                           </button>
                         );
                       })}
+                    </div>
+                  )}
+
+                  {/* TYPE 1.5: DYNAMIC FLOW NODE (UNLIMITED NESTED LEVEL OR FINAL RESPONSE) */}
+                  {isBot && msg.type === 'dynamic_flow_node' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>
+                      
+                      {/* Description / Instruction */}
+                      {msg.description && (
+                        <div style={{
+                          background: '#ffffff',
+                          border: '1px solid #cbd5e1',
+                          borderRadius: '10px',
+                          padding: '8px 11px',
+                          fontSize: '0.75rem',
+                          color: '#334155',
+                          lineHeight: '1.45',
+                          whiteSpace: 'pre-line'
+                        }}>
+                          {msg.description}
+                        </div>
+                      )}
+
+                      {/* Child Option Buttons */}
+                      {Array.isArray(msg.children) && msg.children.length > 0 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                          {msg.children.map(child => (
+                            <button
+                              key={child.id}
+                              onClick={() => handleDynamicNodeClick(child, msg.nodeHistory)}
+                              style={{
+                                background: '#ffffff',
+                                border: '1.5px solid #10b981',
+                                borderRadius: '10px',
+                                padding: '9px 12px',
+                                fontSize: '0.76rem',
+                                fontWeight: '700',
+                                color: '#065f46',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'space-between',
+                                cursor: 'pointer',
+                                textAlign: 'left',
+                                boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                                transition: 'all 0.2s ease',
+                                width: '100%'
+                              }}
+                              onMouseEnter={(e) => {
+                                e.currentTarget.style.background = '#ecfdf5';
+                                e.currentTarget.style.transform = 'translateX(3px)';
+                              }}
+                              onMouseLeave={(e) => {
+                                e.currentTarget.style.background = '#ffffff';
+                                e.currentTarget.style.transform = 'translateX(0)';
+                              }}
+                            >
+                              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                {child.button_text || child.title}
+                              </span>
+                              <ChevronRight size={14} style={{ color: '#10b981', flexShrink: 0 }} />
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Final Response Action Buttons */}
+                      {msg.response && Array.isArray(msg.response.actions) && msg.response.actions.length > 0 && (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '4px' }}>
+                          {msg.response.actions.map(action => (
+                            <button
+                              key={action.id}
+                              onClick={() => handleDynamicActionClick(action)}
+                              style={{
+                                background: action.type === 'url' ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)' : 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
+                                color: '#ffffff',
+                                border: 'none',
+                                borderRadius: '12px',
+                                padding: '10px 14px',
+                                fontSize: '0.78rem',
+                                fontWeight: '800',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '8px',
+                                cursor: 'pointer',
+                                boxShadow: '0 4px 10px rgba(16, 185, 129, 0.25)',
+                                transition: 'all 0.2s'
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
+                              onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
+                            >
+                              {action.type === 'url' ? <ExternalLink size={15} /> : action.type === 'whatsapp_msg' ? <MessageCircle size={15} /> : <Share2 size={15} />}
+                              <span>{action.button_text}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+
+                      {/* Navigation Controls: Back & Main Menu */}
+                      <div style={{ display: 'flex', gap: '6px', marginTop: '6px' }}>
+                        <button
+                          onClick={() => handleDynamicBack(msg.nodeHistory)}
+                          style={{
+                            flex: 1,
+                            background: '#ffffff',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: '9px',
+                            padding: '7px 10px',
+                            fontSize: '0.73rem',
+                            fontWeight: '700',
+                            color: '#475569',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '4px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <ArrowLeft size={13} />
+                          <span>← Back</span>
+                        </button>
+                        <button
+                          onClick={handleBackToMainMenu}
+                          style={{
+                            flex: 1,
+                            background: '#ffffff',
+                            border: '1px solid #cbd5e1',
+                            borderRadius: '9px',
+                            padding: '7px 10px',
+                            fontSize: '0.73rem',
+                            fontWeight: '700',
+                            color: '#475569',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            gap: '4px',
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <Home size={13} />
+                          <span>🏠 Main Menu</span>
+                        </button>
+                      </div>
+
                     </div>
                   )}
 

@@ -1,0 +1,818 @@
+{
+  "version": "1.0",
+  "updated_at": "2026-08-27T18:39:00.000Z",
+  "flows": [
+    {
+      "id": "req-esevai",
+      "parent_id": null,
+      "title": "📄 ஆன்லைன் இ-சேவை சான்றிதழ்கள் (E-Sevai Certificates)",
+      "description": "வருமானம், ஜாதி, இருப்பிடம், பிறப்பிடம், வாரிசு சான்றிதழ் போன்ற இ-சேவை சேவைகள்",
+      "button_text": "இ-சேவை சான்றிதழ்கள்",
+      "status": "published",
+      "sort_order": 0,
+      "children": [
+        {
+          "id": "opt-income",
+          "parent_id": "req-esevai",
+          "title": "வருமானச் சான்றிதழ் (Income Certificate)",
+          "description": "வருமானச் சான்றிதழ் பெற தேவையான விவரங்கள் மற்றும் ஆன்லைன் விண்ணப்பம்",
+          "button_text": "வருமானச் சான்றிதழ்",
+          "status": "published",
+          "sort_order": 0,
+          "response": {
+            "title": "வருமானச் சான்றிதழ் பெற தேவையான ஆவணங்கள்",
+            "description": "வருமானச் சான்றிதழ் (Income Certificate) ஆன்லைனில் பெற தேவையான சான்றுகள்:\n1. குடும்ப அட்டை (Smart Ration Card)\n2. ஆதார் அட்டை (Aadhaar Card)\n3. பாஸ்போர்ட் சைஸ் புகைப்படம் (Photo)\n4. சம்பள சான்றிதழ் / VAO வருமான விவரம்",
+            "actions": [
+              {
+                "id": "act-inc-apply",
+                "type": "url",
+                "button_text": "Apply Online Now",
+                "url": "/user?tab=apply&category=E%20sevai"
+              },
+              {
+                "id": "act-inc-wa",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp Support",
+                "message": "வணக்கம் Subi E-Sevai, வருமானச் சான்றிதழ் விண்ணப்பிக்க என்னென்ன சான்றுகள் வேண்டும்?"
+              },
+              {
+                "id": "act-inc-share",
+                "type": "whatsapp_share",
+                "button_text": "Share on WhatsApp",
+                "share_content": "Subi E-Sevai: வருமானச் சான்றிதழ் ஆன்லைனில் விண்ணப்பிக்க அணுகவும்! https://subiesevai.in/user?tab=apply"
+              }
+            ]
+          }
+        },
+        {
+          "id": "opt-caste",
+          "parent_id": "req-esevai",
+          "title": "வகுப்புச் சான்றிதழ் (Community / Caste Certificate)",
+          "description": "சாதிச் சான்றிதழ் விண்ணப்ப வழிகாட்டல்கள்",
+          "button_text": "சாதிச் சான்றிதழ்",
+          "status": "published",
+          "sort_order": 1,
+          "response": {
+            "title": "சாதிச் சான்றிதழ் (Community Certificate)",
+            "description": "சாதிச் சான்றிதழ் விண்ணப்பிக்க தேவையான ஆவணங்கள்:\n1. பெற்றோர் / ரத்த சொந்தத்தின் சாதி சான்றிதழ் நகல்\n2. ஆதார் கார்டு & ரேஷன் கார்டு\n3. பள்ளி மாற்றுச் சான்றிதழ் (TC)\n4. விண்ணப்பதாரரின் புகைப்படம்",
+            "actions": [
+              {
+                "id": "act-caste-apply",
+                "type": "url",
+                "button_text": "Apply Online",
+                "url": "/user?tab=apply&category=E%20sevai"
+              },
+              {
+                "id": "act-caste-wa",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp Us",
+                "message": "வணக்கம் Subi E-Sevai, வகுப்புச் சான்றிதழ் (ஜாதி) விண்ணப்பிக்க என்னென்ன சான்றுகள் வேண்டும்?"
+              }
+            ]
+          }
+        },
+        {
+          "id": "opt-residence",
+          "parent_id": "req-esevai",
+          "title": "இருப்பிடச் சான்றிதழ் (Residence Certificate)",
+          "description": "இருப்பிடச் சான்றிதழ் பெற தேவையான ஆவணங்கள்",
+          "button_text": "இருப்பிடச் சான்றிதழ்",
+          "status": "published",
+          "sort_order": 2,
+          "response": {
+            "title": "இருப்பிடச் சான்றிதழ் (Residence Certificate)",
+            "description": "இருப்பிடச் சான்றிதழ் பெற தேவையான சான்றுகள்:\n1. ஆதார் அட்டை (Aadhaar Card)\n2. ஸ்மார்ட் ரேஷன் கார்டு (Smart Card)\n3. விண்ணப்பதாரர் புகைப்படம் (Photo)\n4. வாக்காளர் அட்டை அல்லது மின்சாரக் கட்டண ரசீது",
+            "actions": [
+              {
+                "id": "act-res-apply",
+                "type": "url",
+                "button_text": "Apply Now",
+                "url": "/user?tab=apply&category=E%20sevai"
+              },
+              {
+                "id": "act-res-wa",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp Support",
+                "message": "வணக்கம் Subi E-Sevai, இருப்பிடச் சான்றிதழ் விண்ணப்பிக்க என்னென்ன சான்றுகள் வேண்டும்?"
+              }
+            ]
+          }
+        },
+        {
+          "id": "opt-nativity",
+          "parent_id": "req-esevai",
+          "title": "பிறப்பிடச் சான்றிதழ் (Nativity Certificate)",
+          "description": "பிறப்பிடச் சான்றிதழ் விண்ணப்ப விவரங்கள்",
+          "button_text": "பிறப்பிடச் சான்றிதழ்",
+          "status": "published",
+          "sort_order": 3,
+          "response": {
+            "title": "பிறப்பிடச் சான்றிதழ் (Nativity Certificate)",
+            "description": "பிறப்பிடச் சான்றிதழ் பெற தேவையான ஆவணங்கள்:\n1. ஆதார் கார்டு & ரேஷன் கார்டு\n2. பிறந்த தேதி சான்று / பள்ளி மாற்றுச் சான்றிதழ் (TC)\n3. 5 வருட இருப்பிட ஆதாரம் / VAO சான்று",
+            "actions": [
+              {
+                "id": "act-nat-apply",
+                "type": "url",
+                "button_text": "Apply Online",
+                "url": "/user?tab=apply&category=E%20sevai"
+              },
+              {
+                "id": "act-nat-wa",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp Support",
+                "message": "வணக்கம் Subi E-Sevai, பிறப்பிடச் சான்றிதழ் விண்ணப்பிக்க என்னென்ன சான்றுகள் வேண்டும்?"
+              }
+            ]
+          }
+        },
+        {
+          "id": "opt-obc",
+          "parent_id": "req-esevai",
+          "title": "OBC சான்றிதழ் (OBC Certificate)",
+          "description": "மத்திய அரசு வேலைவாய்ப்பு மற்றும் கல்விக்கான OBC சான்றிதழ்",
+          "button_text": "OBC சான்றிதழ்",
+          "status": "published",
+          "sort_order": 4,
+          "response": {
+            "title": "OBC Non-Creamy Layer Certificate",
+            "description": "OBC சான்றிதழ் பெற தேவையான ஆவணங்கள்:\n1. மாநில சாதி சான்றிதழ் (Community Certificate)\n2. வருமானச் சான்றிதழ் (Income Certificate)\n3. ஆதார் கார்டு & ரேஷன் கார்டு\n4. பாஸ்போர்ட் சைஸ் போட்டோ",
+            "actions": [
+              {
+                "id": "act-obc-apply",
+                "type": "url",
+                "button_text": "Apply Online",
+                "url": "/user?tab=apply&category=E%20sevai"
+              },
+              {
+                "id": "act-obc-wa",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp Support",
+                "message": "வணக்கம் Subi E-Sevai, OBC சான்றிதழ் விண்ணப்பிக்க என்னென்ன சான்றுகள் வேண்டும்?"
+              }
+            ]
+          }
+        },
+        {
+          "id": "opt-pstm",
+          "parent_id": "req-esevai",
+          "title": "PSTM (தமிழ் வழி கல்வி) சான்றிதழ்",
+          "description": "தமிழ் வழியில் கல்வி பயின்றதற்கான சான்றிதழ்",
+          "button_text": "PSTM சான்றிதழ்",
+          "status": "published",
+          "sort_order": 5,
+          "response": {
+            "title": "PSTM (தமிழ் வழி கல்வி) சான்றிதழ்",
+            "description": "PSTM சான்றிதழ் பெற தேவையான விவரங்கள்:\n1. பள்ளி / கல்லூரி மாற்றுச் சான்றிதழ் (TC)\n2. மதிப்பெண் பட்டியல்கள் (Mark Sheets)\n3. ஆதார் கார்டு",
+            "actions": [
+              {
+                "id": "act-pstm-wa",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp Support",
+                "message": "வணக்கம் Subi E-Sevai, PSTM (தமிழ் வழி கல்வி) சான்றிதழ் பெற என்னென்ன விவரங்கள் வேண்டும்?"
+              }
+            ]
+          }
+        },
+        {
+          "id": "opt-unemployed",
+          "parent_id": "req-esevai",
+          "title": "வேலைஇன்மைச் சான்றிதழ் (Unemployment Certificate)",
+          "description": "வேலைஇன்மைச் சான்றிதழ் பெற தேவையான ஆவணங்கள்",
+          "button_text": "வேலைஇன்மைச் சான்றிதழ்",
+          "status": "published",
+          "sort_order": 6,
+          "response": {
+            "title": "வேலைஇன்மைச் சான்றிதழ்",
+            "description": "வேலைஇன்மைச் சான்றிதழ் விண்ணப்பிக்க சான்றுகள்:\n1. ஆதார் அட்டை & ஸ்மார்ட் ரேஷன் கார்டு\n2. கல்விச் சான்றிதழ்கள் / TC\n3. போட்டோ 1",
+            "actions": [
+              {
+                "id": "act-unemp-wa",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp Support",
+                "message": "வணக்கம் Subi E-Sevai, வேலைஇன்மைச் சான்றிதழ் விண்ணப்பிக்க என்னென்ன சான்றுகள் வேண்டும்?"
+              }
+            ]
+          }
+        },
+        {
+          "id": "opt-legalheir",
+          "parent_id": "req-esevai",
+          "title": "வாரிசு சான்றிதழ் (Legal Heir Certificate)",
+          "description": "வாரிசு சான்றிதழ் விண்ணப்ப வழிகாட்டல்",
+          "button_text": "வாரிசு சான்றிதழ்",
+          "status": "published",
+          "sort_order": 7,
+          "response": {
+            "title": "வாரிசு சான்றிதழ் (Legal Heir Certificate)",
+            "description": "வாரிசு சான்றிதழ் பெற தேவையான சான்றுகள்:\n1. இறந்தவரின் இறப்புச் சான்றிதழ் (Death Certificate)\n2. அனைத்து வாரிசுதார்களின் ஆதார் கார்டு & ஸ்மார்ட் கார்டு\n3. இறந்தவருடனான உறவுமுறை ஆதாரம்\n4. வாரிசுதார்களின் பாஸ்போர்ட் சைஸ் போட்டோ",
+            "actions": [
+              {
+                "id": "act-lh-apply",
+                "type": "url",
+                "button_text": "Apply Online",
+                "url": "/user?tab=apply&category=E%20sevai"
+              },
+              {
+                "id": "act-lh-wa",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp Support",
+                "message": "வணக்கம் Subi E-Sevai, வாரிசு சான்றிதழ் விண்ணப்பிக்க என்னென்ன சான்றுகள் வேண்டும்?"
+              }
+            ]
+          }
+        },
+        {
+          "id": "opt-farmer",
+          "parent_id": "req-esevai",
+          "title": "சிறு / குறு விவசாயி சான்றிதழ்",
+          "description": "சிறு / குறு விவசாயி சான்றிதழ் விண்ணப்பம்",
+          "button_text": "விவசாயி சான்றிதழ்",
+          "status": "published",
+          "sort_order": 8,
+          "response": {
+            "title": "சிறு / குறு விவசாயி சான்றிதழ்",
+            "description": "தேவையான ஆவணங்கள்:\n1. சிட்டா / அடங்கல் நகல்\n2. ஆதார் கார்டு & ரேஷன் கார்டு\n3. போட்டோ 1",
+            "actions": [
+              {
+                "id": "act-farm-wa",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp Support",
+                "message": "வணக்கம் Subi E-Sevai, சிறு / குறு விவசாயி சான்றிதழ் பெற என்னென்ன சான்றுகள் வேண்டும்?"
+              }
+            ]
+          }
+        },
+        {
+          "id": "opt-firstgrad",
+          "parent_id": "req-esevai",
+          "title": "முதல் பட்டதாரி சான்றிதழ் (First Graduate)",
+          "description": "குடும்பத்தின் முதல் பட்டதாரி சான்றிதழ்",
+          "button_text": "முதல் பட்டதாரி சான்றிதழ்",
+          "status": "published",
+          "sort_order": 9,
+          "response": {
+            "title": "முதல் பட்டதாரி சான்றிதழ்",
+            "description": "தேவையான ஆவணங்கள்:\n1. பெற்றோர் மற்றும் சகோதரர்களின் கல்விச் சான்றுகள்\n2. குடும்ப ஸ்மார்ட் கார்டு & ஆதார் கார்டு\n3. விண்ணப்பதாரரின் போட்டோ",
+            "actions": [
+              {
+                "id": "act-fg-wa",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp Support",
+                "message": "வணக்கம் Subi E-Sevai, முதல் பட்டதாரி சான்றிதழ் பெற என்னென்ன சான்றுகள் வேண்டும்?"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "req-voter",
+      "parent_id": null,
+      "title": "🗳️ வாக்காளர் அட்டை சேவைகள் (Voter ID Services)",
+      "description": "புதிய வாக்காளர் அட்டை, திருத்தம், SIR பட்டியல் சரிபார்ப்பு மற்றும் பதிவிறக்கம்",
+      "button_text": "வாக்காளர் அட்டை சேவைகள்",
+      "status": "published",
+      "sort_order": 1,
+      "children": [
+        {
+          "id": "opt-voter-new",
+          "parent_id": "req-voter",
+          "title": "புதிய வாக்காளர் அட்டை விண்ணப்பம் (New Voter ID)",
+          "description": "18 வயது பூர்த்தியடைந்தவர்கள் புதிய வாக்காளர் அட்டைகளுக்கு விண்ணப்பிக்கலாம்",
+          "button_text": "புதிய வாக்காளர் அட்டை",
+          "status": "published",
+          "sort_order": 0,
+          "response": {
+            "title": "புதிய வாக்காளர் அட்டை விண்ணப்பம்",
+            "description": "தேவையான ஆவணங்கள்:\n1. வயது ஆதாரம் (18+ வயது - 10th Marksheet / Aadhar / Birth Cert)\n2. முகவரி ஆதாரம் (Aadhaar Card / Smart Card / EB Bill)\n3. பாஸ்போர்ட் சைஸ் புகைப்படம் 1",
+            "actions": [
+              {
+                "id": "act-vnew-apply",
+                "type": "url",
+                "button_text": "Apply Voter ID",
+                "url": "/user?tab=apply&category=voter%20id"
+              },
+              {
+                "id": "act-vnew-wa",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp Us",
+                "message": "வணக்கம் Subi E-Sevai, புதிய வாக்காளர் அட்டை விண்ணப்பிக்க என்னென்ன சான்றுகள் வேண்டும்?"
+              }
+            ]
+          }
+        },
+        {
+          "id": "opt-voter-corr",
+          "parent_id": "req-voter",
+          "title": "வாக்காளர் அட்டை திருத்தம் (Voter ID Correction)",
+          "description": "பெயர், பிறந்த தேதி, முகவரி, புகைப்படம் திருத்தம் செய்ய",
+          "button_text": "வாக்காளர் அட்டை திருத்தம்",
+          "status": "published",
+          "sort_order": 1,
+          "response": {
+            "title": "வாக்காளர் அட்டை திருத்தம்",
+            "description": "தேவையான விவரங்கள்:\n1. வாக்காளர் அட்டை எண் (EPIC Number)\n2. திருத்தம் செய்யப்பட வேண்டிய சரியான சான்று (Aadhaar Card / Proof)\n3. மொபைல் எண்",
+            "actions": [
+              {
+                "id": "act-vcorr-apply",
+                "type": "url",
+                "button_text": "Apply Correction",
+                "url": "/user?tab=apply&category=voter%20id"
+              },
+              {
+                "id": "act-vcorr-wa",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp Support",
+                "message": "வணக்கம் Subi E-Sevai, வாக்காளர் அட்டை திருத்தம் செய்ய என்னென்ன விவரங்கள் வேண்டும்?"
+              }
+            ]
+          }
+        },
+        {
+          "id": "opt-voter-dl",
+          "parent_id": "req-voter",
+          "title": "வாக்காளர் அட்டை பதிவிறக்கம் (Voter ID Download)",
+          "description": "டிஜிட்டல் வாக்காளர் கார்டு (e-EPIC) பதிவிறக்கம்",
+          "button_text": "வாக்காளர் அட்டை பதிவிறக்கம்",
+          "status": "published",
+          "sort_order": 2,
+          "response": {
+            "title": "வாக்காளர் அட்டை பதிவிறக்கம்",
+            "description": "EPIC கார்டு பதிவிறக்கம் செய்ய:\n1. வாக்காளர் அட்டை எண் (EPIC No)\n2. வாக்காளர் அட்டையுடன் இணைக்கப்பட்ட மொபைல் எண் OTP",
+            "actions": [
+              {
+                "id": "act-vdl-wa",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp Support",
+                "message": "வணக்கம் Subi E-Sevai, வாக்காளர் அட்டை பதிவிறக்கம் செய்ய உதவி வேண்டும்."
+              }
+            ]
+          }
+        },
+        {
+          "id": "opt-voter-sir",
+          "parent_id": "req-voter",
+          "title": "SIR பட்டியல் சரிபார்ப்பு (SIR List Verification)",
+          "description": "வாக்காளர் பெயர் பட்டியல் சரிபார்ப்பு",
+          "button_text": "SIR பட்டியல் சரிபார்ப்பு",
+          "status": "published",
+          "sort_order": 3,
+          "response": {
+            "title": "SIR பட்டியல் சரிபார்ப்பு",
+            "description": "வாக்காளர் பட்டியலில் உங்கள் பெயர் உள்ளதா என சரிபார்க்க உங்கள் EPIC எண் அல்லது ஆதார் எண்ணுடன் தொடர்பு கொள்ளவும்.",
+            "actions": [
+              {
+                "id": "act-vsir-wa",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp Support",
+                "message": "வணக்கம் Subi E-Sevai, SIR பட்டியல் சரிபார்ப்பு செய்ய உதவி வேண்டும்."
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "req-pancard",
+      "parent_id": null,
+      "title": "💳 PAN Card சேவைகள் (PAN Card Services)",
+      "description": "புதிய PAN கார்டு விண்ணப்பம் மற்றும் திருத்தம் சேவைகள்",
+      "button_text": "PAN Card சேவைகள்",
+      "status": "published",
+      "sort_order": 2,
+      "children": [
+        {
+          "id": "opt-pan-new",
+          "parent_id": "req-pancard",
+          "title": "புதிய PAN Card விண்ணப்பம் (New PAN Card)",
+          "description": "புதிய பான் கார்டு விண்ணப்பிக்க தேவையான ஆவணங்கள்",
+          "button_text": "புதிய PAN Card",
+          "status": "published",
+          "sort_order": 0,
+          "response": {
+            "title": "புதிய PAN Card விண்ணப்பம்",
+            "description": "தேவையான ஆவணங்கள்:\n1. ஆதார் அட்டை (Aadhaar Card)\n2. பாஸ்போர்ட் சைஸ் புகைப்படம் 2\n3. மொபைல் எண் (ஆதாருடன் இணைக்கப்பட்ட எண் சிறந்தது)",
+            "actions": [
+              {
+                "id": "act-pnew-apply",
+                "type": "url",
+                "button_text": "Apply PAN Card",
+                "url": "/user?tab=apply&category=pan%20card"
+              },
+              {
+                "id": "act-pnew-wa",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp Support",
+                "message": "வணக்கம் Subi E-Sevai, புதிய PAN Card விண்ணப்பிக்க என்னென்ன சான்றுகள் வேண்டும்?"
+              }
+            ]
+          }
+        },
+        {
+          "id": "opt-pan-corr",
+          "parent_id": "req-pancard",
+          "title": "PAN Card திருத்தம் (PAN Card Correction)",
+          "description": "பான் கார்டில் பெயர், பிறந்த தேதி, தந்தை பெயர் திருத்தம் செய்ய",
+          "button_text": "PAN Card திருத்தம்",
+          "status": "published",
+          "sort_order": 1,
+          "response": {
+            "title": "PAN Card திருத்தம்",
+            "description": "தேவையான ஆவணங்கள்:\n1. பழைய பான் கார்டு நகல்\n2. ஆதார் அட்டை (சரியான பெயர் / பிறந்த தேதியுடன்)\n3. போட்டோ 2",
+            "actions": [
+              {
+                "id": "act-pcorr-wa",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp Support",
+                "message": "வணக்கம் Subi E-Sevai, PAN Card திருத்தம் செய்ய என்னென்ன சான்றுகள் வேண்டும்?"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "req-rationcard",
+      "parent_id": null,
+      "title": "📄 ரேஷன் கார்டு சேவைகள் (Ration Card Services)",
+      "description": "புதிய ஸ்மார்ட் கார்டு, பெயர் சேர்த்தல்/நீக்குதல், முகவரி மாற்றம்",
+      "button_text": "ரேஷன் கார்டு சேவைகள்",
+      "status": "published",
+      "sort_order": 3,
+      "children": [
+        {
+          "id": "opt-ration-new",
+          "parent_id": "req-rationcard",
+          "title": "புதிய குடும்ப அட்டை விண்ணப்பம் (New Smart Ration Card)",
+          "description": "புதிய ஸ்மார்ட் ரேஷன் கார்டு பெற",
+          "button_text": "புதிய குடும்ப அட்டை",
+          "status": "published",
+          "sort_order": 0,
+          "response": {
+            "title": "புதிய ஸ்மார்ட் குடும்ப அட்டை",
+            "description": "தேவையான ஆவணங்கள்:\n1. திருமணப் பதிவுச் சான்றிதழ் / திருமணப் பத்திரிகை\n2. குடும்பத் தலைவரின் போட்டோ 1\n3. அனைத்து உறுப்பினர்களின் ஆதார் அட்டை\n4. பெற்றோர் ரேஷன் கார்டில் பெயர் நீக்கப்பட்ட சான்று (NOC Certificate)",
+            "actions": [
+              {
+                "id": "act-rnew-apply",
+                "type": "url",
+                "button_text": "Apply Ration Card",
+                "url": "/user?tab=apply"
+              },
+              {
+                "id": "act-rnew-wa",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp Support",
+                "message": "வணக்கம் Subi E-Sevai, புதிய குடும்ப அட்டை விண்ணப்பிக்க என்னென்ன சான்றுகள் வேண்டும்?"
+              }
+            ]
+          }
+        },
+        {
+          "id": "opt-ration-addr",
+          "parent_id": "req-rationcard",
+          "title": "முகவரி திருத்தம் (Address Change in Ration Card)",
+          "description": "ரேஷன் கார்டில் முகவரி மாற்றம் செய்ய",
+          "button_text": "முகவரி திருத்தம்",
+          "status": "published",
+          "sort_order": 1,
+          "response": {
+            "title": "ரேஷன் கார்டு முகவரி திருத்தம்",
+            "description": "தேவையான ஆவணங்கள்:\n1. ஆதார் அட்டை (புதிய முகவரியுடன்)\n2. எரிவாயு (LPG) இணைப்பு ரசீது / EB Bill\n3. ரேஷன் கார்டு எண்",
+            "actions": [
+              {
+                "id": "act-raddr-wa",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp Support",
+                "message": "வணக்கம் Subi E-Sevai, ரேஷன் கார்டில் முகவரி திருத்தம் செய்ய என்னென்ன சான்றுகள் வேண்டும்?"
+              }
+            ]
+          }
+        },
+        {
+          "id": "opt-ration-addmem",
+          "parent_id": "req-rationcard",
+          "title": "குடும்ப உறுப்பினர் பெயர் சேர்த்தல் (Add Family Member)",
+          "description": "குழந்தை அல்லது மனைவியின் பெயர் சேர்க்க",
+          "button_text": "பெயர் சேர்த்தல்",
+          "status": "published",
+          "sort_order": 2,
+          "response": {
+            "title": "ரேஷன் கார்டில் பெயர் சேர்த்தல்",
+            "description": "தேவையான ஆவணங்கள்:\n1. குழந்தைக்கு: பிறப்புச் சான்றிதழ் & பெற்றோர் ஆதார்\n2. மனைவிக்கு: பெயர் நீக்கப்பட்ட சான்றிதழ் (NOC) & ஆதார்",
+            "actions": [
+              {
+                "id": "act-raddm-wa",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp Support",
+                "message": "வணக்கம் Subi E-Sevai, ரேஷன் கார்டில் குடும்ப உறுப்பினர் பெயர் சேர்க்க என்னென்ன சான்றுகள் வேண்டும்?"
+              }
+            ]
+          }
+        },
+        {
+          "id": "opt-ration-remmem",
+          "parent_id": "req-rationcard",
+          "title": "குடும்ப உறுப்பினர் பெயர் நீக்குதல் (Remove Member)",
+          "description": "திருமணம் அல்லது இறப்பு காரணமாக பெயர் நீக்குதல்",
+          "button_text": "பெயர் நீக்குதல்",
+          "status": "published",
+          "sort_order": 3,
+          "response": {
+            "title": "ரேஷன் கார்டில் பெயர் நீக்குதல்",
+            "description": "தேவையான ஆவணங்கள்:\n1. திருமணப் பத்திரிகை / இறப்புச் சான்றிதழ்\n2. ஆதார் கார்டு & ரேஷன் கார்டு எண்",
+            "actions": [
+              {
+                "id": "act-rremm-wa",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp Support",
+                "message": "வணக்கம் Subi E-Sevai, ரேஷன் கார்டில் பெயர் நீக்குதல் செய்ய என்னென்ன சான்றுகள் வேண்டும்?"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "req-download",
+      "parent_id": null,
+      "title": "📥 சான்றிதழ் பதிவிறக்க சேவைகள் (Certificate Download)",
+      "description": "இ-சேவை, பிறப்பு மற்றும் இறப்புச் சான்றிதழ் பதிவிறக்கம்",
+      "button_text": "சான்றிதழ் பதிவிறக்க சேவைகள்",
+      "status": "published",
+      "sort_order": 4,
+      "children": [
+        {
+          "id": "opt-dl-esevai",
+          "parent_id": "req-download",
+          "title": "இ-சேவை சான்றிதழ் பதிவிறக்கம் (E-Sevai Download)",
+          "description": "விண்ணப்பித்த இ-சேவை சான்றிதழ்களைப் பதிவிறக்க",
+          "button_text": "இ-சேவை பதிவிறக்கம்",
+          "status": "published",
+          "sort_order": 0,
+          "response": {
+            "title": "இ-சேவை சான்றிதழ் பதிவிறக்கம்",
+            "description": "பதிவிறக்கம் செய்ய:\n1. விண்ணப்ப எண் (Application Number / TN-XXXXX)\n2. விண்ணப்பித்த மொபைல் எண்",
+            "actions": [
+              {
+                "id": "act-dlesevai-wa",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp Support",
+                "message": "வணக்கம் Subi E-Sevai, இ-சேவை சான்றிதழ் பதிவிறக்கம் செய்ய உதவி வேண்டும்."
+              }
+            ]
+          }
+        },
+        {
+          "id": "opt-dl-birth",
+          "parent_id": "req-download",
+          "title": "பிறப்புச் சான்றிதழ் பதிவிறக்கம் (Birth Certificate Download)",
+          "description": "நகராட்சி / ஊராட்சி பிறப்புச் சான்றிதழ்",
+          "button_text": "பிறப்புச் சான்றிதழ் பதிவிறக்கம்",
+          "status": "published",
+          "sort_order": 1,
+          "response": {
+            "title": "பிறப்புச் சான்றிதழ் பதிவிறக்கம்",
+            "description": "தேவையான விவரங்கள்:\n1. குழந்தை பிறந்த தேதி & பாலினம்\n2. பெற்றோர் பெயர்\n3. பிறந்த மருத்துவமனை / நகராட்சி இடம்",
+            "actions": [
+              {
+                "id": "act-dlbirth-wa",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp Support",
+                "message": "வணக்கம் Subi E-Sevai, பிறப்புச் சான்றிதழ் பதிவிறக்கம் செய்ய என்னென்ன விவரங்கள் வேண்டும்?"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "req-aadhaar",
+      "parent_id": null,
+      "title": "🪪 ஆதார் கார்டு சேவைகள் (Aadhaar Card Services)",
+      "description": "ஆதார் பெயர், முகவரி, பிறந்த தேதி திருத்தம் மற்றும் பதிவிறக்கம்",
+      "button_text": "ஆதார் கார்டு சேவைகள்",
+      "status": "published",
+      "sort_order": 5,
+      "children": [
+        {
+          "id": "opt-aadh-name",
+          "parent_id": "req-aadhaar",
+          "title": "ஆதார் பெயர் மாற்றம் (Aadhaar Name Correction)",
+          "description": "ஆதாரில் பெயர் திருத்தம் செய்ய",
+          "button_text": "ஆதார் பெயர் மாற்றம்",
+          "status": "published",
+          "sort_order": 0,
+          "response": {
+            "title": "ஆதார் பெயர் திருத்தம்",
+            "description": "தேவையான ஆவணங்கள்:\n1. 10th Marksheet / Passport / Pan Card\n2. மொபைல் எண் OTP (ஆதாரில் இணைக்கப்பட்ட எண்)",
+            "actions": [
+              {
+                "id": "act-aadhname-wa",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp Support",
+                "message": "வணக்கம் Subi E-Sevai, ஆதார் கார்டில் பெயர் மாற்றம் செய்ய என்னென்ன சான்றுகள் வேண்டும்?"
+              }
+            ]
+          }
+        },
+        {
+          "id": "opt-aadh-addr",
+          "parent_id": "req-aadhaar",
+          "title": "ஆதார் முகவரி மாற்றம் (Aadhaar Address Change)",
+          "description": "ஆதாரில் புதிய முகவரி மாற்றம் செய்ய",
+          "button_text": "ஆதார் முகவரி மாற்றம்",
+          "status": "published",
+          "sort_order": 1,
+          "response": {
+            "title": "ஆதார் முகவரி மாற்றம்",
+            "description": "தேவையான ஆவணங்கள்:\n1. கணவர் / பெற்றோர் ஆதார் கார்டு (அல்லது) ரேஷன் கார்டு / வாக்காளர் அட்டை / EB Bill",
+            "actions": [
+              {
+                "id": "act-aadhaddr-wa",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp Support",
+                "message": "வணக்கம் Subi E-Sevai, ஆதார் கார்டில் முகவரி மாற்றம் செய்ய என்னென்ன சான்றுகள் வேண்டும்?"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "req-eb",
+      "parent_id": null,
+      "title": "⚡ EB Bill & மின்சார சேவைகள் (EB Bill Services)",
+      "description": "EB Bill ஆன்லைன் கட்டணம், புதிய மின் இணைப்பு, பெயர் மாற்றம்",
+      "button_text": "EB Bill & மின்சார சேவைகள்",
+      "status": "published",
+      "sort_order": 6,
+      "children": [
+        {
+          "id": "opt-eb-pay",
+          "parent_id": "req-eb",
+          "title": "மின்சாரக் கட்டணம் செலுத்துதல் (EB Bill Payment)",
+          "description": "TNEB மின்சாரக் கட்டணம் ஆன்லைனில் செலுத்த",
+          "button_text": "EB Bill Payment",
+          "status": "published",
+          "sort_order": 0,
+          "response": {
+            "title": "EB Bill Payment",
+            "description": "ஆன்லைனில் மின்சாரக் கட்டணம் செலுத்த உங்கள் TNEB கணக்கு எண் (Service Number) தேவை.",
+            "actions": [
+              {
+                "id": "act-ebpay-wa",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp Support",
+                "message": "வணக்கம் Subi E-Sevai, மின்சாரக் கட்டணம் (EB Bill) ஆன்லைனில் செலுத்த உதவி வேண்டும்."
+              }
+            ]
+          }
+        },
+        {
+          "id": "opt-eb-new",
+          "parent_id": "req-eb",
+          "title": "புதிய மின் இணைப்பு விண்ணப்பம் (New EB Connection)",
+          "description": "வீடு / கடைக்கான புதிய மின் இணைப்பு",
+          "button_text": "புதிய மின் இணைப்பு",
+          "status": "published",
+          "sort_order": 1,
+          "response": {
+            "title": "புதிய மின் இணைப்பு விண்ணப்பம்",
+            "description": "தேவையான ஆவணங்கள்:\n1. சொத்து வரி ரசீது / பத்திரம் / பட்டா\n2. ஆதார் கார்டு & புகைப்படங்கள்",
+            "actions": [
+              {
+                "id": "act-ebnew-wa",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp Support",
+                "message": "வணக்கம் Subi E-Sevai, புதிய மின் இணைப்பு (New EB Connection) விண்ணப்பிக்க என்னென்ன சான்றுகள் வேண்டும்?"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "req-eshram",
+      "parent_id": null,
+      "title": "👷 e-Shram Card சேவைகள் (e-Shram Card Services)",
+      "description": "அமைப்பசாரா தொழிலாளர் நல வாரிய இ-ஷ்ரம் கார்டு",
+      "button_text": "e-Shram Card சேவைகள்",
+      "status": "published",
+      "sort_order": 7,
+      "children": [
+        {
+          "id": "opt-eshram-new",
+          "parent_id": "req-eshram",
+          "title": "e-Shram Card புதிய விண்ணப்பம் (New Application)",
+          "description": "புதிய e-Shram Card விண்ணப்பிக்க",
+          "button_text": "புதிய e-Shram Card",
+          "status": "published",
+          "sort_order": 0,
+          "response": {
+            "title": "e-Shram Card புதிய விண்ணப்பம்",
+            "description": "தேவையான ஆவணங்கள்:\n1. ஆதார் அட்டை\n2. வங்கி கணக்கு புத்தகம் (Bank Passbook)\n3. ஆதாருடன் இணைக்கப்பட்ட மொபைல் எண்",
+            "actions": [
+              {
+                "id": "act-eshnew-wa",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp Support",
+                "message": "வணக்கம் Subi E-Sevai, புதிய e-Shram Card விண்ணப்பிக்க என்னென்ன சான்றுகள் வேண்டும்?"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "req-others",
+      "parent_id": null,
+      "title": "🌐 மற்ற ஆன்லைன் சேவைகள் (Other Online Services)",
+      "description": "PF பணம் எடுத்தல், பாஸ்போர்ட், ஓட்டுநர் உரிமம், டிக்கெட் முன்பதிவு",
+      "button_text": "மற்ற ஆன்லைன் சேவைகள்",
+      "status": "published",
+      "sort_order": 8,
+      "children": [
+        {
+          "id": "opt-pf",
+          "parent_id": "req-others",
+          "title": "PF பணம் எடுத்தல் (PF Claim & Withdrawal)",
+          "description": "EPFO PF பணம் ஆன்லைனில் எடுக்க",
+          "button_text": "PF பணம் எடுத்தல்",
+          "status": "published",
+          "sort_order": 0,
+          "response": {
+            "title": "PF Claim & Withdrawal Services",
+            "description": "தேவையான ஆவணங்கள்:\n1. UAN Number & Password\n2. ஆதாருடன் இணைக்கப்பட்ட மொபைல் எண்\n3. வங்கி கணக்கு புத்தகம் / செக் லீஃப்",
+            "actions": [
+              {
+                "id": "act-pf-wa",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp Support",
+                "message": "வணக்கம் Subi E-Sevai, PF பணம் (PF Claim / Withdrawal) பெற உதவி வேண்டும்."
+              }
+            ]
+          }
+        },
+        {
+          "id": "opt-passport",
+          "parent_id": "req-others",
+          "title": "பாஸ்போர்ட் விண்ணப்பம் (Passport New / Renewal)",
+          "description": "புதிய பாஸ்போர்ட் மற்றும் புதுப்பித்தல் சேவைகள்",
+          "button_text": "பாஸ்போர்ட் விண்ணப்பம்",
+          "status": "published",
+          "sort_order": 1,
+          "response": {
+            "title": "Passport Application & Renewal",
+            "description": "தேவையான ஆவணங்கள்:\n1. 10th Marksheet / Educational Cert\n2. ஆதார் கார்டு, வாக்காளர் அட்டை, வங்கி புத்தகம்\n3. பிறந்த தேதி சான்றிதழ்",
+            "actions": [
+              {
+                "id": "act-pass-wa",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp Support",
+                "message": "வணக்கம் Subi E-Sevai, பாஸ்போர்ட் புதிய விண்ணப்பம் / புதுப்பித்தல் செய்ய என்னென்ன சான்றுகள் வேண்டும்?"
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "req-jobs",
+      "parent_id": null,
+      "title": "💼 அரசு வேலைவாய்ப்புகள் (Government Job Alerts)",
+      "description": "TNPSC, Railway RRB, TNEB மற்றும் மத்திய/மாநில அரசு வேலைவாய்ப்புகள்",
+      "button_text": "அரசு வேலைவாய்ப்புகள்",
+      "status": "published",
+      "sort_order": 9,
+      "children": [
+        {
+          "id": "opt-tnpsc",
+          "parent_id": "req-jobs",
+          "title": "TNPSC வேலைவாய்ப்புகள் 2026",
+          "description": "TNPSC Group 1, Group 2, Group 4 & Technical Openings",
+          "button_text": "TNPSC Jobs",
+          "status": "published",
+          "sort_order": 0,
+          "response": {
+            "title": "TNPSC Recruitment 2026 Alerts",
+            "description": "தமிழ்நாடு அரசுப் பணியாளர் தேர்வாணையம் (TNPSC) வேலைவாய்ப்பு அறிவிப்புகள் மற்றும் விண்ணப்ப வழிகாட்டல்கள் பெற கீழே உள்ள லிங்கைப் பயன்படுத்தவும்.",
+            "actions": [
+              {
+                "id": "act-tnpsc-view",
+                "type": "url",
+                "button_text": "View All Job Alerts",
+                "url": "/user?tab=jobs"
+              },
+              {
+                "id": "act-tnpsc-wa",
+                "type": "whatsapp_msg",
+                "button_text": "Get WhatsApp Alerts",
+                "message": "வணக்கம் Subi E-Sevai, TNPSC வேலைவாய்ப்பு பற்றிய தகவல்களை அனுப்பவும்."
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

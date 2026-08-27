@@ -1,12 +1,13 @@
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate, useLocation, useSearchParams } from 'react-router-dom';
-import { Home, Plus, Users, Package, Megaphone, FileText, CheckCircle, Briefcase, X } from 'lucide-react';
+import { Home, Plus, Users, Package, Megaphone, FileText, CheckCircle, Briefcase, X, Bot } from 'lucide-react';
 import Header from './components/Header';
 import Footer from './components/Footer';
 import WhatsAppChatbot from './components/WhatsAppChatbot';
 import UserPortal from './pages/UserPortal';
 import AdminPortal from './pages/AdminPortal';
 import OgGenerator from './pages/OgGenerator';
+import ChatbotPage from './pages/ChatbotPage';
 import InstallPwaBanner from './components/InstallPwaBanner';
 import { registerUser, loginUser, getSettings } from './services/db';
 
@@ -231,13 +232,14 @@ function PortalLayout() {
     }
   };
 
-  // Determine if active route is admin or user
+  // Determine if active route is admin or user or standalone chatbot
   const isAdmin = location.pathname.toLowerCase().startsWith('/tnkpadmin');
+  const isStandaloneChat = location.pathname.toLowerCase().startsWith('/chatbot') || location.pathname.toLowerCase().startsWith('/chat');
 
   // Read active tab, default based on portal type with automatic bounds verification
   const rawTab = searchParams.get('tab');
   const activeTab = isAdmin
-    ? (['posts', 'forms', 'users', 'jobs', 'products', 'announcements', 'settings', 'og'].includes(rawTab) ? rawTab : 'posts')
+    ? (['posts', 'forms', 'users', 'jobs', 'products', 'announcements', 'settings', 'og', 'chatbot'].includes(rawTab) ? rawTab : 'posts')
     : (['home', 'apply', 'jobs', 'status'].includes(rawTab) ? rawTab : 'home');
 
   const handleTabChange = (tabName) => {
@@ -303,27 +305,29 @@ function PortalLayout() {
 
       {/* Centered Mobile Container Viewport */}
       <div className="app-mobile-container" style={{ display: 'flex', flexDirection: 'column', position: 'relative' }}>
-        {/* Fixed Header */}
-        <Header
-          currentUser={currentUser}
-          onLogout={handleLogout}
-          onInstallApp={handleInstallApp}
-          onLoginTrigger={() => {
-            setAuthError('');
-            setAuthSuccess('');
-            setIsRegisterMode(false);
-            setIsAuthModalOpen(true);
-          }}
-          isAdmin={isAdmin}
-          onLoginClick={() => {
-            setAuthError('');
-            setAuthSuccess('');
-            setIsAuthModalOpen(true);
-          }}
-          onLogoutClick={handleLogout}
-          onUpdateProfile={handleUpdateProfile}
-          systemSettings={systemSettings}
-        />
+        {/* Fixed Header (Hidden on standalone Chatbot route) */}
+        {!isStandaloneChat && (
+          <Header
+            currentUser={currentUser}
+            onLogout={handleLogout}
+            onInstallApp={handleInstallApp}
+            onLoginTrigger={() => {
+              setAuthError('');
+              setAuthSuccess('');
+              setIsRegisterMode(false);
+              setIsAuthModalOpen(true);
+            }}
+            isAdmin={isAdmin}
+            onLoginClick={() => {
+              setAuthError('');
+              setAuthSuccess('');
+              setIsAuthModalOpen(true);
+            }}
+            onLogoutClick={handleLogout}
+            onUpdateProfile={handleUpdateProfile}
+            systemSettings={systemSettings}
+          />
+        )}
 
         {/* Scrollable Frame Content (Main Routes) */}
         <div className="mobile-frame-content" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
@@ -334,7 +338,10 @@ function PortalLayout() {
               <Route path="/" element={<Navigate to="/user" replace />} />
               <Route path="/user" element={<UserPortal currentUser={currentUser} onUpdateProfile={handleUpdateProfile} onLoginTrigger={(prefillPhone, prefillAadhar) => { setAuthError(''); setAuthSuccess(''); setIsRegisterMode(false); if (prefillPhone) setLoginPhone(prefillPhone); if (prefillAadhar) setLoginAadhar(prefillAadhar); setIsAuthModalOpen(true); }} systemSettings={systemSettings} />} />
               <Route path="/tnkpadmin" element={<AdminPortal systemSettings={systemSettings} />} />
+              <Route path="/admin/chatbot" element={<Navigate to="/tnkpadmin?tab=chatbot" replace />} />
               <Route path="/admin/og-generator" element={<OgGenerator systemSettings={systemSettings} />} />
+              <Route path="/chatbot" element={<ChatbotPage systemSettings={systemSettings} />} />
+              <Route path="/chat" element={<Navigate to="/chatbot" replace />} />
               <Route path="/form/:formId" element={<UserPortal currentUser={currentUser} onLoginTrigger={() => setIsAuthModalOpen(true)} systemSettings={systemSettings} />} />
               <Route path="/job/:jobId" element={<UserPortal currentUser={currentUser} onLoginTrigger={() => setIsAuthModalOpen(true)} systemSettings={systemSettings} />} />
               <Route path="/post/:postId" element={<UserPortal currentUser={currentUser} onLoginTrigger={() => setIsAuthModalOpen(true)} systemSettings={systemSettings} />} />
@@ -350,85 +357,94 @@ function PortalLayout() {
         {/* 24/7 WhatsApp Floating Support Chatbot */}
         <WhatsAppChatbot systemSettings={systemSettings} />
 
-        {/* Global Bottom Sticky Menu */}
-        {isAdmin ? (
-          <div className="bottom-nav-bar">
-            <button
-              onClick={() => handleTabChange('posts')}
-              className={`bottom-nav-item ${activeTab === 'posts' ? 'active' : ''}`}
-            >
-              <Home className="bottom-nav-icon" size={20} />
-              <span>Posts</span>
-            </button>
-            <button
-              onClick={() => handleTabChange('forms')}
-              className={`bottom-nav-item ${activeTab === 'forms' ? 'active' : ''}`}
-            >
-              <Plus className="bottom-nav-icon" size={20} />
-              <span>Templates</span>
-            </button>
-            <button
-              onClick={() => handleTabChange('users')}
-              className={`bottom-nav-item ${activeTab === 'users' ? 'active' : ''}`}
-            >
-              <Users className="bottom-nav-icon" size={20} />
-              <span>Submissions</span>
-            </button>
+        {/* Global Bottom Sticky Menu (Hidden on standalone Chatbot route) */}
+        {!isStandaloneChat && (
+          isAdmin ? (
+            <div className="bottom-nav-bar">
+              <button
+                onClick={() => handleTabChange('posts')}
+                className={`bottom-nav-item ${activeTab === 'posts' ? 'active' : ''}`}
+              >
+                <Home className="bottom-nav-icon" size={20} />
+                <span>Posts</span>
+              </button>
+              <button
+                onClick={() => handleTabChange('forms')}
+                className={`bottom-nav-item ${activeTab === 'forms' ? 'active' : ''}`}
+              >
+                <Plus className="bottom-nav-icon" size={20} />
+                <span>Templates</span>
+              </button>
+              <button
+                onClick={() => handleTabChange('users')}
+                className={`bottom-nav-item ${activeTab === 'users' ? 'active' : ''}`}
+              >
+                <Users className="bottom-nav-icon" size={20} />
+                <span>Submissions</span>
+              </button>
 
-            <button
-              onClick={() => handleTabChange('jobs')}
-              className={`bottom-nav-item ${activeTab === 'jobs' ? 'active' : ''}`}
-            >
-              <Briefcase className="bottom-nav-icon" size={20} />
-              <span>Jobs</span>
-            </button>
+              <button
+                onClick={() => handleTabChange('jobs')}
+                className={`bottom-nav-item ${activeTab === 'jobs' ? 'active' : ''}`}
+              >
+                <Briefcase className="bottom-nav-icon" size={20} />
+                <span>Jobs</span>
+              </button>
 
-            <button
-              onClick={() => handleTabChange('products')}
-              className={`bottom-nav-item ${activeTab === 'products' ? 'active' : ''}`}
-            >
-              <Package className="bottom-nav-icon" size={20} />
-              <span>Products</span>
-            </button>
-            <button
-              onClick={() => handleTabChange('announcements')}
-              className={`bottom-nav-item ${activeTab === 'announcements' ? 'active' : ''}`}
-            >
-              <Megaphone className="bottom-nav-icon" size={20} />
-              <span>Ads</span>
-            </button>
-          </div>
-        ) : (
-          <div className="bottom-nav-bar">
-            <button
-              onClick={() => handleTabChange('home')}
-              className={`bottom-nav-item ${activeTab === 'home' ? 'active' : ''}`}
-            >
-              <Home className="bottom-nav-icon" size={20} />
-              <span>Home</span>
-            </button>
-            <button
-              onClick={() => handleTabChange('apply')}
-              className={`bottom-nav-item ${activeTab === 'apply' ? 'active' : ''}`}
-            >
-              <FileText className="bottom-nav-icon" size={20} />
-              <span>Application</span>
-            </button>
-            <button
-              onClick={() => handleTabChange('jobs')}
-              className={`bottom-nav-item ${activeTab === 'jobs' ? 'active' : ''}`}
-            >
-              <Briefcase className="bottom-nav-icon" size={20} />
-              <span>Job Alerts</span>
-            </button>
-            <button
-              onClick={() => handleTabChange('status')}
-              className={`bottom-nav-item ${activeTab === 'status' ? 'active' : ''}`}
-            >
-              <CheckCircle className="bottom-nav-icon" size={20} />
-              <span>Status Check</span>
-            </button>
-          </div>
+              <button
+                onClick={() => handleTabChange('products')}
+                className={`bottom-nav-item ${activeTab === 'products' ? 'active' : ''}`}
+              >
+                <Package className="bottom-nav-icon" size={20} />
+                <span>Products</span>
+              </button>
+              <button
+                onClick={() => handleTabChange('announcements')}
+                className={`bottom-nav-item ${activeTab === 'announcements' ? 'active' : ''}`}
+              >
+                <Megaphone className="bottom-nav-icon" size={20} />
+                <span>Ads</span>
+              </button>
+              <button
+                onClick={() => handleTabChange('chatbot')}
+                className={`bottom-nav-item ${activeTab === 'chatbot' ? 'active' : ''}`}
+              >
+                <Bot className="bottom-nav-icon" size={20} />
+                <span>Chatbot</span>
+              </button>
+            </div>
+          ) : (
+            <div className="bottom-nav-bar">
+              <button
+                onClick={() => handleTabChange('home')}
+                className={`bottom-nav-item ${activeTab === 'home' ? 'active' : ''}`}
+              >
+                <Home className="bottom-nav-icon" size={20} />
+                <span>Home</span>
+              </button>
+              <button
+                onClick={() => handleTabChange('apply')}
+                className={`bottom-nav-item ${activeTab === 'apply' ? 'active' : ''}`}
+              >
+                <FileText className="bottom-nav-icon" size={20} />
+                <span>Application</span>
+              </button>
+              <button
+                onClick={() => handleTabChange('jobs')}
+                className={`bottom-nav-item ${activeTab === 'jobs' ? 'active' : ''}`}
+              >
+                <Briefcase className="bottom-nav-icon" size={20} />
+                <span>Job Alerts</span>
+              </button>
+              <button
+                onClick={() => handleTabChange('status')}
+                className={`bottom-nav-item ${activeTab === 'status' ? 'active' : ''}`}
+              >
+                <CheckCircle className="bottom-nav-icon" size={20} />
+                <span>Status Check</span>
+              </button>
+            </div>
+          )
         )}
 
         {/* Authentication Modal */}

@@ -330,19 +330,19 @@ function PortalLayout() {
         )}
 
         {/* Scrollable Frame Content (Main Routes) */}
-        <div className="mobile-frame-content" style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
+        <div className="mobile-frame-content" style={{ flex: 1, overflowY: isStandaloneChat ? 'hidden' : 'auto', display: 'flex', flexDirection: 'column' }}>
 
           {/* Main Contents */}
-          <main style={{ flex: 1, paddingBottom: '20px' }}>
+          <main style={{ flex: 1, display: 'flex', flexDirection: 'column', paddingBottom: isStandaloneChat ? '0px' : '20px' }}>
             <Routes>
               <Route path="/" element={<Navigate to="/user" replace />} />
+              <Route path="/user/chatbot" element={<ChatbotPage systemSettings={systemSettings} />} />
+              <Route path="/chatbot" element={<Navigate to="/user/chatbot" replace />} />
+              <Route path="/chat" element={<Navigate to="/user/chatbot" replace />} />
               <Route path="/user" element={<UserPortal currentUser={currentUser} onUpdateProfile={handleUpdateProfile} onLoginTrigger={(prefillPhone, prefillAadhar) => { setAuthError(''); setAuthSuccess(''); setIsRegisterMode(false); if (prefillPhone) setLoginPhone(prefillPhone); if (prefillAadhar) setLoginAadhar(prefillAadhar); setIsAuthModalOpen(true); }} systemSettings={systemSettings} />} />
               <Route path="/tnkpadmin" element={<AdminPortal systemSettings={systemSettings} />} />
               <Route path="/admin/chatbot" element={<Navigate to="/tnkpadmin?tab=chatbot" replace />} />
               <Route path="/admin/og-generator" element={<OgGenerator systemSettings={systemSettings} />} />
-              <Route path="/user/chatbot" element={<ChatbotPage systemSettings={systemSettings} />} />
-              <Route path="/chatbot" element={<Navigate to="/user/chatbot" replace />} />
-              <Route path="/chat" element={<Navigate to="/user/chatbot" replace />} />
               <Route path="/form/:formId" element={<UserPortal currentUser={currentUser} onLoginTrigger={() => setIsAuthModalOpen(true)} systemSettings={systemSettings} />} />
               <Route path="/job/:jobId" element={<UserPortal currentUser={currentUser} onLoginTrigger={() => setIsAuthModalOpen(true)} systemSettings={systemSettings} />} />
               <Route path="/post/:postId" element={<UserPortal currentUser={currentUser} onLoginTrigger={() => setIsAuthModalOpen(true)} systemSettings={systemSettings} />} />

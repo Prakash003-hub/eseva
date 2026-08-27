@@ -920,7 +920,8 @@ export default function WhatsAppChatbot({ systemSettings }) {
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'space-between',
-            borderBottom: '1px solid #054c44'
+            borderBottom: '1px solid #054c44',
+            flexShrink: 0
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
               <div style={{ position: 'relative' }}>
@@ -1436,7 +1437,8 @@ export default function WhatsAppChatbot({ systemSettings }) {
               borderTop: '1px solid #cbd5e1',
               display: 'flex',
               alignItems: 'center',
-              gap: '8px'
+              gap: '8px',
+              flexShrink: 0
             }}
           >
             <input

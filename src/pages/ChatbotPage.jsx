@@ -22,6 +22,7 @@ export default function ChatbotPage({ systemSettings }) {
 
   const chatBodyRef = useRef(null);
   const chatEndRef = useRef(null);
+  const startMsgRef = useRef(null);
 
   // Helper to format WhatsApp phone number
   const formatWhatsAppNumber = (num) => {
@@ -224,29 +225,37 @@ export default function ChatbotPage({ systemSettings }) {
 
   return (
     <div style={{
-      minHeight: '100vh',
+      position: 'fixed',
+      top: 0,
+      left: 0,
+      right: 0,
+      bottom: 0,
+      width: '100vw',
       height: '100vh',
       display: 'flex',
       flexDirection: 'column',
       alignItems: 'center',
       padding: '0px',
-      background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)',
-      flex: 1
+      background: '#efeae2',
+      zIndex: 9999,
+      overflow: 'hidden'
     }}>
       <div style={{
         maxWidth: '640px',
         width: '100%',
-        height: '100vh',
+        height: '100%',
         backgroundColor: '#efeae2',
         borderRadius: '0px',
         border: 'none',
         boxShadow: 'none',
         display: 'flex',
         flexDirection: 'column',
-        overflow: 'hidden'
+        flex: 1,
+        overflow: 'hidden',
+        position: 'relative'
       }}>
-        {/* Header with WhatsApp-style Back Arrow */}
-        <div style={{ background: '#075e54', color: 'white', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        {/* Header with WhatsApp-style Back Arrow (FIXED AT TOP) */}
+        <div style={{ background: '#075e54', color: 'white', padding: '12px 16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0, zIndex: 50 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
             <button
               onClick={() => window.location.href = '/user'}
@@ -424,8 +433,8 @@ export default function ChatbotPage({ systemSettings }) {
           <div ref={chatEndRef} />
         </div>
 
-        {/* Input Footer */}
-        <form onSubmit={handleCustomSend} style={{ padding: '10px 14px', backgroundColor: '#f0f2f5', borderTop: '1px solid #cbd5e1', display: 'flex', gap: '8px' }}>
+        {/* Input Footer (FIXED AT BOTTOM) */}
+        <form onSubmit={handleCustomSend} style={{ padding: '10px 14px', backgroundColor: '#f0f2f5', borderTop: '1px solid #cbd5e1', display: 'flex', gap: '8px', flexShrink: 0, zIndex: 50 }}>
           <input
             type="text"
             placeholder="Type your query (தமிழ் / English)..."

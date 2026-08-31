@@ -96,38 +96,34 @@ export default function ChatbotFlowManager() {
     setExpandedNodeIds(new Set());
   };
 
-  // Save Draft directly to disk (src/config/chatbotFlow.json) and localStorage
+  // Save directly to disk (src/config/chatbotFlow.json)
   const handleSaveDraft = async (updatedFlows = flows) => {
     try {
       await saveDraftFlows(updatedFlows);
       setFlows(updatedFlows);
-      setHasUnpublishedChanges(true);
-      showAlert('💾 Saved to local draft and src/config/chatbotFlow.json.', 'success');
+      setHasUnpublishedChanges(false);
+      showAlert('💾 Saved directly to src/config/chatbotFlow.json.', 'success');
     } catch (err) {
-      showAlert('Failed to save draft: ' + err.message, 'error');
+      showAlert('Failed to save: ' + err.message, 'error');
     }
   };
 
-  // Publish to Production: Writes to chatbotFlow.json & Pushes to GitHub -> Vercel
+  // Save & Publish directly to src/config/chatbotFlow.json
   const handlePublish = async () => {
     const validation = validateChatbotConfig(flows);
     if (!validation.isValid) {
-      showAlert(`Cannot publish! Please fix configuration errors:\n${validation.errors.join(', ')}`, 'error', 8000);
+      showAlert(`Cannot save! Please fix configuration errors:\n${validation.errors.join(', ')}`, 'error', 8000);
       return;
     }
 
     setIsPublishing(true);
-    showAlert('🚀 Saving to chatbotFlow.json and deploying to GitHub & Vercel...', 'info', 10000);
 
     try {
-      const result = await publishDraftFlows(flows);
+      await publishDraftFlows(flows);
       setHasUnpublishedChanges(false);
-      const successMsg = result?.git?.message 
-        ? `✅ ${result.git.message}` 
-        : '🚀 Chatbot flow published! Updated in src/config/chatbotFlow.json and pushed to GitHub.';
-      showAlert(successMsg, 'success', 8000);
+      showAlert('✅ Successfully saved directly to src/config/chatbotFlow.json! You can now commit and push with Git whenever you choose.', 'success', 8000);
     } catch (err) {
-      showAlert('Failed to publish & push: ' + (err.message || 'Unknown error'), 'error', 8000);
+      showAlert('Failed to save to chatbotFlow.json: ' + (err.message || 'Unknown error'), 'error', 8000);
     } finally {
       setIsPublishing(false);
     }
@@ -670,17 +666,17 @@ export default function ChatbotFlowManager() {
                 border: 'none',
                 cursor: isPublishing ? 'not-allowed' : 'pointer'
               }}
-              title="Save directly to chatbotFlow.json, commit, and push to GitHub so Vercel auto-deploys"
+              title="Save all changes directly to src/config/chatbotFlow.json file"
             >
               {isPublishing ? (
                 <>
                   <RefreshCw size={16} className="spin" />
-                  Deploying to GitHub...
+                  Saving to File...
                 </>
               ) : (
                 <>
-                  <CheckCircle size={16} />
-                  Save & Deploy to Live
+                  <Save size={16} />
+                  Save & Publish
                 </>
               )}
             </button>

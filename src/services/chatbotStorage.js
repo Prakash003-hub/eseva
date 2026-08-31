@@ -62,50 +62,22 @@ const mergeWithSeedFlows = (existingFlows) => {
 
 /**
  * Get Published Chatbot Flows.
- * In Production: Always uses the bundled chatbotFlow.json (single source of truth).
- * In Development: Uses localStorage draft/published or chatbotFlow.json.
+ * chatbotFlow.json is the authoritative Single Source of Truth for all users.
  */
 export const getPublishedFlows = () => {
-  // If in production environment, bundled chatbotFlow.json is the authoritative source
-  if (import.meta.env.PROD) {
-    return normalizeFlows(initialSeedData.flows || []);
-  }
-
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY_PUBLISHED);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed.flows)) {
-        return mergeWithSeedFlows(parsed.flows);
-      }
-    }
-  } catch (err) {
-    console.error('Failed to read published chatbot flows from localStorage:', err);
-  }
-  // Fallback to initial seed configuration
   return normalizeFlows(initialSeedData.flows || []);
 };
 
 /**
  * Get Draft Chatbot Flows for Admin Editor.
+ * Loads latest flows directly from chatbotFlow.json.
  */
 export const getDraftFlows = () => {
-  try {
-    const saved = localStorage.getItem(STORAGE_KEY_DRAFT);
-    if (saved) {
-      const parsed = JSON.parse(saved);
-      if (Array.isArray(parsed.flows)) {
-        return mergeWithSeedFlows(parsed.flows);
-      }
-    }
-  } catch (err) {
-    console.error('Failed to read draft chatbot flows from localStorage:', err);
-  }
-  return getPublishedFlows();
+  return normalizeFlows(initialSeedData.flows || []);
 };
 
 /**
- * Save Draft Configuration to localStorage and directly to disk (src/config/chatbotFlow.json in dev).
+ * Save Configuration directly to src/config/chatbotFlow.json on disk.
  */
 export const saveDraftFlows = async (flows) => {
   const normalized = normalizeFlows(flows);
@@ -114,65 +86,34 @@ export const saveDraftFlows = async (flows) => {
     updated_at: new Date().toISOString(),
     flows: normalized
   };
-  localStorage.setItem(STORAGE_KEY_DRAFT, JSON.stringify(payload));
 
   // Sync directly to src/config/chatbotFlow.json via local dev server
   if (import.meta.env.DEV) {
     try {
-      await fetch('/api/chatbot/save-flow', {
+      const res = await fetch('/api/chatbot/save-flow', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
       });
-    } catch (err) {
-      console.warn('[Chatbot Storage] Local disk save endpoint unreachable:', err);
-    }
-  }
-
-  return normalized;
-};
-
-/**
- * Publish Configuration to Production:
- * 1. Saves to localStorage
- * 2. Writes directly to src/config/chatbotFlow.json
- * 3. Commits & Pushes to GitHub main to trigger Vercel deployment
- */
-export const publishDraftFlows = async (flows, commitMessage = '') => {
-  const normalized = normalizeFlows(flows);
-  const payload = {
-    version: '1.0',
-    updated_at: new Date().toISOString(),
-    flows: normalized,
-    commitMessage: commitMessage || `Update chatbot flows from Admin Portal [${new Date().toLocaleString()}]`
-  };
-
-  localStorage.setItem(STORAGE_KEY_DRAFT, JSON.stringify(payload));
-  localStorage.setItem(STORAGE_KEY_PUBLISHED, JSON.stringify(payload));
-
-  let gitResult = null;
-
-  // Sync to disk & Push to GitHub in dev
-  if (import.meta.env.DEV) {
-    try {
-      const response = await fetch('/api/chatbot/publish-and-push', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const data = await response.json();
-      if (!data.success) {
-        throw new Error(data.error || 'Failed to push to GitHub');
+      const json = await res.json();
+      if (!json.success) {
+        throw new Error(json.error || 'Failed to save to disk');
       }
-      gitResult = data;
     } catch (err) {
-      console.error('[Chatbot Storage] Publish & push failure:', err);
+      console.warn('[Chatbot Storage] Local disk save endpoint error:', err);
       throw err;
     }
   }
 
   window.dispatchEvent(new CustomEvent('chatbot-config-published'));
-  return { flows: normalized, git: gitResult };
+  return normalized;
+};
+
+/**
+ * Save & Publish: Writes directly to src/config/chatbotFlow.json on disk.
+ */
+export const publishDraftFlows = async (flows) => {
+  return await saveDraftFlows(flows);
 };
 
 /**
@@ -190,9 +131,7 @@ export const resetToSeedData = async () => {
  * Reset Draft to match Published Config.
  */
 export const resetDraftToPublished = () => {
-  const published = getPublishedFlows();
-  saveDraftFlows(published);
-  return published;
+  return getPublishedFlows();
 };
 
 /**

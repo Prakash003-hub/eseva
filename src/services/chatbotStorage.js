@@ -62,11 +62,15 @@ const mergeWithSeedFlows = (existingFlows) => {
 
 /**
  * Get Published Chatbot Flows.
- * Priority: 
- * 1. Saved localStorage published config (merged with seed data if missing categories)
- * 2. Bundled seed dataset (chatbotFlow.json)
+ * In Production: Always uses the bundled chatbotFlow.json (single source of truth).
+ * In Development: Uses localStorage draft/published or chatbotFlow.json.
  */
 export const getPublishedFlows = () => {
+  // If in production environment, bundled chatbotFlow.json is the authoritative source
+  if (import.meta.env.PROD) {
+    return normalizeFlows(initialSeedData.flows || []);
+  }
+
   try {
     const saved = localStorage.getItem(STORAGE_KEY_PUBLISHED);
     if (saved) {
@@ -84,9 +88,6 @@ export const getPublishedFlows = () => {
 
 /**
  * Get Draft Chatbot Flows for Admin Editor.
- * Priority:
- * 1. Saved localStorage draft config (merged with seed data if missing categories)
- * 2. Published flows
  */
 export const getDraftFlows = () => {
   try {
@@ -104,9 +105,9 @@ export const getDraftFlows = () => {
 };
 
 /**
- * Save Draft Configuration to localStorage.
+ * Save Draft Configuration to localStorage and directly to disk (src/config/chatbotFlow.json in dev).
  */
-export const saveDraftFlows = (flows) => {
+export const saveDraftFlows = async (flows) => {
   const normalized = normalizeFlows(flows);
   const payload = {
     version: '1.0',
@@ -114,33 +115,74 @@ export const saveDraftFlows = (flows) => {
     flows: normalized
   };
   localStorage.setItem(STORAGE_KEY_DRAFT, JSON.stringify(payload));
+
+  // Sync directly to src/config/chatbotFlow.json via local dev server
+  if (import.meta.env.DEV) {
+    try {
+      await fetch('/api/chatbot/save-flow', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+    } catch (err) {
+      console.warn('[Chatbot Storage] Local disk save endpoint unreachable:', err);
+    }
+  }
+
   return normalized;
 };
 
 /**
- * Publish Draft Configuration to Production.
+ * Publish Configuration to Production:
+ * 1. Saves to localStorage
+ * 2. Writes directly to src/config/chatbotFlow.json
+ * 3. Commits & Pushes to GitHub main to trigger Vercel deployment
  */
-export const publishDraftFlows = (flows) => {
-  const normalized = saveDraftFlows(flows);
+export const publishDraftFlows = async (flows, commitMessage = '') => {
+  const normalized = normalizeFlows(flows);
   const payload = {
     version: '1.0',
     updated_at: new Date().toISOString(),
-    flows: normalized
+    flows: normalized,
+    commitMessage: commitMessage || `Update chatbot flows from Admin Portal [${new Date().toLocaleString()}]`
   };
+
+  localStorage.setItem(STORAGE_KEY_DRAFT, JSON.stringify(payload));
   localStorage.setItem(STORAGE_KEY_PUBLISHED, JSON.stringify(payload));
-  // Dispatch custom browser event so active chatbot instance reloads config dynamically
+
+  let gitResult = null;
+
+  // Sync to disk & Push to GitHub in dev
+  if (import.meta.env.DEV) {
+    try {
+      const response = await fetch('/api/chatbot/publish-and-push', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await response.json();
+      if (!data.success) {
+        throw new Error(data.error || 'Failed to push to GitHub');
+      }
+      gitResult = data;
+    } catch (err) {
+      console.error('[Chatbot Storage] Publish & push failure:', err);
+      throw err;
+    }
+  }
+
   window.dispatchEvent(new CustomEvent('chatbot-config-published'));
-  return normalized;
+  return { flows: normalized, git: gitResult };
 };
 
 /**
  * Reset Draft & Published cache to original bundled seed configuration.
  */
-export const resetToSeedData = () => {
+export const resetToSeedData = async () => {
   localStorage.removeItem(STORAGE_KEY_PUBLISHED);
   localStorage.removeItem(STORAGE_KEY_DRAFT);
   const seedFlows = normalizeFlows(initialSeedData.flows || []);
-  publishDraftFlows(seedFlows);
+  await saveDraftFlows(seedFlows);
   return seedFlows;
 };
 

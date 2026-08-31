@@ -2,6 +2,9 @@ import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import fs from 'fs';
 import path from 'path';
+import { exec } from 'child_process';
+import util from 'util';
+const execPromise = util.promisify(exec);
 import {
   buildOgAssetPath,
   buildOgPublicUrl,
@@ -378,6 +381,91 @@ const processDelete = async (json) => {
   };
 };
 
+const CHATBOT_CONFIG_PATH = path.join(process.cwd(), 'src', 'config', 'chatbotFlow.json');
+
+const saveChatbotFlowFile = (payload) => {
+  const content = {
+    version: payload.version || '1.0',
+    updated_at: new Date().toISOString(),
+    flows: payload.flows || []
+  };
+  writeJsonFile(CHATBOT_CONFIG_PATH, content);
+  return content;
+};
+
+const gitCommitAndPushChatbot = async (commitMessage) => {
+  try {
+    await execPromise(`git add "${CHATBOT_CONFIG_PATH}"`);
+    const { stdout: statusOut } = await execPromise(`git status --porcelain "${CHATBOT_CONFIG_PATH}"`);
+    
+    if (statusOut.trim()) {
+      const msg = (commitMessage || `Update chatbot flows from Admin Portal [${new Date().toLocaleString()}]`).replace(/"/g, '\\"');
+      await execPromise(`git commit -m "${msg}"`);
+    }
+
+    const { stdout: pushOut, stderr: pushErr } = await execPromise('git push origin main');
+
+    return {
+      success: true,
+      message: 'Successfully saved to chatbotFlow.json and pushed to GitHub! Vercel is deploying now.',
+      pushOutput: pushOut || pushErr || ''
+    };
+  } catch (err) {
+    console.error('[Chatbot Git Sync Error]:', err);
+    throw new Error(err.message || err.stderr || 'Git push operation failed.');
+  }
+};
+
+function localChatbotPlugin() {
+  return {
+    name: 'local-chatbot-sync',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        if (!req.url) {
+          next();
+          return;
+        }
+
+        if (req.url.startsWith('/api/chatbot/save-flow') && req.method === 'POST') {
+          try {
+            const body = JSON.parse(await readRequestBody(req));
+            const savedContent = saveChatbotFlowFile(body);
+            sendJson(res, 200, {
+              success: true,
+              message: 'Successfully saved to src/config/chatbotFlow.json on disk.',
+              data: savedContent
+            });
+          } catch (error) {
+            console.error('[Chatbot Save Error]:', error);
+            sendJson(res, 500, { success: false, error: error.message || 'Failed to save chatbotFlow.json' });
+          }
+          return;
+        }
+
+        if (req.url.startsWith('/api/chatbot/publish-and-push') && req.method === 'POST') {
+          try {
+            const body = JSON.parse(await readRequestBody(req));
+            const savedContent = saveChatbotFlowFile(body);
+            const gitResult = await gitCommitAndPushChatbot(body.commitMessage);
+            sendJson(res, 200, {
+              success: true,
+              message: gitResult.message,
+              data: savedContent,
+              git: gitResult
+            });
+          } catch (error) {
+            console.error('[Chatbot Publish & Push Error]:', error);
+            sendJson(res, 500, { success: false, error: error.message || 'Failed to publish and push to GitHub' });
+          }
+          return;
+        }
+
+        next();
+      });
+    }
+  };
+}
+
 function localOgUploadPlugin() {
   return {
     name: 'local-og-upload',
@@ -419,5 +507,5 @@ function localOgUploadPlugin() {
 }
 
 export default defineConfig({
-  plugins: [react(), localOgUploadPlugin()]
+  plugins: [react(), localOgUploadPlugin(), localChatbotPlugin()]
 });

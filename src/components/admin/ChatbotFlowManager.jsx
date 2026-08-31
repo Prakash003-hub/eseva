@@ -40,6 +40,7 @@ export default function ChatbotFlowManager() {
   const [flows, setFlows] = useState([]);
   const [hasUnpublishedChanges, setHasUnpublishedChanges] = useState(false);
   const [expandedNodeIds, setExpandedNodeIds] = useState(new Set());
+  const [isPublishing, setIsPublishing] = useState(false);
   
   // Editor Modal State
   const [isEditorOpen, setIsEditorOpen] = useState(false);
@@ -64,9 +65,9 @@ export default function ChatbotFlowManager() {
     setExpandedNodeIds(rootIds);
   }, []);
 
-  const showAlert = (text, type = 'info') => {
+  const showAlert = (text, type = 'info', duration = 6000) => {
     setAlertMsg({ text, type });
-    setTimeout(() => setAlertMsg({ text: '', type: '' }), 5000);
+    setTimeout(() => setAlertMsg({ text: '', type: '' }), duration);
   };
 
   // Toggle expand/collapse of tree node
@@ -95,32 +96,40 @@ export default function ChatbotFlowManager() {
     setExpandedNodeIds(new Set());
   };
 
-  // Save Draft to LocalStorage
-  const handleSaveDraft = (updatedFlows = flows) => {
+  // Save Draft directly to disk (src/config/chatbotFlow.json) and localStorage
+  const handleSaveDraft = async (updatedFlows = flows) => {
     try {
-      saveDraftFlows(updatedFlows);
+      await saveDraftFlows(updatedFlows);
       setFlows(updatedFlows);
       setHasUnpublishedChanges(true);
-      showAlert('Draft configuration saved successfully.', 'success');
+      showAlert('💾 Saved to local draft and src/config/chatbotFlow.json.', 'success');
     } catch (err) {
       showAlert('Failed to save draft: ' + err.message, 'error');
     }
   };
 
-  // Publish Draft to Production
-  const handlePublish = () => {
+  // Publish to Production: Writes to chatbotFlow.json & Pushes to GitHub -> Vercel
+  const handlePublish = async () => {
     const validation = validateChatbotConfig(flows);
     if (!validation.isValid) {
-      showAlert(`Cannot publish! Please fix configuration errors:\n${validation.errors.join(', ')}`, 'error');
+      showAlert(`Cannot publish! Please fix configuration errors:\n${validation.errors.join(', ')}`, 'error', 8000);
       return;
     }
 
+    setIsPublishing(true);
+    showAlert('🚀 Saving to chatbotFlow.json and deploying to GitHub & Vercel...', 'info', 10000);
+
     try {
-      publishDraftFlows(flows);
+      const result = await publishDraftFlows(flows);
       setHasUnpublishedChanges(false);
-      showAlert('🚀 Chatbot flow published to production! Live for all users.', 'success');
+      const successMsg = result?.git?.message 
+        ? `✅ ${result.git.message}` 
+        : '🚀 Chatbot flow published! Updated in src/config/chatbotFlow.json and pushed to GitHub.';
+      showAlert(successMsg, 'success', 8000);
     } catch (err) {
-      showAlert('Failed to publish: ' + err.message, 'error');
+      showAlert('Failed to publish & push: ' + (err.message || 'Unknown error'), 'error', 8000);
+    } finally {
+      setIsPublishing(false);
     }
   };
 
@@ -133,11 +142,13 @@ export default function ChatbotFlowManager() {
     showAlert('Draft reset to published configuration.', 'info');
   };
 
-  const handleResetToSeed = () => {
+  const handleResetToSeed = async () => {
     if (window.confirm('Reset all chatbot flows to original seed dataset (all 9 service categories)?')) {
-      const seed = resetToSeedData();
+      const seed = await resetToSeedData();
       setFlows(seed);
       showAlert('Reset all flows to default 9-category dataset.', 'success');
+    }
+  };
     }
   };
 
@@ -648,10 +659,32 @@ export default function ChatbotFlowManager() {
 
             <button
               onClick={handlePublish}
+              disabled={isPublishing}
               className="premium-btn"
-              style={{ padding: '8px 14px', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '6px', background: '#10b981', color: 'white', border: 'none' }}
+              style={{
+                padding: '8px 16px',
+                fontSize: '0.82rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                background: isPublishing ? '#94a3b8' : '#10b981',
+                color: 'white',
+                border: 'none',
+                cursor: isPublishing ? 'not-allowed' : 'pointer'
+              }}
+              title="Save directly to chatbotFlow.json, commit, and push to GitHub so Vercel auto-deploys"
             >
-              <CheckCircle size={16} /> Publish Flow
+              {isPublishing ? (
+                <>
+                  <RefreshCw size={16} className="spin" />
+                  Deploying to GitHub...
+                </>
+              ) : (
+                <>
+                  <CheckCircle size={16} />
+                  Save & Deploy to Live
+                </>
+              )}
             </button>
 
             <button

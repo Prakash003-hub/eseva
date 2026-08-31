@@ -149,8 +149,6 @@ export default function ChatbotFlowManager() {
       showAlert('Reset all flows to default 9-category dataset.', 'success');
     }
   };
-    }
-  };
 
   // Export JSON File
   const handleExport = () => {

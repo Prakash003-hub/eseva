@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "updated_at": "2026-08-31T17:48:36.192Z",
+  "updated_at": "2026-09-01T18:21:15.964Z",
   "flows": [
     {
       "id": "req-esevai",
@@ -22,21 +22,8 @@
           "status": "published",
           "sort_order": 0,
           "created_at": "2026-08-27T13:16:18.840Z",
-          "updated_at": "2026-08-27T16:57:50.721Z",
-          "children": [
-            {
-              "id": "node_1788198202236_jmiw9",
-              "parent_id": "opt-income",
-              "title": "b",
-              "description": "",
-              "button_text": "hvjh",
-              "status": "published",
-              "sort_order": 0,
-              "created_at": "2026-08-31T17:43:49.201Z",
-              "updated_at": "2026-08-31T17:43:28.417Z",
-              "children": []
-            }
-          ],
+          "updated_at": "2026-09-01T16:58:23.244Z",
+          "children": [],
           "response": {
             "title": "💰 வருமானச் சான்றிதழ் – ₹60 மட்டுமே!",
             "description": "🏠 வீட்டிலிருந்தே எளிதாக விண்ணப்பிக்கலாம்.\n📄 தேவையான ஆவணங்களை WhatsApp மூலம் அனுப்புங்கள்.\n📲 எங்கள் மூலம் விண்ணப்பித்து, சான்றிதழை எளிதாகப் பெறுங்கள்!\n⏳ பொதுவாக 3–8 நாட்களுக்குள் Approval கிடைக்கலாம்.\n📌 அரசு துறை சரிபார்ப்பைப் பொறுத்து கால அவகாசம் மாறலாம்.",
@@ -54,7 +41,7 @@
                 "type": "whatsapp_msg",
                 "button_text": "📲 விண்ணப்பிக்க  கிளிக் செய்யவும் 👇",
                 "url": "",
-                "message": "வருமானச் சான்றிதழ் விண்ணப்பிக்க",
+                "message": "வருமானச் சான்றிதழ் விண்ணப்பிக்க வேண்டும்..",
                 "share_content": ""
               },
               {
@@ -77,7 +64,7 @@
           "status": "published",
           "sort_order": 1,
           "created_at": "2026-08-27T13:16:18.840Z",
-          "updated_at": "2026-08-27T17:11:53.201Z",
+          "updated_at": "2026-09-01T17:00:29.764Z",
           "children": [],
           "response": {
             "title": "விண்ணப்பக் கட்டணம் ₹60 மட்டுமே!",
@@ -96,7 +83,7 @@
                 "type": "whatsapp_msg",
                 "button_text": "WhatsApp மூலம் விண்ணப்பிக்க இங்கே கிளிக் செய்யவும் 👇",
                 "url": "",
-                "message": "வகுப்புச் சான்றிதழ் (ஜாதி) விண்ணப்பிக்க?",
+                "message": "வகுப்புச் சான்றிதழ் (ஜாதி) விண்ணப்பிக்க வேண்டும்...",
                 "share_content": ""
               },
               {
@@ -119,7 +106,7 @@
           "status": "published",
           "sort_order": 2,
           "created_at": "2026-08-27T13:16:18.840Z",
-          "updated_at": "2026-08-27T17:04:42.658Z",
+          "updated_at": "2026-09-01T17:00:17.483Z",
           "children": [],
           "response": {
             "title": "விண்ணப்பக் கட்டணம் ₹60 மட்டுமே!",
@@ -130,7 +117,7 @@
                 "type": "whatsapp_msg",
                 "button_text": "📄 தேவையான ஆவணங்கள்:",
                 "url": "",
-                "message": "வணக்கம் Subi E-Sevai, இருப்பிடச் சான்றிதழ் விண்ணப்பிக்க என்னென்ன சான்றுகள் வேண்டும்?",
+                "message": "இருப்பிடச் சான்றிதழ் விண்ணப்பிக்க என்னென்ன சான்றுகள் வேண்டும்?",
                 "share_content": ""
               },
               {
@@ -138,7 +125,7 @@
                 "type": "whatsapp_msg",
                 "button_text": "WhatsApp மூலம் விண்ணப்பிக்க இங்கே கிளிக் செய்யவும் 👇",
                 "url": "",
-                "message": "வகுப்புச் சான்றிதழ் (ஜாதி சான்றிதழ்) விண்ணப்பிக்க வேண்டும்.",
+                "message": "இருப்பிடச் சான்றிதழ்  விண்ணப்பிக்க வேண்டும்.",
                 "share_content": ""
               },
               {
@@ -169,7 +156,7 @@
           "status": "published",
           "sort_order": 3,
           "created_at": "2026-08-27T13:16:18.840Z",
-          "updated_at": "2026-08-27T17:07:44.804Z",
+          "updated_at": "2026-09-01T17:02:26.846Z",
           "children": [],
           "response": {
             "title": "விண்ணப்பக் கட்டணம் ₹60 மட்டுமே!",
@@ -180,7 +167,7 @@
                 "type": "whatsapp_msg",
                 "button_text": "📄 தேவையான ஆவணங்கள்:",
                 "url": "",
-                "message": "வணக்கம் Subi E-Sevai, பிறப்பிடச் சான்றிதழ் விண்ணப்பிக்க என்னென்ன சான்றுகள் வேண்டும்?",
+                "message": "பிறப்பிடச் சான்றிதழ் விண்ணப்பிக்க என்னென்ன சான்றுகள் வேண்டும்?",
                 "share_content": ""
               },
               {
@@ -219,7 +206,7 @@
           "status": "published",
           "sort_order": 4,
           "created_at": "2026-08-27T13:16:18.840Z",
-          "updated_at": "2026-08-27T17:10:12.965Z",
+          "updated_at": "2026-09-01T17:03:58.944Z",
           "children": [],
           "response": {
             "title": "விண்ணப்பக் கட்டணம் ₹60 மட்டுமே!",
@@ -269,7 +256,7 @@
           "status": "published",
           "sort_order": 5,
           "created_at": "2026-08-27T13:16:18.840Z",
-          "updated_at": "2026-08-27T17:23:32.120Z",
+          "updated_at": "2026-09-01T17:05:48.282Z",
           "children": [],
           "response": {
             "title": "விண்ணப்பக் கட்டணம் ₹60 மட்டுமே!",
@@ -280,7 +267,7 @@
                 "type": "whatsapp_msg",
                 "button_text": "📄 தேவையான ஆவணங்கள்:",
                 "url": "",
-                "message": "வணக்கம் Subi E-Sevai, வாரிசு சான்றிதழ் விண்ணப்பிக்க என்னென்ன சான்றுகள் வேண்டும்?",
+                "message": "வாரிசு சான்றிதழ் விண்ணப்பிக்க என்னென்ன சான்றுகள் வேண்டும்?",
                 "share_content": ""
               },
               {
@@ -311,7 +298,7 @@
           "status": "published",
           "sort_order": 0,
           "created_at": "2026-08-27T17:50:26.705Z",
-          "updated_at": "2026-08-27T17:37:52.281Z",
+          "updated_at": "2026-09-01T16:46:29.740Z",
           "children": [],
           "response": {
             "title": "விண்ணப்பக் கட்டணம் ₹60 மட்டுமே!",
@@ -320,7 +307,7 @@
               {
                 "id": "act_1787851597508_8jjwy",
                 "type": "whatsapp_msg",
-                "button_text": "📄 தேவையான ஆவணங்கள்:",
+                "button_text": "📄 தேவையான ஆவணங்கள் ?",
                 "url": "",
                 "message": "வேலையின்மை சான்றிதழ் விண்ணப்பிக்க என்னென்ன சான்றுகள் வேண்டும்?",
                 "share_content": ""
@@ -330,7 +317,7 @@
                 "type": "whatsapp_msg",
                 "button_text": "WhatsApp மூலம் விண்ணப்பிக்க இங்கே கிளிக் செய்யவும் 👇",
                 "url": "",
-                "message": "வேலையின்மை சான்றிதழ் விண்ணப்பிக்க வேண்டும்.",
+                "message": "வேலையின்மை சான்றிதழ் விண்ணப்பிக்க வேண்டும்...",
                 "share_content": ""
               },
               {
@@ -353,8 +340,30 @@
           "status": "published",
           "sort_order": 0,
           "created_at": "2026-08-27T17:50:26.705Z",
-          "updated_at": "2026-08-27T17:39:55.193Z",
-          "children": []
+          "updated_at": "2026-09-01T17:15:37.429Z",
+          "children": [],
+          "response": {
+            "title": "விண்ணப்பக் கட்டணம் ₹60 மட்டுமே!",
+            "description": "🏠 வீட்டிலிருந்தே எளிதாக விண்ணப்பிக்கலாம்.\n📄 தேவையான ஆவணங்களை WhatsApp மூலம் அனுப்புங்கள்.\n📲 எங்கள் மூலம் விண்ணப்பித்து, சான்றிதழை எளிதாகப் பெறுங்கள்!\n⏳ பொதுவாக 3–8 நாட்களுக்குள் Approval கிடைக்கலாம்.\n📌 அரசு துறை சரிபார்ப்பைப் பொறுத்து கால அவகாசம் மாறலாம்.",
+            "actions": [
+              {
+                "id": "act_1788282594358_uvnxi",
+                "type": "whatsapp_msg",
+                "button_text": "📄 தேவையான ஆவணங்கள் ?",
+                "url": "",
+                "message": "தமிழ் வழி சான்றிதழ் விண்ணப்பிக்க என்னென்ன சான்றுகள் வேண்டும்?",
+                "share_content": ""
+              },
+              {
+                "id": "act_1788282700420_gepwe",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp மூலம் விண்ணப்பிக்க இங்கே கிளிக் செய்யவும் 👇",
+                "url": "",
+                "message": "தமிழ் வழி  சான்றிதழ் விண்ணப்பிக்க வேண்டும்..",
+                "share_content": ""
+              }
+            ]
+          }
         },
         {
           "id": "node_1787852397930_8c78m",
@@ -365,8 +374,30 @@
           "status": "published",
           "sort_order": 0,
           "created_at": "2026-08-27T17:50:26.705Z",
-          "updated_at": "2026-08-27T17:40:38.416Z",
-          "children": []
+          "updated_at": "2026-09-01T17:18:26.322Z",
+          "children": [],
+          "response": {
+            "title": "விண்ணப்பக் கட்டணம் ₹60 மட்டுமே!",
+            "description": "🏠 வீட்டிலிருந்தே எளிதாக விண்ணப்பிக்கலாம்.\n📄 தேவையான ஆவணங்களை WhatsApp மூலம் அனுப்புங்கள்.\n📲 எங்கள் மூலம் விண்ணப்பித்து, சான்றிதழை எளிதாகப் பெறுங்கள்!\n⏳ பொதுவாக 3–8 நாட்களுக்குள் Approval கிடைக்கலாம்.\n📌 அரசு துறை சரிபார்ப்பைப் பொறுத்து கால அவகாசம் மாறலாம்.",
+            "actions": [
+              {
+                "id": "act_1788282997021_ra4nv",
+                "type": "whatsapp_msg",
+                "button_text": "📄 தேவையான ஆவணங்கள் ?",
+                "url": "",
+                "message": "முதல் பட்டதாரி சான்றிதழ் விண்ணப்பிக்க என்னென்ன சான்றுகள் வேண்டும்?",
+                "share_content": ""
+              },
+              {
+                "id": "act_1788283067543_bvubn",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp மூலம் விண்ணப்பிக்க இங்கே கிளிக் செய்யவும் 👇",
+                "url": "",
+                "message": "முதல் பட்டதாரி சான்றிதழ் விண்ணப்பிக்க வேண்டும்..",
+                "share_content": ""
+              }
+            ]
+          }
         },
         {
           "id": "node_1787852464283_hovih",
@@ -388,7 +419,7 @@
               "status": "published",
               "sort_order": 0,
               "created_at": "2026-08-27T17:50:26.705Z",
-              "updated_at": "2026-08-27T17:45:49.321Z",
+              "updated_at": "2026-09-01T17:23:03.993Z",
               "children": [],
               "response": {
                 "title": "விண்ணப்பக் கட்டணம் ₹60 மட்டுமே!",
@@ -397,7 +428,7 @@
                   {
                     "id": "act_1787852599520_l921k",
                     "type": "whatsapp_msg",
-                    "button_text": "📄 தேவையான ஆவணங்கள்:",
+                    "button_text": "📄 தேவையான ஆவணங்கள்?",
                     "url": "",
                     "message": "IGNOAPS / OAP விண்ணப்பிக்க என்னென்ன சான்றுகள் வேண்டும்?",
                     "share_content": ""
@@ -414,11 +445,11 @@
               "status": "published",
               "sort_order": 0,
               "created_at": "2026-08-27T17:50:26.705Z",
-              "updated_at": "2026-08-27T17:47:53.907Z",
+              "updated_at": "2026-09-01T17:28:01.766Z",
               "children": [],
               "response": {
                 "title": "விண்ணப்பக் கட்டணம் ₹60 மட்டுமே!",
-                "description": "🏠 வீட்டிலிருந்தே எளிதாக விண்ணப்பிக்கலாம்.\n📄 தேவையான ஆவணங்களை WhatsApp மூலம் அனுப்புங்கள்.\n📲 எங்கள் மூலம் விண்ணப்பித்து, சான்றிதழை எளிதாகப் பெறுங்கள்!\n⏳ பொதுவாக 3–8 நாட்களுக்குள் Approval கிடைக்கலாம்.\n📌 அரசு துறை சரிபார்ப்பைப் பொறுத்து கால அவகாசம் மாறலாம்.",
+                "description": "🏠 வீட்டிலிருந்தே எளிதாக விண்ணப்பிக்கலாம்.\n📄 தேவையான ஆவணங்களை WhatsApp மூலம் அனுப்புங்கள்.\n📲 எங்கள் மூலம் விண்ணப்பித்து, சான்றிதழை எளிதாகப் பெறுங்கள்!\n⏳ பொதுவாக 3–8 நாட்களுக்குள் Approval கிடைக்கலாம்.\n📌 அரசு துறை சரிபார்ப்பைப் பொறுத்து கால அவகாசம் மாறலாம்.\n\n",
                 "actions": [
                   {
                     "id": "act_1787852814677_r75qr",
@@ -426,6 +457,14 @@
                     "button_text": "📄 தேவையான ஆவணங்கள்:",
                     "url": "",
                     "message": "DWPS விண்ணப்பிக்க என்னென்ன சான்றுகள் வேண்டும்?",
+                    "share_content": ""
+                  },
+                  {
+                    "id": "act_1788283604222_c13w2",
+                    "type": "whatsapp_msg",
+                    "button_text": "Apply",
+                    "url": "",
+                    "message": "DWPS விண்ணப்பிக்க  வேண்டும்?",
                     "share_content": ""
                   }
                 ]
@@ -440,8 +479,22 @@
               "status": "published",
               "sort_order": 0,
               "created_at": "2026-08-27T17:50:26.705Z",
-              "updated_at": "2026-08-27T17:49:07.256Z",
-              "children": []
+              "updated_at": "2026-09-01T17:33:20.556Z",
+              "children": [],
+              "response": {
+                "title": "விண்ணப்பக் கட்டணம் ₹60 மட்டுமே!",
+                "description": "🏠 வீட்டிலிருந்தே எளிதாக விண்ணப்பிக்கலாம்.\n📄 தேவையான ஆவணங்களை WhatsApp மூலம் அனுப்புங்கள்.\n📲 எங்கள் மூலம் விண்ணப்பித்து, சான்றிதழை எளிதாகப் பெறுங்கள்!\n⏳ பொதுவாக 3–8 நாட்களுக்குள் Approval கிடைக்கலாம்.\n📌 அரசு துறை சரிபார்ப்பைப் பொறுத்து கால அவகாசம் மாறலாம்.\n\nதொகை: மாதம் ₹1,200. ",
+                "actions": [
+                  {
+                    "id": "act_1788283823211_fq6y8",
+                    "type": "whatsapp_msg",
+                    "button_text": "📄 தேவையான ஆவணங்கள்?",
+                    "url": "",
+                    "message": "DDWPS விண்ணப்பிக்க என்னென்ன சான்றுகள் வேண்டும்?",
+                    "share_content": ""
+                  }
+                ]
+              }
             },
             {
               "id": "node_1787852952231_n6qfu",
@@ -452,20 +505,30 @@
               "status": "published",
               "sort_order": 0,
               "created_at": "2026-08-27T17:50:26.705Z",
-              "updated_at": "2026-08-27T17:49:34.561Z",
-              "children": []
-            },
-            {
-              "id": "node_1788196886791_igh3p",
-              "parent_id": "node_1787852464283_hovih",
-              "title": "jhg",
-              "description": "",
-              "button_text": "jkhh",
-              "status": "published",
-              "sort_order": 0,
-              "created_at": "2026-08-31T17:21:49.322Z",
-              "updated_at": "2026-08-31T17:21:33.964Z",
-              "children": []
+              "updated_at": "2026-09-01T17:38:11.576Z",
+              "children": [],
+              "response": {
+                "title": "விண்ணப்பக் கட்டணம் ₹60 மட்டுமே!",
+                "description": "🏠 வீட்டிலிருந்தே எளிதாக விண்ணப்பிக்கலாம்.\n📄 தேவையான ஆவணங்களை WhatsApp மூலம் அனுப்புங்கள்.\n📲 எங்கள் மூலம் விண்ணப்பித்து, சான்றிதழை எளிதாகப் பெறுங்கள்!\n⏳ பொதுவாக 3–8 நாட்களுக்குள் Approval கிடைக்கலாம்.\n📌 அரசு துறை சரிபார்ப்பைப் பொறுத்து கால அவகாசம் மாறலாம்.\n",
+                "actions": [
+                  {
+                    "id": "act_1788284132351_ep1q5",
+                    "type": "whatsapp_msg",
+                    "button_text": "திருமணமாகாத ஏழைப் பெண்களுக்கான ஓய்வூதியம் விண்ணப்பிக்க என்ன சான்றுகள் வேண்டும்?",
+                    "url": "",
+                    "message": "📄 தேவையான ஆவணங்கள்?",
+                    "share_content": ""
+                  },
+                  {
+                    "id": "act_1788284228494_owk1l",
+                    "type": "whatsapp_msg",
+                    "button_text": "Apply",
+                    "url": "",
+                    "message": "திருமணமாகாத ஏழைப் பெண்களுக்கான ஓய்வூதியம் விண்ணப்பிக்க  வேண்டும்?",
+                    "share_content": ""
+                  }
+                ]
+              }
             }
           ]
         }
@@ -491,26 +554,34 @@
           "status": "published",
           "sort_order": 0,
           "created_at": "2026-08-27T13:16:18.840Z",
-          "updated_at": "2026-08-27T13:16:18.840Z",
+          "updated_at": "2026-09-01T17:50:54.274Z",
           "children": [],
           "response": {
             "title": "புதிய வாக்காளர் அட்டை விண்ணப்பம்",
-            "description": "தேவையான ஆவணங்கள்:\n1. வயது ஆதாரம் (18+ வயது - 10th Marksheet / Aadhar / Birth Cert)\n2. முகவரி ஆதாரம் (Aadhaar Card / Smart Card / EB Bill)\n3. பாஸ்போர்ட் சைஸ் புகைப்படம் 1",
+            "description": "🏠 வீட்டிலிருந்தே எளிதாக விண்ணப்பிக்கலாம்.\n📄 தேவையான ஆவணங்களை WhatsApp மூலம் அனுப்புங்கள்.\n📲 எங்கள் மூலம் விண்ணப்பித்து, Voter ID - எளிதாகப் பெறுங்கள்!\n📌 அரசு துறை சரிபார்ப்பைப் பொறுத்து கால அவகாசம் மாறலாம்.",
             "actions": [
-              {
-                "id": "act-vnew-apply",
-                "type": "url",
-                "button_text": "Apply Voter ID",
-                "url": "/user?tab=apply&category=voter%20id",
-                "message": "",
-                "share_content": ""
-              },
               {
                 "id": "act-vnew-wa",
                 "type": "whatsapp_msg",
-                "button_text": "WhatsApp Us",
+                "button_text": "📄 தேவையான ஆவணங்கள்?",
                 "url": "",
-                "message": "வணக்கம் Subi E-Sevai, புதிய வாக்காளர் அட்டை விண்ணப்பிக்க என்னென்ன சான்றுகள் வேண்டும்?",
+                "message": "புதிய வாக்காளர் அட்டை விண்ணப்பிக்க என்னென்ன சான்றுகள் வேண்டும்?",
+                "share_content": ""
+              },
+              {
+                "id": "act_1788284934269_x690q",
+                "type": "whatsapp_msg",
+                "button_text": "=WhatsApp மூலம் விண்ணப்பிக்க இங்கே கிளிக் செய்யவும் 👇",
+                "url": "",
+                "message": "புதிய வாக்காளர் அட்டை விண்ணப்பிக்க என்னென்ன சான்றுகள் வேண்டும்?",
+                "share_content": ""
+              },
+              {
+                "id": "act_1788284935835_ado6h",
+                "type": "url",
+                "button_text": "Apply Online",
+                "url": "/user?tab=apply&category=voter%20id",
+                "message": "",
                 "share_content": ""
               }
             ]
@@ -520,31 +591,47 @@
           "id": "opt-voter-corr",
           "parent_id": "req-voter",
           "title": "வாக்காளர் அட்டை திருத்தம் (Voter ID Correction)",
-          "description": "பெயர், பிறந்த தேதி, முகவரி, புகைப்படம் திருத்தம் செய்ய",
+          "description": "பெயர், பிறந்த தேதி, முகவரி, புகைப்படம், Phone no  திருத்தம் செய்ய",
           "button_text": "வாக்காளர் அட்டை திருத்தம்",
           "status": "published",
           "sort_order": 1,
           "created_at": "2026-08-27T13:16:18.840Z",
-          "updated_at": "2026-08-27T13:16:18.840Z",
+          "updated_at": "2026-09-01T17:48:46.361Z",
           "children": [],
           "response": {
             "title": "வாக்காளர் அட்டை திருத்தம்",
-            "description": "தேவையான விவரங்கள்:\n1. வாக்காளர் அட்டை எண் (EPIC Number)\n2. திருத்தம் செய்யப்பட வேண்டிய சரியான சான்று (Aadhaar Card / Proof)\n3. மொபைல் எண்",
+            "description": "📝 திருத்தம் செய்யக்கூடிய விவரங்கள்:\n\n✅ பெயர்\n✅ பிறந்த தேதி\n✅ முகவரி\n✅ புகைப்படம்\n✅ மொபைல் எண் (Phone Number)",
             "actions": [
-              {
-                "id": "act-vcorr-apply",
-                "type": "url",
-                "button_text": "Apply Correction",
-                "url": "/user?tab=apply&category=voter%20id",
-                "message": "",
-                "share_content": ""
-              },
               {
                 "id": "act-vcorr-wa",
                 "type": "whatsapp_msg",
                 "button_text": "WhatsApp Support",
                 "url": "",
                 "message": "வணக்கம் Subi E-Sevai, வாக்காளர் அட்டை திருத்தம் செய்ய என்னென்ன விவரங்கள் வேண்டும்?",
+                "share_content": ""
+              },
+              {
+                "id": "act_1788284692805_rvnpo",
+                "type": "whatsapp_msg",
+                "button_text": "📄 தேவையான ஆவணங்கள்?",
+                "url": "",
+                "message": "வாக்காளர் அட்டை திருத்தம் செய்ய என்னென்ன சான்றுகள் வேண்டும்?",
+                "share_content": ""
+              },
+              {
+                "id": "act_1788284693876_6vzxe",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp மூலம் விண்ணப்பிக்க இங்கே கிளிக் செய்யவும் 👇",
+                "url": "",
+                "message": "வாக்காளர் அட்டை திருத்தம் செய்ய வேண்டும்?",
+                "share_content": ""
+              },
+              {
+                "id": "act_1788284696218_f95gx",
+                "type": "url",
+                "button_text": "Apply Online",
+                "url": "/user?tab=apply&category=voter%20id",
+                "message": "",
                 "share_content": ""
               }
             ]
@@ -572,26 +659,68 @@
           "status": "published",
           "sort_order": 0,
           "created_at": "2026-08-27T13:16:18.840Z",
-          "updated_at": "2026-08-27T13:16:18.840Z",
+          "updated_at": "2026-09-01T17:56:25.988Z",
           "children": [],
           "response": {
             "title": "புதிய PAN Card விண்ணப்பம்",
-            "description": "தேவையான ஆவணங்கள்:\n1. ஆதார் அட்டை (Aadhaar Card)\n2. பாஸ்போர்ட் சைஸ் புகைப்படம் 2\n3. மொபைல் எண் (ஆதாருடன் இணைக்கப்பட்ட எண் சிறந்தது)",
+            "description": "🏠 வீட்டிலிருந்தே எளிதாக விண்ணப்பிக்கலாம்.\n📄 தேவையான ஆவணங்களை WhatsApp மூலம் அனுப்புங்கள்.\n📲 எங்கள் மூலம் விண்ணப்பித்து, Pan card  -டை   எளிதாகப் பெறுங்கள்!\n📌 அரசு துறை சரிபார்ப்பைப் பொறுத்து கால அவகாசம் மாறலாம்.",
             "actions": [
-              {
-                "id": "act-pnew-apply",
-                "type": "url",
-                "button_text": "Apply PAN Card",
-                "url": "/user?tab=apply&category=pan%20card",
-                "message": "",
-                "share_content": ""
-              },
               {
                 "id": "act-pnew-wa",
                 "type": "whatsapp_msg",
                 "button_text": "WhatsApp Support",
                 "url": "",
-                "message": "வணக்கம் Subi E-Sevai, புதிய PAN Card விண்ணப்பிக்க என்னென்ன சான்றுகள் வேண்டும்?",
+                "message": "புதிய PAN Card விண்ணப்பிக்க என்னென்ன சான்றுகள் வேண்டும்?",
+                "share_content": ""
+              },
+              {
+                "id": "act_1788285224879_r6y5o",
+                "type": "whatsapp_msg",
+                "button_text": "=WhatsApp மூலம் விண்ணப்பிக்க இங்கே கிளிக் செய்யவும் 👇",
+                "url": "",
+                "message": "புதிய PAN Card விண்ணப்பிக்க வேண்டும்?",
+                "share_content": ""
+              },
+              {
+                "id": "act_1788285227132_dvpkz",
+                "type": "url",
+                "button_text": "Apply Online",
+                "url": "/user?tab=apply&category=pan%20card",
+                "message": "",
+                "share_content": ""
+              }
+            ]
+          }
+        },
+        {
+          "id": "node_1788285391081_t8879",
+          "parent_id": "req-pancard",
+          "title": "Pan card திருத்தம்",
+          "description": "",
+          "button_text": "Pan card திருத்தம்",
+          "status": "published",
+          "sort_order": 0,
+          "created_at": "2026-09-01T18:21:15.957Z",
+          "updated_at": "2026-09-01T18:03:54.453Z",
+          "children": [],
+          "response": {
+            "title": "💰 விண்ணப்பக் கட்டணம்: ₹250 மட்டும்",
+            "description": "⏳ PAN Card 7 முதல்  18 நாட்களில் கிடைக்கும்!\n🏠 வீட்டிலிருந்தே விண்ணப்பிக்க கீழே உள்ள லிங்கை பயன்படுத்துங்கள்:",
+            "actions": [
+              {
+                "id": "act_1788285523227_61erw",
+                "type": "whatsapp_msg",
+                "button_text": "📄 தேவையான ஆவணங்கள்?",
+                "url": "",
+                "message": "Pan card  திருத்தம் செய்ய என்னென்ன சான்றுகள் வேண்டும்?",
+                "share_content": ""
+              },
+              {
+                "id": "act_1788285627806_t7aal",
+                "type": "whatsapp_msg",
+                "button_text": "=WhatsApp மூலம் விண்ணப்பிக்க இங்கே கிளிக் செய்யவும் 👇",
+                "url": "",
+                "message": "Pan card  திருத்தம் செய்ய  வேண்டும்?",
                 "share_content": ""
               }
             ]
@@ -619,26 +748,68 @@
           "status": "published",
           "sort_order": 0,
           "created_at": "2026-08-27T13:16:18.840Z",
-          "updated_at": "2026-08-27T13:16:18.840Z",
+          "updated_at": "2026-09-01T18:15:30.147Z",
           "children": [],
           "response": {
             "title": "புதிய ஸ்மார்ட் குடும்ப அட்டை",
-            "description": "தேவையான ஆவணங்கள்:\n1. திருமணப் பதிவுச் சான்றிதழ் / திருமணப் பத்திரிகை\n2. குடும்பத் தலைவரின் போட்டோ 1\n3. அனைத்து உறுப்பினர்களின் ஆதார் அட்டை\n4. பெற்றோர் ரேஷன் கார்டில் பெயர் நீக்கப்பட்ட சான்று (NOC Certificate)",
+            "description": "🏠 வீட்டிலிருந்தே எளிதாக விண்ணப்பிக்கலாம்.\n📄 தேவையான ஆவணங்களை WhatsApp மூலம் அனுப்புங்கள்.\n📲 எங்கள் மூலம் விண்ணப்பித்து, குடும்ப அட்டையை  எளிதாகப் பெறுங்கள்!\n📌 அரசு துறை சரிபார்ப்பைப் பொறுத்து கால அவகாசம் மாறலாம்.",
             "actions": [
-              {
-                "id": "act-rnew-apply",
-                "type": "url",
-                "button_text": "Apply Ration Card",
-                "url": "/user?tab=apply",
-                "message": "",
-                "share_content": ""
-              },
               {
                 "id": "act-rnew-wa",
                 "type": "whatsapp_msg",
-                "button_text": "WhatsApp Support",
+                "button_text": "📄 தேவையான ஆவணங்கள்?",
                 "url": "",
-                "message": "வணக்கம் Subi E-Sevai, புதிய குடும்ப அட்டை விண்ணப்பிக்க என்னென்ன சான்றுகள் வேண்டும்?",
+                "message": "குடும்ப அட்டை விண்ணப்பிக்க என்னென்ன சான்றுகள் வேண்டும்?",
+                "share_content": ""
+              },
+              {
+                "id": "act_1788286463175_cc5z1",
+                "type": "whatsapp_msg",
+                "button_text": "WhatsApp மூலம் விண்ணப்பிக்க இங்கே கிளிக் செய்யவும் 👇",
+                "url": "",
+                "message": "குடும்ப அட்டை விண்ணப்பிக்க வேண்டும்?",
+                "share_content": ""
+              },
+              {
+                "id": "act_1788286464234_kgiox",
+                "type": "url",
+                "button_text": "Apply Online",
+                "url": "/user?tab=apply",
+                "message": "",
+                "share_content": ""
+              }
+            ]
+          }
+        },
+        {
+          "id": "node_1788286533476_uaxmw",
+          "parent_id": "req-rationcard",
+          "title": "முகவரி திருத்தம்",
+          "description": "",
+          "button_text": "முகவரி திருத்தம்",
+          "status": "published",
+          "sort_order": 0,
+          "created_at": "2026-09-01T18:21:15.957Z",
+          "updated_at": "2026-09-01T18:20:47.098Z",
+          "children": [],
+          "response": {
+            "title": "எளிதாக  முகவரி திருத்தம் செய்யலாம்",
+            "description": "🏠 வீட்டிலிருந்தே எளிதாக விண்ணப்பிக்கலாம்.\n📄 தேவையான ஆவணங்களை WhatsApp மூலம் அனுப்புங்கள்.\n📌 அரசு துறை சரிபார்ப்பைப் பொறுத்து கால அவகாசம் மாறலாம்.",
+            "actions": [
+              {
+                "id": "act_1788286612360_rdr5p",
+                "type": "whatsapp_msg",
+                "button_text": "தேவையான ஆவணங்கள்",
+                "url": "",
+                "message": "குடும்ப அட்டையில் முகவரி திருத்தத்திற்கு தேவையான ஆவணங்கள் தேவை ?",
+                "share_content": ""
+              },
+              {
+                "id": "act_1788286695326_t4gic",
+                "type": "whatsapp_msg",
+                "button_text": "முகவரி திருத்தம் செய்ய",
+                "url": "",
+                "message": "குடும்ப அட்டையில் முகவரி  திருத்தம் செய்ய வேண்டும்..",
                 "share_content": ""
               }
             ]
@@ -660,17 +831,17 @@
         {
           "id": "opt-tnpsc",
           "parent_id": "req-jobs",
-          "title": "TNPSC வேலைவாய்ப்புகள் 2026",
+          "title": "வேலைவாய்ப்புகள் 2026",
           "description": "TNPSC Group 1, Group 2, Group 4 & Technical Openings",
-          "button_text": "TNPSC Jobs",
+          "button_text": "வேலைவாய்ப்பு பற்றிய தகவல்",
           "status": "published",
           "sort_order": 0,
           "created_at": "2026-08-27T13:16:18.840Z",
-          "updated_at": "2026-08-27T13:16:18.840Z",
+          "updated_at": "2026-09-01T18:11:49.227Z",
           "children": [],
           "response": {
             "title": "TNPSC Recruitment 2026 Alerts",
-            "description": "தமிழ்நாடு அரசுப் பணியாளர் தேர்வாணையம் (TNPSC) வேலைவாய்ப்பு அறிவிப்புகள் மற்றும் விண்ணப்ப வழிகாட்டல்கள் பெற கீழே உள்ள லிங்கைப் பயன்படுத்தவும்.",
+            "description": "தமிழ்நாடு அரசுப் பணியாளர் தேர்வாணையம் வேலைவாய்ப்பு அறிவிப்புகள் மற்றும் விண்ணப்ப வழிகாட்டல்கள் பெற கீழே உள்ள லிங்கைப் பயன்படுத்தவும்.",
             "actions": [
               {
                 "id": "act-tnpsc-view",
@@ -683,25 +854,13 @@
               {
                 "id": "act-tnpsc-wa",
                 "type": "whatsapp_msg",
-                "button_text": "Get WhatsApp Alerts",
+                "button_text": "Get WhatsApp group",
                 "url": "",
-                "message": "வணக்கம் Subi E-Sevai, TNPSC வேலைவாய்ப்பு பற்றிய தகவல்களை அனுப்பவும்.",
+                "message": "வேலைவாய்ப்பு பற்றிய தகவல்",
                 "share_content": ""
               }
             ]
           }
-        },
-        {
-          "id": "node_1787837278393_w0021",
-          "parent_id": "req-jobs",
-          "title": "dv",
-          "description": "",
-          "button_text": "rver",
-          "status": "published",
-          "sort_order": 0,
-          "created_at": "2026-08-27T14:10:45.452Z",
-          "updated_at": "2026-08-27T13:28:02.112Z",
-          "children": []
         }
       ]
     },

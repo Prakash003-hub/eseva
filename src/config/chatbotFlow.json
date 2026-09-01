@@ -1,6 +1,6 @@
 {
   "version": "1.0",
-  "updated_at": "2026-09-01T18:21:15.964Z",
+  "updated_at": "2026-09-01T19:10:23.964Z",
   "flows": [
     {
       "id": "req-esevai",
@@ -701,11 +701,11 @@
           "status": "published",
           "sort_order": 0,
           "created_at": "2026-09-01T18:21:15.957Z",
-          "updated_at": "2026-09-01T18:03:54.453Z",
+          "updated_at": "2026-09-01T19:01:35.253Z",
           "children": [],
           "response": {
             "title": "💰 விண்ணப்பக் கட்டணம்: ₹250 மட்டும்",
-            "description": "⏳ PAN Card 7 முதல்  18 நாட்களில் கிடைக்கும்!\n🏠 வீட்டிலிருந்தே விண்ணப்பிக்க கீழே உள்ள லிங்கை பயன்படுத்துங்கள்:",
+            "description": "⏳ PAN Card 7 முதல்  18 நாட்களில் கிடைக்கும்!\n🏠 வீட்டிலிருந்தே விண்ணப்பிக்க கீழே உள்ள லிங்கை பயன்படுத்துங்கள்:\n\n📝 திருத்தம் செய்யக்கூடிய விவரங்கள்:\n\n✅ பெயர்\n✅ பிறந்த தேதி\n✅ முகவரி\n✅ புகைப்படம்\n✅ மொபைல் எண் (Phone Number)",
             "actions": [
               {
                 "id": "act_1788285523227_61erw",
@@ -814,6 +814,96 @@
               }
             ]
           }
+        },
+        {
+          "id": "node_1788288371846_mfl59",
+          "parent_id": "req-rationcard",
+          "title": "📄  பெயர் சேர்க்க",
+          "description": "",
+          "button_text": "📄  பெயர் சேர்க்க",
+          "status": "published",
+          "sort_order": 0,
+          "created_at": "2026-09-01T19:10:23.958Z",
+          "updated_at": "2026-09-01T18:51:05.171Z",
+          "children": [],
+          "response": {
+            "title": "📄 குடும்ப உறுப்பினர் பெயர் சேர்க்க",
+            "description": "பெயர் சேர்க்க செய்யக்கூடிய விவரங்கள்\n",
+            "actions": [
+              {
+                "id": "act_1788288616923_gf0j0",
+                "type": "whatsapp_msg",
+                "button_text": "தேவையான ஆவணங்கள்?",
+                "url": "",
+                "message": "பெயர் சேர்த்தலுக்கு தேவையான ஆவணங்கள்?",
+                "share_content": ""
+              }
+            ]
+          }
+        },
+        {
+          "id": "node_1788288676349_y71l8",
+          "parent_id": "req-rationcard",
+          "title": "பெயர் நீக்கம்",
+          "description": "செய்யக்கூடிய விவரங்கள்:",
+          "button_text": "பெயர் நீக்கம்",
+          "status": "published",
+          "sort_order": 0,
+          "created_at": "2026-09-01T19:10:23.958Z",
+          "updated_at": "2026-09-01T18:54:54.634Z",
+          "children": [],
+          "response": {
+            "title": "📄 குடும்ப உறுப்பினர் பெயர் நீக்கம்",
+            "description": "செய்யக்கூடிய விவரங்கள்:",
+            "actions": [
+              {
+                "id": "act_1788288786765_m5p6b",
+                "type": "whatsapp_msg",
+                "button_text": "தேவையான ஆவணங்கள்:",
+                "url": "",
+                "message": "📄 குடும்ப உறுப்பினர் பெயர் நீக்கத்திற்கு தேவையான ஆவணங்கள்?",
+                "share_content": ""
+              }
+            ]
+          }
+        },
+        {
+          "id": "node_1788288914706_x8ep6",
+          "parent_id": "req-rationcard",
+          "title": "மொபைல் எண்",
+          "description": "",
+          "button_text": "மொபைல் எண்",
+          "status": "published",
+          "sort_order": 0,
+          "created_at": "2026-09-01T19:10:23.958Z",
+          "updated_at": "2026-09-01T19:00:40.438Z",
+          "children": [],
+          "response": {
+            "title": "மொபைல் எண்",
+            "description": "🚀 எளிதாகவும் விரைவாகவும் Update செய்யலாம்!",
+            "actions": [
+              {
+                "id": "act_1788289138318_7ocb5",
+                "type": "whatsapp_msg",
+                "button_text": "தேவையான விவரங்கள்",
+                "url": "",
+                "message": "📄 குடும்ப அட்டையில் மொபைல் எண் மாற்றத்திற்கு தேவையான விவரங்கள்?",
+                "share_content": ""
+              }
+            ]
+          }
+        },
+        {
+          "id": "node_1788289380970_pniku",
+          "parent_id": "req-rationcard",
+          "title": "மேலும்",
+          "description": "",
+          "button_text": "மேலும்",
+          "status": "published",
+          "sort_order": 0,
+          "created_at": "2026-09-01T19:10:23.958Z",
+          "updated_at": "2026-09-01T19:03:40.634Z",
+          "children": []
         }
       ]
     },
@@ -884,18 +974,18 @@
           "status": "published",
           "sort_order": 0,
           "created_at": "2026-08-27T17:19:56.181Z",
-          "updated_at": "2026-08-27T17:19:56.181Z",
+          "updated_at": "2026-09-01T19:05:37.616Z",
           "children": [],
           "response": {
             "title": "இ-சேவை சான்றிதழ் பதிவிறக்கம்",
-            "description": "பதிவிறக்கம் செய்ய:\n1. விண்ணப்ப எண் (Application Number / TN-XXXXX)\n2. விண்ணப்பித்த மொபைல் எண்",
+            "description": "பதிவிறக்கம் செய்ய:\n1. விண்ணப்ப எண் (Application Number / TN-XXXXX)\n",
             "actions": [
               {
-                "id": "act-dlesevai-wa",
+                "id": "act_1788289459611_t56ra",
                 "type": "whatsapp_msg",
-                "button_text": "WhatsApp Support",
+                "button_text": "downlode certificate",
                 "url": "",
-                "message": "வணக்கம் Subi E-Sevai, இ-சேவை சான்றிதழ் பதிவிறக்கம் செய்ய உதவி வேண்டும்.",
+                "message": "இ-சேவை சான்றிதழ் பதிவிறக்கம்",
                 "share_content": ""
               }
             ]
@@ -1000,10 +1090,10 @@
       "title": "⚡ EB Bill & மின்சார சேவைகள் (EB Bill Services)",
       "description": "EB Bill ஆன்லைன் கட்டணம், புதிய மின் இணைப்பு, பெயர் மாற்றம்",
       "button_text": "EB Bill & மின்சார சேவைகள்",
-      "status": "published",
+      "status": "disabled",
       "sort_order": 6,
       "created_at": "2026-08-27T17:19:56.181Z",
-      "updated_at": "2026-08-27T17:19:56.181Z",
+      "updated_at": "2026-09-01T19:10:10.190Z",
       "children": [
         {
           "id": "opt-eb-pay",
@@ -1118,21 +1208,12 @@
           "status": "published",
           "sort_order": 0,
           "created_at": "2026-08-27T17:19:56.181Z",
-          "updated_at": "2026-08-27T17:19:56.181Z",
+          "updated_at": "2026-09-01T19:08:01.476Z",
           "children": [],
           "response": {
             "title": "PF Claim & Withdrawal Services",
-            "description": "தேவையான ஆவணங்கள்:\n1. UAN Number & Password\n2. ஆதாருடன் இணைக்கப்பட்ட மொபைல் எண்\n3. வங்கி கணக்கு புத்தகம் / செக் லீஃப்",
-            "actions": [
-              {
-                "id": "act-pf-wa",
-                "type": "whatsapp_msg",
-                "button_text": "WhatsApp Support",
-                "url": "",
-                "message": "வணக்கம் Subi E-Sevai, PF பணம் (PF Claim / Withdrawal) பெற உதவி வேண்டும்.",
-                "share_content": ""
-              }
-            ]
+            "description": "📢 Sorry! இது இன்னும் Update ஆகவில்லை. 🙏\n\n⏳ Update Process-ல் உள்ளது. ",
+            "actions": []
           }
         },
         {
@@ -1144,21 +1225,29 @@
           "status": "published",
           "sort_order": 1,
           "created_at": "2026-08-27T17:19:56.181Z",
-          "updated_at": "2026-08-27T17:19:56.181Z",
+          "updated_at": "2026-09-01T19:08:13.878Z",
           "children": [],
           "response": {
             "title": "Passport Application & Renewal",
-            "description": "தேவையான ஆவணங்கள்:\n1. 10th Marksheet / Educational Cert\n2. ஆதார் கார்டு, வாக்காளர் அட்டை, வங்கி புத்தகம்\n3. பிறந்த தேதி சான்றிதழ்",
-            "actions": [
-              {
-                "id": "act-pass-wa",
-                "type": "whatsapp_msg",
-                "button_text": "WhatsApp Support",
-                "url": "",
-                "message": "வணக்கம் Subi E-Sevai, பாஸ்போர்ட் புதிய விண்ணப்பம் / புதுப்பித்தல் செய்ய என்னென்ன சான்றுகள் வேண்டும்?",
-                "share_content": ""
-              }
-            ]
+            "description": "📢 Sorry! இது இன்னும் Update ஆகவில்லை. 🙏\n\n⏳ Update Process-ல் உள்ளது.",
+            "actions": []
+          }
+        },
+        {
+          "id": "node_1788289732439_3rwc0",
+          "parent_id": "req-others",
+          "title": "More...",
+          "description": "",
+          "button_text": "மேலும்",
+          "status": "published",
+          "sort_order": 0,
+          "created_at": "2026-09-01T19:10:23.958Z",
+          "updated_at": "2026-09-01T19:09:44.785Z",
+          "children": [],
+          "response": {
+            "title": "Update Process-ல் உள்ளது.",
+            "description": "📢 Sorry! இது இன்னும் Update ஆகவில்லை. 🙏\n",
+            "actions": []
           }
         }
       ]

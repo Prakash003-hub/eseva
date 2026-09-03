@@ -101,6 +101,22 @@
       "description": "",
       "created_at": "2026-09-02T17:16:03.102Z",
       "updated_at": "2026-09-02T17:16:03.102Z"
+    },
+    "job/1788291567296": {
+      "id": "1788291567296",
+      "route_type": "job",
+      "slug": "1788291567296",
+      "target_path": "/job/1788291567296",
+      "route_key": "job/1788291567296",
+      "local_asset_path": "public/uploads/og_1788291567296.jpg",
+      "public_page_url": "https://subi-eseva-service.vercel.app/job/1788291567296",
+      "public_url": "https://subi-eseva-service.vercel.app/job/1788291567296",
+      "asset_path": "public/uploads/og_1788291567296.jpg",
+      "image": "/uploads/og_1788291567296.jpg",
+      "title": "",
+      "description": "",
+      "created_at": "2026-09-03T06:08:22.849Z",
+      "updated_at": "2026-09-03T06:08:22.849Z"
     }
   },
   "custom": {
@@ -193,6 +209,21 @@
       "image": "/uploads/og_user-chatbot.jpg",
       "created_at": "2026-09-02T17:16:03.102Z",
       "updated_at": "2026-09-02T17:16:03.102Z"
+    },
+    "1788291567296": {
+      "id": "1788291567296",
+      "route_type": "job",
+      "slug": "1788291567296",
+      "target_path": "/job/1788291567296",
+      "target_url": "https://subi-eseva-service.vercel.app/job/1788291567296",
+      "public_url": "https://subi-eseva-service.vercel.app/job/1788291567296",
+      "asset_path": "public/uploads/og_1788291567296.jpg",
+      "local_asset_path": "public/uploads/og_1788291567296.jpg",
+      "title": "",
+      "description": "",
+      "image": "/uploads/og_1788291567296.jpg",
+      "created_at": "2026-09-03T06:08:22.849Z",
+      "updated_at": "2026-09-03T06:08:22.849Z"
     }
   }
 }

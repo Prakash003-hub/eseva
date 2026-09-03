@@ -134,21 +134,21 @@
       "created_at": "2026-09-03T06:51:54.190Z",
       "updated_at": "2026-09-03T06:51:54.190Z"
     },
-    "job/1788421988763": {
+    "form/1788421988763": {
       "id": "1788421988763",
-      "route_type": "job",
+      "route_type": "form",
       "slug": "1788421988763",
-      "target_path": "/job/1788421988763",
-      "route_key": "job/1788421988763",
+      "target_path": "/form/1788421988763",
+      "route_key": "form/1788421988763",
       "local_asset_path": "public/uploads/og_1788421988763.jpg",
-      "public_page_url": "https://subi-eseva-service.vercel.app/job/1788421988763",
-      "public_url": "https://subi-eseva-service.vercel.app/job/1788421988763",
+      "public_page_url": "https://subi-eseva-service.vercel.app/form/1788421988763",
+      "public_url": "https://subi-eseva-service.vercel.app/form/1788421988763",
       "asset_path": "public/uploads/og_1788421988763.jpg",
       "image": "/uploads/og_1788421988763.jpg",
       "title": "",
       "description": "",
-      "created_at": "2026-09-03T07:59:10.529Z",
-      "updated_at": "2026-09-03T07:59:10.529Z"
+      "created_at": "2026-09-03T08:11:07.601Z",
+      "updated_at": "2026-09-03T08:11:07.601Z"
     }
   },
   "custom": {
@@ -274,18 +274,18 @@
     },
     "1788421988763": {
       "id": "1788421988763",
-      "route_type": "job",
+      "route_type": "form",
       "slug": "1788421988763",
-      "target_path": "/job/1788421988763",
-      "target_url": "https://subi-eseva-service.vercel.app/job/1788421988763",
-      "public_url": "https://subi-eseva-service.vercel.app/job/1788421988763",
+      "target_path": "/form/1788421988763",
+      "target_url": "https://subi-eseva-service.vercel.app/form/1788421988763",
+      "public_url": "https://subi-eseva-service.vercel.app/form/1788421988763",
       "asset_path": "public/uploads/og_1788421988763.jpg",
       "local_asset_path": "public/uploads/og_1788421988763.jpg",
       "title": "",
       "description": "",
       "image": "/uploads/og_1788421988763.jpg",
-      "created_at": "2026-09-03T07:59:10.529Z",
-      "updated_at": "2026-09-03T07:59:10.529Z"
+      "created_at": "2026-09-03T08:11:07.601Z",
+      "updated_at": "2026-09-03T08:11:07.601Z"
     }
   }
 }

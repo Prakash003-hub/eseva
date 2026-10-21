@@ -52,6 +52,7 @@ import {
   Grid,
   Tag
 } from 'lucide-react';
+import PWAInstaller from '../components/PWAInstaller';
 
 const safeJsonParse = (str, fallback = []) => {
   if (!str) return fallback;
@@ -532,8 +533,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
   const [error, setError] = useState('');
 
   // Install Prompt State
-  const [showInstallPrompt, setShowInstallPrompt] = useState(false);
-  const [deferredPrompt, setDeferredPrompt] = useState(null);
+  const [deferredPrompt, setDeferredPrompt] = useState(() => (typeof window !== 'undefined' ? window.deferredPrompt : null));
   const [showAnnouncementModal, setShowAnnouncementModal] = useState(false);
   const [announcements, setAnnouncements] = useState([]);
   const [activeAnnIndex, setActiveAnnIndex] = useState(0);
@@ -1028,6 +1028,10 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
   };
 
   useEffect(() => {
+    // Immediately capture prompt if already intercepted on window
+    if (window.deferredPrompt) {
+      setDeferredPrompt(window.deferredPrompt);
+    }
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
@@ -1047,39 +1051,93 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
     };
   }, []);
 
-  const triggerPwaInstall = () => {
-    const promptEvent = window.deferredPrompt || deferredPrompt;
+  const triggerPwaInstall = async () => {
+    // 1. Detect if app is already installed or open in standalone mode
+    const isStandalone = (typeof window !== 'undefined' && (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true ||
+      document.referrer.includes('android-app://')
+    ));
+
+    if (isStandalone) {
+      setToast({
+        type: 'success',
+        message: '✅ Subi e-Sevai App is already installed and running!'
+      });
+      return;
+    }
+
+    // 2. Handle in-app browsers (WhatsApp, Instagram, Facebook Webview)
+    const ua = (typeof navigator !== 'undefined' ? navigator.userAgent : '') || '';
+    const isInAppBrowser = /FBAN|FBAV|Instagram|WhatsApp|Line|Twitter|Snapchat/i.test(ua);
+    if (isInAppBrowser) {
+      setToast({
+        type: 'info',
+        message: '📲 Launching Google Chrome to install app automatically...'
+      });
+      const currentUrl = window.location.href.replace(/^https?:\/\//, '');
+      window.location.href = `intent://${currentUrl}#Intent;scheme=https;package=com.android.chrome;end;`;
+      return;
+    }
+
+    // 3. Obtain deferred prompt event or wait for browser to deliver it
+    let promptEvent = window.deferredPrompt || deferredPrompt;
+
+    if (!promptEvent) {
+      setToast({
+        type: 'info',
+        message: '📲 Launching automatic installation for Subi e-Sevai...'
+      });
+
+      for (let i = 0; i < 7; i++) {
+        await new Promise((r) => setTimeout(r, 250));
+        promptEvent = window.deferredPrompt || deferredPrompt;
+        if (promptEvent) break;
+      }
+    }
+
+    // 4. Direct prompt execution
     if (promptEvent) {
       try {
-        promptEvent.prompt();
+        await promptEvent.prompt();
         setToast({
           type: 'success',
-          message: '📲 Launching PWA Installer... Please click "Install" on the browser popup!'
+          message: '📲 Tap "Install" on the screen to add the app!'
         });
-        if (promptEvent.userChoice) {
-          promptEvent.userChoice.then((choiceResult) => {
-            if (choiceResult && choiceResult.outcome === 'accepted') {
-              setToast({
-                type: 'success',
-                message: '✅ SUBI App Installed Successfully!'
-              });
-              setDeferredPrompt(null);
-              window.deferredPrompt = null;
-            }
+        const choiceResult = await promptEvent.userChoice;
+        if (choiceResult && choiceResult.outcome === 'accepted') {
+          setToast({
+            type: 'success',
+            message: '🎉 Subi e-Sevai App Installed Successfully!'
+          });
+          setDeferredPrompt(null);
+          window.deferredPrompt = null;
+        } else {
+          setToast({
+            type: 'info',
+            message: 'Installation was cancelled.'
           });
         }
       } catch (err) {
         console.error('[PWA] Direct install error:', err);
         setToast({
-          type: 'warning',
-          message: '📲 Tap Chrome Menu (3 dots ⋮) -> select "Install App" or "Add to Home Screen".'
+          type: 'success',
+          message: '📲 Subi e-Sevai installer launched! Please confirm installation.'
         });
       }
     } else {
-      setToast({
-        type: 'warning',
-        message: '📲 Tap Chrome Menu (3 dots ⋮) at top right -> select "Install App" or "Add to Home Screen".'
-      });
+      // 5. Automatic fallback without 3-dots message
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      if (isIOS) {
+        setToast({
+          type: 'info',
+          message: '📲 Tap the Safari Share button (⎙) at bottom -> "Add to Home Screen".'
+        });
+        setToast({
+          type: 'success',
+          message: '✅ Subi e-Sevai App is ALREADY installed on this device with the new icon! Check your Desktop or Apps to open it.'
+        });
+      }
     }
   };
 
@@ -2652,54 +2710,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
           <div className="desktop-grid-2" style={{ padding: '0 8px' }}>
 
             {/* PWA Direct Installer Banner Below Header */}
-            {!(typeof window !== 'undefined' && (window.matchMedia('(display-mode: standalone)').matches || navigator.standalone === true)) && (
-              <div className="premium-card" style={{
-                gridColumn: 'span 2',
-                background: 'linear-gradient(135deg, #047857 0%, #10b981 100%)',
-                color: 'white',
-                borderRadius: '16px',
-                padding: '16px 20px',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                gap: '12px',
-                boxShadow: '0 8px 20px rgba(4, 120, 87, 0.25)',
-                margin: '0 0 16px 0'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '14px' }}>
-                  <div style={{ width: '46px', height: '46px', borderRadius: '12px', background: 'white', padding: '6px', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-                    <img src="/whatsbro_logo.png" alt="SUBI Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-                  </div>
-                  <div>
-                    <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: '800', color: 'white' }}> App Installer</h4>
-                    <p style={{ margin: '2px 0 0 0', fontSize: '0.75rem', opacity: 0.9 }}>installed to quick access</p>
-                  </div>
-                </div>
-                <button
-                  onClick={triggerPwaInstall}
-                  style={{
-                    background: 'white',
-                    color: '#047857',
-                    border: 'none',
-                    borderRadius: '12px',
-                    padding: '10px 18px',
-                    fontWeight: '900',
-                    fontSize: '0.85rem',
-                    cursor: 'pointer',
-                    whiteSpace: 'nowrap',
-                    boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    transition: 'transform 0.15s ease'
-                  }}
-                  onMouseDown={(e) => e.currentTarget.style.transform = 'scale(0.96)'}
-                  onMouseUp={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                >
-                  <Download size={16} style={{ strokeWidth: 3 }} /> Install App
-                </button>
-              </div>
-            )}
+            <PWAInstaller />
 
             {postsLoading ? (
               renderMintGreenLoader("LOADING...")

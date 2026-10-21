@@ -194,6 +194,9 @@ function PortalLayout() {
   const [deferredPrompt, setDeferredPrompt] = useState(() => window.deferredPrompt || null);
 
   useEffect(() => {
+    if (window.deferredPrompt) {
+      setDeferredPrompt(window.deferredPrompt);
+    }
     const handleBeforeInstallPrompt = (e) => {
       e.preventDefault();
       setDeferredPrompt(e);
@@ -213,18 +216,22 @@ function PortalLayout() {
     };
   }, []);
 
-  const handleInstallApp = () => {
-    const promptEvent = window.deferredPrompt || deferredPrompt;
+  const handleInstallApp = async () => {
+    let promptEvent = window.deferredPrompt || deferredPrompt;
+    if (!promptEvent) {
+      for (let i = 0; i < 4; i++) {
+        await new Promise((r) => setTimeout(r, 250));
+        promptEvent = window.deferredPrompt || deferredPrompt;
+        if (promptEvent) break;
+      }
+    }
     if (promptEvent) {
       try {
-        promptEvent.prompt();
-        if (promptEvent.userChoice) {
-          promptEvent.userChoice.then((choiceResult) => {
-            if (choiceResult && choiceResult.outcome === 'accepted') {
-              setDeferredPrompt(null);
-              window.deferredPrompt = null;
-            }
-          });
+        await promptEvent.prompt();
+        const choiceResult = await promptEvent.userChoice;
+        if (choiceResult && choiceResult.outcome === 'accepted') {
+          setDeferredPrompt(null);
+          window.deferredPrompt = null;
         }
       } catch (err) {
         console.error('[PWA] Install prompt error:', err);
@@ -301,8 +308,6 @@ function PortalLayout() {
 
   return (
     <div className="layout-viewport-container">
-      <InstallPwaBanner />
-
       {/* Centered Mobile Container Viewport */}
       <div className="app-mobile-container" style={{ display: 'flex', flexDirection: 'column', position: 'relative' }}>
         {/* Fixed Header (Hidden on standalone Chatbot route) */}

@@ -1,12 +1,17 @@
-const CACHE_NAME = 'subi-online-service-v2';
+// Service Worker for Subi e sevai PWA
+const CACHE_NAME = 'subi-online-service-v5';
 const ASSETS_TO_CACHE = [
   '/',
   '/manifest.json',
-  '/whatsbro_logo.png'
+  '/whatsbro_logo.png',
+  '/icon-192.png',
+  '/icon-512.png',
+  '/apple-touch-icon.png',
+  '/favicon.png'
 ];
 
-// Install Event - Cache Static Assets safely without breaking on dev modules
 self.addEventListener('install', (event) => {
+  console.log('[Service Worker] Installed');
   event.waitUntil(
     caches.open(CACHE_NAME).then(async (cache) => {
       for (const asset of ASSETS_TO_CACHE) {
@@ -20,8 +25,8 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activate Event - Clean old caches and claim clients immediately
 self.addEventListener('activate', (event) => {
+  console.log('[Service Worker] Activated');
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -35,7 +40,6 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch Event - Network First Strategy with Fallback to Cache
 self.addEventListener('fetch', (event) => {
   if (event.request.method !== 'GET' || event.request.url.includes('script.google.com')) {
     return;
@@ -53,7 +57,13 @@ self.addEventListener('fetch', (event) => {
         return response;
       })
       .catch(() => {
-        return caches.match(event.request);
+        return caches.match(event.request).then(cachedResponse => {
+          if (cachedResponse) return cachedResponse;
+          if (event.request.mode === 'navigate') {
+            return caches.match('/');
+          }
+          return null;
+        });
       })
   );
 });

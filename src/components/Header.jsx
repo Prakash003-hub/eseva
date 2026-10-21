@@ -136,7 +136,7 @@ export default function Header({ currentUser, onLogout, onLoginTrigger, onInstal
             width: '48px',
             height: '48px',
             objectFit: 'contain',
-            filter: 'hue-rotate(-4deg) saturate(70%) brightness(195%)',
+            borderRadius: '10px',
             pointerEvents: 'none',
             userSelect: 'none',
             WebkitUserSelect: 'none',

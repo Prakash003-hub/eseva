@@ -11,10 +11,19 @@ createRoot(document.getElementById('root')).render(
 
 // Register service worker for PWA support
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js')
-      .then(reg => console.log('[PWA] Service Worker registered successfully:', reg.scope))
+  const registerSW = () => {
+    navigator.serviceWorker.register('/service-worker.js', { scope: '/' })
+      .then(reg => {
+        console.log('[PWA] Service Worker registered successfully:', reg.scope);
+        reg.update().catch(() => {});
+      })
       .catch(err => console.error('[PWA] Service Worker registration failed:', err));
-  });
+  };
+
+  if (document.readyState === 'complete' || document.readyState === 'interactive') {
+    registerSW();
+  } else {
+    window.addEventListener('load', registerSW);
+  }
 }
 

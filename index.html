@@ -4,6 +4,7 @@
 <head>
   <meta charset="UTF-8" />
   <link rel="icon" type="image/png" href="/whatsbro_logo.png" />
+  <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
   <link rel="manifest" href="/manifest.json" />
   <meta name="theme-color" content="#047857" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -26,11 +27,18 @@
     content="Apply for Income Certificate, Community Certificate, and other online services easily." />
   <meta property="twitter:image" content="https://subi-eseva-service.vercel.app/uploads/og_default.jpg" />
   <script>
-    window.deferredPrompt = null;
+    window.deferredPrompt = window.deferredPrompt || null;
     window.addEventListener('beforeinstallprompt', (e) => {
       e.preventDefault();
       window.deferredPrompt = e;
       window.dispatchEvent(new Event('pwa-prompt-ready'));
+      console.log('[PWA] beforeinstallprompt captured on window');
+    });
+    window.addEventListener('appinstalled', () => {
+      window.deferredPrompt = null;
+      window.isAppInstalled = true;
+      window.dispatchEvent(new Event('pwa-installed'));
+      console.log('[PWA] App successfully installed');
     });
   </script>
 </head>

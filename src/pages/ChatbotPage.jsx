@@ -387,7 +387,7 @@ export default function ChatbotPage({ systemSettings }) {
                   }}
                 >
                   <ArrowLeft size={16} />
-                  <span>← பின்செல் (Back)</span>
+                  <span>Back</span>
                 </button>
 
                 <button
@@ -414,43 +414,6 @@ export default function ChatbotPage({ systemSettings }) {
                 </button>
               </div>
 
-              {/* Breadcrumb Path */}
-              <div style={{
-                background: 'rgba(255,255,255,0.8)',
-                borderRadius: '8px',
-                padding: '6px 10px',
-                fontSize: '0.74rem',
-                color: '#64748b',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '5px',
-                overflowX: 'auto',
-                whiteSpace: 'nowrap'
-              }}>
-                <span style={{ cursor: 'pointer', color: '#075e54', fontWeight: '700' }} onClick={handleResetToMainMenu}>
-                  🏠 முகப்பு
-                </span>
-                {navHistory.map((item, idx) => (
-                  <React.Fragment key={item.id || idx}>
-                    <span>›</span>
-                    <span
-                      style={{
-                        fontWeight: idx === navHistory.length - 1 ? '800' : '600',
-                        color: idx === navHistory.length - 1 ? '#1e293b' : '#075e54',
-                        cursor: idx === navHistory.length - 1 ? 'default' : 'pointer'
-                      }}
-                      onClick={() => {
-                        if (idx < navHistory.length - 1) {
-                          playSelectSound();
-                          setNavHistory(navHistory.slice(0, idx + 1));
-                        }
-                      }}
-                    >
-                      {item.button_text || item.title}
-                    </span>
-                  </React.Fragment>
-                ))}
-              </div>
 
               {/* Selected Node Header Card */}
               <div style={{
@@ -594,7 +557,7 @@ export default function ChatbotPage({ systemSettings }) {
                 }}
               >
                 <ArrowLeft size={15} />
-                <span>⬅️ பின்செல் (Back)</span>
+                <span>Back</span>
               </button>
 
             </div>

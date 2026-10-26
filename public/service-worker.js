@@ -1,5 +1,5 @@
 // Service Worker for Subi e sevai PWA
-const CACHE_NAME = 'subi-online-service-v5';
+const CACHE_NAME = 'subi-online-service-v7';
 const ASSETS_TO_CACHE = [
   '/',
   '/manifest.json',

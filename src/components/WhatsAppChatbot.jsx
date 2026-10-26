@@ -189,35 +189,50 @@ export default function WhatsAppChatbot({ systemSettings }) {
       
       {/* 1. FLOATING CHAT TRIGGER BUTTON */}
       {!isOpen && (
-        <button
-          onClick={() => setIsOpen(true)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: '8px',
-            background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
-            color: '#ffffff',
-            border: 'none',
-            borderRadius: '30px',
-            padding: '10px 16px',
-            boxShadow: '0 8px 24px rgba(37, 211, 102, 0.4)',
-            cursor: 'pointer',
-            fontWeight: '800',
-            fontSize: '0.85rem',
-            transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
-            position: 'relative'
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.transform = 'scale(1.06) translateY(-2px)';
-            e.currentTarget.style.boxShadow = '0 12px 28px rgba(37, 211, 102, 0.5)';
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.transform = 'scale(1) translateY(0)';
-            e.currentTarget.style.boxShadow = '0 8px 24px rgba(37, 211, 102, 0.4)';
-          }}
-        >
-          {/* Online Indicator Dot */}
-          <span style={{
+        <>
+          <style>{`
+            @keyframes chatbotBorderPulse {
+              0%, 100% {
+                box-shadow: 0 0 0 2.5px #ffffff, 0 0 0 5.5px #10b981, 0 8px 24px rgba(16, 185, 129, 0.5);
+              }
+              50% {
+                box-shadow: 0 0 0 2.5px #ffffff, 0 0 0 7.5px #059669, 0 12px 30px rgba(16, 185, 129, 0.75);
+              }
+            }
+          `}</style>
+          <button
+            onClick={() => setIsOpen(true)}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
+              color: '#ffffff',
+              border: '2px solid #ffffff',
+              borderRadius: '30px',
+              padding: '10px 18px',
+              boxShadow: '0 0 0 2.5px #ffffff, 0 0 0 5.5px #10b981, 0 8px 24px rgba(16, 185, 129, 0.5)',
+              animation: 'chatbotBorderPulse 2.4s infinite ease-in-out',
+              cursor: 'pointer',
+              fontWeight: '800',
+              fontSize: '0.85rem',
+              letterSpacing: '0.01em',
+              transition: 'all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+              position: 'relative'
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.animation = 'none';
+              e.currentTarget.style.transform = 'scale(1.06) translateY(-2px)';
+              e.currentTarget.style.boxShadow = '0 0 0 2.5px #ffffff, 0 0 0 7px #047857, 0 14px 32px rgba(16, 185, 129, 0.8)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.transform = 'scale(1) translateY(0)';
+              e.currentTarget.style.boxShadow = '0 0 0 2.5px #ffffff, 0 0 0 5.5px #10b981, 0 8px 24px rgba(16, 185, 129, 0.5)';
+              e.currentTarget.style.animation = 'chatbotBorderPulse 2.4s infinite ease-in-out';
+            }}
+          >
+            {/* Online Indicator Dot */}
+            <span style={{
             position: 'absolute',
             top: '-2px',
             right: '-2px',
@@ -236,6 +251,7 @@ export default function WhatsAppChatbot({ systemSettings }) {
           
           <span>24/7 WhatsApp Chatbot</span>
         </button>
+        </>
       )}
 
       {/* 2. CHATBOT POPUP WINDOW */}
@@ -622,36 +638,51 @@ export default function WhatsAppChatbot({ systemSettings }) {
 
                 {/* Final Response Action Buttons (if node has response actions) */}
                 {currentNode.response && Array.isArray(currentNode.response.actions) && currentNode.response.actions.length > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginTop: '2px' }}>
-                    {currentNode.response.actions.map((action) => (
-                      <button
-                        key={action.id}
-                        onClick={() => handleActionClick(action)}
-                        style={{
-                          background: action.type === 'url'
-                            ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
-                            : 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
-                          color: '#ffffff',
-                          border: 'none',
-                          borderRadius: '12px',
-                          padding: '10px 14px',
-                          fontSize: '0.78rem',
-                          fontWeight: '800',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          gap: '8px',
-                          cursor: 'pointer',
-                          boxShadow: '0 4px 10px rgba(16, 185, 129, 0.25)',
-                          transition: 'all 0.2s'
-                        }}
-                        onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.02)'}
-                        onMouseLeave={(e) => e.currentTarget.style.transform = 'scale(1)'}
-                      >
-                        {action.type === 'url' ? <ExternalLink size={15} /> : action.type === 'whatsapp_msg' ? <MessageCircle size={15} /> : <Share2 size={15} />}
-                        <span>{action.button_text}</span>
-                      </button>
-                    ))}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+                    {currentNode.response.actions.map((action) => {
+                      const isPrimary =
+                        action.button_text.includes('விண்ணப்பிக்க') ||
+                        action.button_text.includes('👇');
+
+                      const hasDownFinger = action.button_text.includes('👇');
+                      let cleanText = hasDownFinger ? action.button_text.replace('👇', '').trim() : action.button_text;
+                      // Remove redundant leading equal sign if present from legacy json
+                      if (cleanText.startsWith('=')) cleanText = cleanText.substring(1).trim();
+
+                      const hasDocEmoji = cleanText.startsWith('📄') || cleanText.startsWith('📲');
+
+                      const btnClass = isPrimary
+                        ? 'chatbot-action-btn chatbot-action-btn-primary'
+                        : action.type === 'url'
+                        ? 'chatbot-action-btn chatbot-action-btn-url'
+                        : 'chatbot-action-btn chatbot-action-btn-secondary';
+
+                      return (
+                        <button
+                          key={action.id}
+                          onClick={() => handleActionClick(action)}
+                          className={btnClass}
+                        >
+                          <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%', position: 'relative', zIndex: 1 }}>
+                            {!hasDocEmoji && (
+                              action.type === 'url' ? (
+                                <ExternalLink size={16} style={{ flexShrink: 0 }} />
+                              ) : action.type === 'whatsapp_msg' ? (
+                                <MessageCircle size={16} style={{ flexShrink: 0 }} />
+                              ) : (
+                                <Share2 size={16} style={{ flexShrink: 0 }} />
+                              )
+                            )}
+                            <span style={{ textAlign: 'center', lineHeight: 1.35 }}>
+                              {cleanText}
+                              {hasDownFinger && (
+                                <span className="cta-bounce-finger" style={{ marginLeft: '6px' }}>👇</span>
+                              )}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -661,24 +692,12 @@ export default function WhatsAppChatbot({ systemSettings }) {
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
                     <button
                       onClick={() => sendToWhatsApp(`வணக்கம் Subi E-Sevai, "${currentNode.button_text || currentNode.title}" சேவை பற்றி விவரம் தேவை.`)}
-                      style={{
-                        background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
-                        color: '#ffffff',
-                        border: 'none',
-                        borderRadius: '12px',
-                        padding: '10px 14px',
-                        fontSize: '0.78rem',
-                        fontWeight: '800',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px',
-                        cursor: 'pointer',
-                        boxShadow: '0 4px 10px rgba(37, 211, 102, 0.3)'
-                      }}
+                      className="chatbot-action-btn chatbot-action-btn-primary"
                     >
-                      <MessageCircle size={16} />
-                      <span>WhatsApp மூலம் விசாரிக்க கிளிக் செய்யவும்</span>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%', position: 'relative', zIndex: 1 }}>
+                        <MessageCircle size={16} style={{ flexShrink: 0 }} />
+                        <span style={{ flex: 1, textAlign: 'center', lineHeight: 1.35 }}>WhatsApp மூலம் விசாரிக்க கிளிக் செய்யவும்</span>
+                      </span>
                     </button>
                   </div>
                 )}

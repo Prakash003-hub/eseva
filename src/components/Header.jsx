@@ -1,8 +1,16 @@
 import React, { useState, useEffect } from 'react';
-import { User, LogOut, MessageSquare, X, ChevronDown, Send, ArrowLeft, Star } from 'lucide-react';
+import { User, LogOut, MessageSquare, X, ChevronDown, Send, ArrowLeft, Star, Bell, ArrowDownToLine } from 'lucide-react';
 import { submitFeedback, getFeedback } from '../services/db';
 
-export default function Header({ currentUser, onLogout, onLoginTrigger, onInstallApp, isAdmin }) {
+export default function Header({
+  currentUser,
+  onLogout,
+  onLoginTrigger,
+  onInstallApp,
+  isAdmin,
+  unreadNotificationCount = 0,
+  onOpenNotifications
+}) {
   const [isProfileOpen, setIsProfileOpen] = useState(false);
 
   useEffect(() => {
@@ -127,7 +135,7 @@ export default function Header({ currentUser, onLogout, onLoginTrigger, onInstal
   };
 
   return (
-    <header className="fixed-header" style={{ padding: '10px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 9999 }}>
+    <header className="fixed-header" style={{ padding: '10px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', position: 'sticky', top: 0, zIndex: 9999, borderBottom: '2.5px solid #10b981', boxShadow: '0 4px 18px -2px rgba(16, 185, 129, 0.22), 0 2px 6px rgba(0, 0, 0, 0.04)' }}>
       <div className="logo-container" style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
         <img
           src="/whatsbro_logo.png"
@@ -145,12 +153,116 @@ export default function Header({ currentUser, onLogout, onLoginTrigger, onInstal
         />
         <div>
           <div className="brand-name" style={{ fontSize: '1.4rem', lineHeight: '1.2' }}>Subi - e seva</div>
-          <div className="brand-subtitle" style={{ fontSize: '0.8rem' }}>தமிழ் நாடு முழுவதும் </div>
+          <div className="brand-subtitle" style={{ fontSize: '0.8rem' }}> இ சேவை மையம் & CSC </div>
         </div>
       </div>
 
       {!isAdmin && (
         <div className="header-auth-section" style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
+          {/* PWA App Install Logo Button */}
+          {onInstallApp && (
+            <button
+              id="header-install-pwa-btn"
+              onClick={onInstallApp}
+              title="Install Subi e-Sevai App"
+              aria-label="Install App"
+              style={{
+                position: 'relative',
+                background: 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)',
+                border: '1.5px solid #86efac',
+                borderRadius: '50%',
+                width: '38px',
+                height: '38px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: '#047857',
+                boxShadow: '0 2px 6px rgba(16, 185, 129, 0.15)',
+                transition: 'all 0.2s ease',
+                flexShrink: 0
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.transform = 'scale(1.08)';
+                e.currentTarget.style.background = '#10b981';
+                e.currentTarget.style.borderColor = '#059669';
+                e.currentTarget.style.color = '#ffffff';
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(16, 185, 129, 0.35)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.transform = 'scale(1)';
+                e.currentTarget.style.background = 'linear-gradient(135deg, #f0fdf4 0%, #dcfce7 100%)';
+                e.currentTarget.style.borderColor = '#86efac';
+                e.currentTarget.style.color = '#047857';
+                e.currentTarget.style.boxShadow = '0 2px 6px rgba(16, 185, 129, 0.15)';
+              }}
+            >
+              <ArrowDownToLine size={19} strokeWidth={2.4} />
+            </button>
+          )}
+
+          {/* Notification Center Bell Button */}
+          {onOpenNotifications && (
+            <button
+              id="header-notification-bell-btn"
+              onClick={onOpenNotifications}
+              title="Notifications"
+              aria-label="View notifications"
+              style={{
+                position: 'relative',
+                background: '#f8fafc',
+                border: '1.5px solid #e2e8f0',
+                borderRadius: '50%',
+                width: '38px',
+                height: '38px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                color: '#334155',
+                transition: 'all 0.2s ease',
+                flexShrink: 0
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = '#ecfdf5';
+                e.currentTarget.style.borderColor = '#10b981';
+                e.currentTarget.style.color = '#047857';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = '#f8fafc';
+                e.currentTarget.style.borderColor = '#e2e8f0';
+                e.currentTarget.style.color = '#334155';
+              }}
+            >
+              <Bell size={19} />
+              {unreadNotificationCount > 0 && (
+                <span
+                  style={{
+                    position: 'absolute',
+                    top: '-3px',
+                    right: '-3px',
+                    background: '#ef4444',
+                    color: 'white',
+                    fontSize: '0.62rem',
+                    fontWeight: '900',
+                    minWidth: '18px',
+                    height: '18px',
+                    borderRadius: '9px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    padding: '0 4px',
+                    border: '2px solid #ffffff',
+                    boxShadow: '0 2px 5px rgba(239, 68, 68, 0.4)',
+                    animation: 'pulseScale 1.8s infinite'
+                  }}
+                >
+                  {unreadNotificationCount > 99 ? '99+' : unreadNotificationCount}
+                </span>
+              )}
+            </button>
+          )}
+
           {currentUser ? (
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', position: 'relative' }}>
 

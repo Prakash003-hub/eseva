@@ -225,5 +225,37 @@
       "street_name": "rger",
       "door_no": "6556"
     }
-  ]
+  ],
+  "settings": {
+    "footer_showcase_images": [
+      {
+        "id": "showcase-1",
+        "title": "CSC Services",
+        "subtitle": "Govt Verified",
+        "image": "/income_og_preview.jpg",
+        "link": "/user?tab=apply"
+      },
+      {
+        "id": "showcase-2",
+        "title": "Online Forms",
+        "subtitle": "Fast Processing",
+        "image": "/form_og_preview.jpg",
+        "link": "/user?tab=apply"
+      },
+      {
+        "id": "showcase-3",
+        "title": "Job Updates",
+        "subtitle": "Daily Alerts",
+        "image": "/job_og_preview.jpg",
+        "link": "/user?tab=jobs"
+      },
+      {
+        "id": "showcase-4",
+        "title": "Print & Lamination",
+        "subtitle": "Shop Facility",
+        "image": "/product_og_preview.jpg",
+        "link": "/user?tab=accessories"
+      }
+    ]
+  }
 }

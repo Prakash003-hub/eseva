@@ -2,7 +2,7 @@
   "id": "/",
   "name": "Subi e sevai",
   "short_name": "Subi e sevai",
-  "description": "Subi e sevai Application Portal - E-Sevai & Online Certificate Services",
+  "description": "Subi e-Sevai Online Citizen Service Portal. Apply for Tamil Nadu Government Certificates, Voter IDs, Aadhaar updates, PAN Cards, Passports, and Daily Job Alerts.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",
@@ -10,7 +10,7 @@
   "theme_color": "#047857",
   "orientation": "portrait-primary",
   "prefer_related_applications": false,
-  "categories": ["lifestyle", "business", "utilities"],
+  "categories": ["lifestyle", "business", "utilities", "government"],
   "icons": [
     {
       "src": "/icon-192.png",

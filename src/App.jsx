@@ -9,7 +9,17 @@ import AdminPortal from './pages/AdminPortal';
 import OgGenerator from './pages/OgGenerator';
 import ChatbotPage from './pages/ChatbotPage';
 import InstallPwaBanner from './components/InstallPwaBanner';
-import { registerUser, loginUser, getSettings } from './services/db';
+import NotificationModal from './components/NotificationModal';
+import PWAInstallModal from './components/PWAInstallModal';
+import {
+  computeNotifications,
+  markCategorySeen,
+  markAllSeen,
+  playNotificationSound,
+  sendDeviceNotification
+} from './services/notificationManager';
+import { registerUser, loginUser, getSettings, getPosts, getForms, getJobs, getAnnouncements } from './services/db';
+import { useScrollReveal } from './utils/scrollReveal';
 
 // Web Audio API Synthesizer for Soft Mechanical Keyboard Typing Audio Feedback
 const playTypingSound = () => {
@@ -151,6 +161,9 @@ function PortalLayout() {
     if (frameContent) frameContent.scrollTop = 0;
   }, [location.pathname, location.search]);
 
+  // Activate scroll-triggered motion UI animations for all existing elements
+  useScrollReveal([location.pathname, location.search]);
+
   // Auth state
   const [currentUser, setCurrentUser] = useState(() => {
     const saved = localStorage.getItem('whatsbro_user');
@@ -219,8 +232,8 @@ function PortalLayout() {
   const handleInstallApp = async () => {
     let promptEvent = window.deferredPrompt || deferredPrompt;
     if (!promptEvent) {
-      for (let i = 0; i < 4; i++) {
-        await new Promise((r) => setTimeout(r, 250));
+      for (let i = 0; i < 6; i++) {
+        await new Promise((r) => setTimeout(r, 100));
         promptEvent = window.deferredPrompt || deferredPrompt;
         if (promptEvent) break;
       }
@@ -234,7 +247,7 @@ function PortalLayout() {
           window.deferredPrompt = null;
         }
       } catch (err) {
-        console.error('[PWA] Install prompt error:', err);
+        console.error('[PWA] Direct prompt error:', err);
       }
     }
   };
@@ -249,8 +262,118 @@ function PortalLayout() {
     ? (['posts', 'forms', 'users', 'jobs', 'products', 'announcements', 'settings', 'og', 'chatbot'].includes(rawTab) ? rawTab : 'posts')
     : (['home', 'apply', 'jobs', 'status'].includes(rawTab) ? rawTab : 'home');
 
+  // Notification center state
+  const [isNotificationOpen, setIsNotificationOpen] = useState(false);
+  const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
+  const [notificationState, setNotificationState] = useState({
+    notifications: [],
+    unreadCounts: { home: 0, apply: 0, jobs: 0, announcements: 0, total: 0 }
+  });
+  const [rawFeedData, setRawFeedData] = useState({ posts: [], forms: [], jobs: [], announcements: [] });
+  const prevTotalUnreadRef = React.useRef(0);
+
+  // Load and refresh notifications from database
+  const refreshNotifications = async (triggerAlert = false) => {
+    try {
+      const [p, f, j, a] = await Promise.all([
+        getPosts().catch(() => []),
+        getForms().catch(() => []),
+        getJobs().catch(() => []),
+        getAnnouncements().catch(() => [])
+      ]);
+
+      const posts = Array.isArray(p) ? p : [];
+      const forms = Array.isArray(f) ? f : [];
+      const jobs = Array.isArray(j) ? j : [];
+      const announcements = Array.isArray(a) ? a : [];
+
+      setRawFeedData({ posts, forms, jobs, announcements });
+      const computed = computeNotifications(posts, forms, jobs, announcements);
+      setNotificationState(computed);
+
+      if (triggerAlert && computed.unreadCounts.total > prevTotalUnreadRef.current) {
+        playNotificationSound();
+        const newest = computed.notifications.find(n => n.isNew);
+        if (newest) {
+          sendDeviceNotification(
+            `🔔 New ${newest.categoryLabel}`,
+            newest.title,
+            newest.linkUrl
+          );
+        }
+      }
+      prevTotalUnreadRef.current = computed.unreadCounts.total;
+    } catch (err) {
+      console.error('[App] Failed to refresh notifications:', err);
+    }
+  };
+
+  useEffect(() => {
+    refreshNotifications(false);
+
+    // Auto-poll every 45 seconds to fetch latest updates (posts, forms, jobs, ads)
+    const interval = setInterval(() => {
+      refreshNotifications(true);
+    }, 45000);
+
+    const handleUpdatedEvent = () => {
+      if (rawFeedData.posts.length || rawFeedData.forms.length || rawFeedData.jobs.length) {
+        const computed = computeNotifications(
+          rawFeedData.posts,
+          rawFeedData.forms,
+          rawFeedData.jobs,
+          rawFeedData.announcements
+        );
+        setNotificationState(computed);
+        prevTotalUnreadRef.current = computed.unreadCounts.total;
+      } else {
+        refreshNotifications(false);
+      }
+    };
+
+    window.addEventListener('subi-notifications-updated', handleUpdatedEvent);
+
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('subi-notifications-updated', handleUpdatedEvent);
+    };
+  }, [rawFeedData.posts.length, rawFeedData.forms.length, rawFeedData.jobs.length]);
+
   const handleTabChange = (tabName) => {
     setSearchParams({ tab: tabName });
+    if (tabName === 'home' && rawFeedData.posts.length) {
+      markCategorySeen('posts', rawFeedData.posts);
+    } else if (tabName === 'apply' && rawFeedData.forms.length) {
+      markCategorySeen('forms', rawFeedData.forms);
+    } else if (tabName === 'jobs' && rawFeedData.jobs.length) {
+      markCategorySeen('jobs', rawFeedData.jobs);
+    }
+  };
+
+  const handleSelectNotification = (item) => {
+    setIsNotificationOpen(false);
+    if (item.category === 'home') {
+      markCategorySeen('posts', [{ id: item.rawId }]);
+      setSearchParams({ tab: 'home' });
+    } else if (item.category === 'apply') {
+      markCategorySeen('forms', [{ id: item.rawId }]);
+      setSearchParams({ tab: 'apply', formId: item.rawId });
+    } else if (item.category === 'jobs') {
+      markCategorySeen('jobs', [{ id: item.rawId }]);
+      setSearchParams({ tab: 'jobs', jobId: item.rawId });
+    } else if (item.category === 'announcements') {
+      markCategorySeen('announcements', [{ id: item.rawId }]);
+      setSearchParams({ tab: 'home' });
+    }
+  };
+
+  const handleMarkAllAsRead = () => {
+    markAllSeen(
+      rawFeedData.posts,
+      rawFeedData.forms,
+      rawFeedData.jobs,
+      rawFeedData.announcements
+    );
   };
 
   const handleLogout = () => {
@@ -331,6 +454,8 @@ function PortalLayout() {
             onLogoutClick={handleLogout}
             onUpdateProfile={handleUpdateProfile}
             systemSettings={systemSettings}
+            unreadNotificationCount={notificationState.unreadCounts.total}
+            onOpenNotifications={() => setIsNotificationOpen(true)}
           />
         )}
 
@@ -357,6 +482,14 @@ function PortalLayout() {
               <Route path="*" element={<Navigate to="/user" replace />} />
             </Routes>
           </main>
+
+          {/* Professional Mobile-First About & Footer Information */}
+          {!isAdmin && !isStandaloneChat && (
+            <Footer
+              systemSettings={systemSettings}
+              onNavigateTab={handleTabChange}
+            />
+          )}
 
         </div>
 
@@ -425,21 +558,42 @@ function PortalLayout() {
                 onClick={() => handleTabChange('home')}
                 className={`bottom-nav-item ${activeTab === 'home' ? 'active' : ''}`}
               >
-                <Home className="bottom-nav-icon" size={20} />
+                <div style={{ position: 'relative', display: 'inline-flex' }}>
+                  <Home className="bottom-nav-icon" size={20} />
+                  {notificationState.unreadCounts.home > 0 && (
+                    <span className="bottom-nav-badge">
+                      {notificationState.unreadCounts.home > 99 ? '99+' : notificationState.unreadCounts.home}
+                    </span>
+                  )}
+                </div>
                 <span>Home</span>
               </button>
               <button
                 onClick={() => handleTabChange('apply')}
                 className={`bottom-nav-item ${activeTab === 'apply' ? 'active' : ''}`}
               >
-                <FileText className="bottom-nav-icon" size={20} />
+                <div style={{ position: 'relative', display: 'inline-flex' }}>
+                  <FileText className="bottom-nav-icon" size={20} />
+                  {notificationState.unreadCounts.apply > 0 && (
+                    <span className="bottom-nav-badge">
+                      {notificationState.unreadCounts.apply > 99 ? '99+' : notificationState.unreadCounts.apply}
+                    </span>
+                  )}
+                </div>
                 <span>Application</span>
               </button>
               <button
                 onClick={() => handleTabChange('jobs')}
                 className={`bottom-nav-item ${activeTab === 'jobs' ? 'active' : ''}`}
               >
-                <Briefcase className="bottom-nav-icon" size={20} />
+                <div style={{ position: 'relative', display: 'inline-flex' }}>
+                  <Briefcase className="bottom-nav-icon" size={20} />
+                  {notificationState.unreadCounts.jobs > 0 && (
+                    <span className="bottom-nav-badge">
+                      {notificationState.unreadCounts.jobs > 99 ? '99+' : notificationState.unreadCounts.jobs}
+                    </span>
+                  )}
+                </div>
                 <span>Job Alerts</span>
               </button>
               <button
@@ -452,6 +606,22 @@ function PortalLayout() {
             </div>
           )
         )}
+
+        {/* Global Real-Time Notification Center Modal */}
+        <NotificationModal
+          isOpen={isNotificationOpen}
+          onClose={() => setIsNotificationOpen(false)}
+          notifications={notificationState.notifications}
+          unreadCounts={notificationState.unreadCounts}
+          onSelectNotification={handleSelectNotification}
+          onMarkAllAsRead={handleMarkAllAsRead}
+        />
+
+        {/* Direct PWA Install Modal */}
+        <PWAInstallModal
+          isOpen={isInstallModalOpen}
+          onClose={() => setIsInstallModalOpen(false)}
+        />
 
         {/* Authentication Modal */}
         {isAuthModalOpen && (

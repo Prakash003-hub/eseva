@@ -160,7 +160,7 @@ const getImageUrl = (url) => {
       }
       const driveId = getGoogleDriveId(url);
       if (driveId) {
-        return `https://drive.google.com/thumbnail?id=${driveId}&sz=w1000`;
+        return `https://lh3.googleusercontent.com/d/${driveId}`;
       }
     }
     return url;
@@ -2719,9 +2719,9 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
                 <p className="text-muted">No services published yet.</p>
               </div>
             ) : (
-              sortItems(posts).map((post) => {
+              sortItems(posts).map((post, idx) => {
                 return (
-                  <div id={`post-${post.id}`} className="instagram-post-card" style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div id={`post-${post.id}`} className="instagram-post-card scroll-reveal" data-scroll-reveal style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px', transitionDelay: `${(idx % 4) * 0.08}s` }}>
                     <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-light-main)', margin: 0, lineHeight: '1.3' }}>
                       {post.title}
                     </h3>
@@ -2800,7 +2800,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
               <div style={{ padding: '0 16px' }}>
                 
                 {/* Search Bar */}
-                <div className="category-search-input-wrapper" style={{ marginTop: '16px' }}>
+                <div className="category-search-input-wrapper scroll-reveal" data-scroll-reveal style={{ marginTop: '16px' }}>
                   <Search size={18} style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: '#94a3b8' }} />
                   <input
                     type="text"
@@ -2820,7 +2820,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
                 </div>
 
                 {/* Horizontal Scrollable Category Pills Bar */}
-                <div className="category-pills-scroll-container">
+                <div className="category-pills-scroll-container scroll-reveal" data-scroll-reveal>
                   {categoriesList.map(cat => {
                     const isActive = selectedCategory.toLowerCase().trim() === cat.key.toLowerCase().trim();
                     return (
@@ -2862,7 +2862,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
                         <div key={group.categoryKey} style={{ display: 'flex', flexDirection: 'column' }}>
                           
                           {/* Category Header Banner */}
-                          <div className="category-section-banner">
+                          <div className="category-section-banner scroll-reveal" data-scroll-reveal>
                             <div className="category-section-title">
                               <div className="category-section-icon" style={{ background: `${group.meta.accent}15`, color: group.meta.accent }}>
                                 {group.meta.icon}
@@ -2893,7 +2893,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
 
                           {/* Applications Grid under this Category */}
                           <div className="desktop-grid-2">
-                            {group.items.map((form) => {
+                            {group.items.map((form, formIdx) => {
                               const fieldsCount = safeJsonParse(form.required_fields, []).length;
                               const docsCount = safeJsonParse(form.required_docs, []).length;
                               const isAutoUpcoming = fieldsCount === 0 && docsCount === 0;
@@ -2902,7 +2902,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
                               const showUpcomingLabel = isAutoUpcoming || isManualComingSoon;
 
                               return (
-                                <div key={form.id} className="premium-card" style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                                <div key={form.id} className="premium-card scroll-reveal" data-scroll-reveal style={{ display: 'flex', flexDirection: 'column', height: '100%', transitionDelay: `${(formIdx % 4) * 0.07}s` }}>
                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                                     <span className="badge badge-info" style={{ background: `${group.meta.accent}15`, color: group.meta.accent, border: `1px solid ${group.meta.accent}30` }}>
                                       {form.category || group.categoryName}
@@ -3999,6 +3999,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
                       <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(0,0,0,0.06)', background: '#fafafa', width: '100%', aspectRatio: '1 / 1', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '8px 0' }}>
                         <img
                           src={getImageUrl(selectedJobDetails.img_url)}
+                          referrerPolicy="no-referrer"
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                           alt={selectedJobDetails.title}
                         />
@@ -4064,10 +4065,10 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
                 <p className="text-muted">No job alerts published yet.</p>
               </div>
             ) : (
-              sortItems(jobs).map((job) => {
+              sortItems(jobs).map((job, idx) => {
                 const isJobComingSoon = job.coming_soon === true || String(job.coming_soon).toLowerCase() === 'true';
                 return (
-                  <div key={job.id} className="instagram-post-card" style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  <div key={job.id} className="instagram-post-card scroll-reveal" data-scroll-reveal style={{ padding: '18px', display: 'flex', flexDirection: 'column', gap: '12px', transitionDelay: `${(idx % 4) * 0.08}s` }}>
                     <h3 style={{ fontSize: '1.2rem', fontWeight: 800, color: 'var(--text-light-main)', margin: 0, lineHeight: '1.3', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '8px' }}>
                       {job.title}
                       {isJobComingSoon && (
@@ -4090,6 +4091,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
                       <div style={{ borderRadius: '10px', overflow: 'hidden', border: '1px solid rgba(0,0,0,0.06)', background: '#fafafa', width: '100%', aspectRatio: '1 / 1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                         <img
                           src={getImageUrl(job.img_url)}
+                          referrerPolicy="no-referrer"
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                           alt={job.title}
                         />
@@ -4132,7 +4134,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
           <div style={{ padding: '0 16px', display: 'flex', flexDirection: 'column', gap: '20px' }}>
             
             {/* Status Search Card */}
-            <div className="premium-card" style={{ borderTop: '6px solid var(--primary)', background: 'white', borderRadius: '16px', padding: '24px' }}>
+            <div className="premium-card scroll-reveal" data-scroll-reveal style={{ borderTop: '6px solid var(--primary)', background: 'white', borderRadius: '16px', padding: '24px' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '16px' }}>
                 <CheckCircle size={24} style={{ color: 'var(--primary)' }} />
                 <div>
@@ -4224,7 +4226,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
             {searchingStatus ? (
               renderMintGreenLoader("Searching Applications...")
             ) : hasSearchedStatus && userApplications.length === 0 ? (
-              <div className="premium-card text-center" style={{ padding: '32px 20px', background: 'white', borderRadius: '16px' }}>
+              <div className="premium-card text-center scroll-reveal" data-scroll-reveal style={{ padding: '32px 20px', background: 'white', borderRadius: '16px' }}>
                 <AlertCircle size={40} style={{ color: '#94a3b8', margin: '0 auto 12px auto' }} />
                 <h4 style={{ margin: 0, fontSize: '1rem', color: '#334155' }}>No Applications Found</h4>
                 <p style={{ margin: '6px 0 0 0', fontSize: '0.8rem', color: '#64748b' }}>
@@ -4237,7 +4239,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
                   Application Records ({userApplications.length})
                 </h4>
 
-                {userApplications.map((app) => {
+                {userApplications.map((app, idx) => {
                   const targetForm = forms.find(f => f.id === app.form_id);
                   const title = targetForm?.title || app.form_title || `Application #${app.id}`;
                   const categoryName = targetForm?.category || app.category || 'General';
@@ -4247,7 +4249,7 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
                   const percent = Number(app.progress_percent) || 0;
 
                   return (
-                    <div key={app.id} className="premium-card" style={{ padding: '20px', background: 'white', borderRadius: '16px', borderLeft: `6px solid ${isPaid ? '#10b981' : isDraft ? '#f59e0b' : '#3b82f6'}` }}>
+                    <div key={app.id} className="premium-card scroll-reveal" data-scroll-reveal style={{ padding: '20px', background: 'white', borderRadius: '16px', borderLeft: `6px solid ${isPaid ? '#10b981' : isDraft ? '#f59e0b' : '#3b82f6'}`, transitionDelay: `${(idx % 4) * 0.08}s` }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '8px' }}>
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap' }}>

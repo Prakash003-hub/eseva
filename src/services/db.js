@@ -5,6 +5,8 @@
  */
 
 import mockData from '../data.json';
+import defaultFooterShowcase from '../config/footerShowcase.json';
+
 
 // Get Google Apps Script Web App URL from Environment Variables
 const GOOGLE_SCRIPT_URL = import.meta.env.VITE_GOOGLE_SCRIPT_URL || '';
@@ -16,6 +18,28 @@ if (!GOOGLE_SCRIPT_URL) {
     "Falling back to local browser storage and static data.json mock for offline demo mode."
   );
 }
+
+// Dedicated Google Apps Script Web App Endpoint for Job Alerts
+const DEFAULT_JOB_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbwH9p_4Ap-5JcSYu1Xapmb3sH2YvLU3OifeZgT-TFh81JjedH9psjdxjHAuaxu3U8LO/exec';
+
+export const getJobScriptUrl = () => {
+  if (typeof window !== 'undefined') {
+    const custom = localStorage.getItem('job_sheet_url');
+    if (custom && custom.trim().length > 0) return custom.trim();
+  }
+  return import.meta.env.VITE_JOB_SCRIPT_URL || DEFAULT_JOB_SCRIPT_URL;
+};
+
+export const setJobScriptUrl = (url) => {
+  if (typeof window !== 'undefined') {
+    if (!url || url.trim().length === 0) {
+      localStorage.removeItem('job_sheet_url');
+    } else {
+      localStorage.setItem('job_sheet_url', url.trim());
+    }
+  }
+};
+
 
 // --- HELPER: FILE TO BASE64 ENCODER ---
 const fileToBase64 = (file) => new Promise((resolve, reject) => {
@@ -96,24 +120,116 @@ const callApiGet = async (action, queryParams = {}) => {
 };
 
 // --- HELPER: FILE UPLOADER TO GOOGLE DRIVE ---
-export const uploadFileToDrive = async (file, folderPathArray) => {
+// Dedicated Job API Callers - Ensures ONLY the Job Sheet URL is used for jobs, and never the general sheet
+const callJobApi = async (action, payload = {}) => {
+  const jobUrl = getJobScriptUrl();
+  if (!jobUrl) {
+    console.warn("No Job Sheet URL configured! Falling back to local mock storage for jobs.");
+    return callMockFallback(action, payload);
+  }
+
+  try {
+    const response = await fetch(jobUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8',
+      },
+      body: JSON.stringify({
+        action,
+        ...payload
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Job API returned HTTP Status ${response.status}`);
+    }
+
+    const json = await response.json();
+    if (!json.success) {
+      throw new Error(json.error || "Unknown Job Apps Script Execution Failure");
+    }
+
+    console.log(`[JOB API POST] Action: ${action} | Response:`, json.data);
+    return json.data;
+  } catch (err) {
+    console.warn(`Job Google API Network Error on action [${action}]:`, err);
+    throw err;
+  }
+};
+
+const callJobApiGet = async (action, queryParams = {}) => {
+  const jobUrl = getJobScriptUrl();
+  if (!jobUrl) {
+    console.warn("No Job Sheet URL configured! Falling back to mock jobs.");
+    return callMockFallback(action, queryParams);
+  }
+
+  try {
+    const urlParams = new URLSearchParams({ action, ...queryParams, _t: Date.now() });
+    const response = await fetch(`${jobUrl}?${urlParams.toString()}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Job API returned HTTP Status ${response.status}`);
+    }
+
+    const json = await response.json();
+    if (!json.success) {
+      throw new Error(json.error || "Unknown Job Apps Script Execution Failure");
+    }
+
+    console.log(`[JOB API GET] Action: ${action} | Records:`, Array.isArray(json.data) ? json.data.length : 'N/A');
+    return json.data;
+  } catch (err) {
+    console.warn(`Job Google GET API Network Error on action [${action}]. Falling back to mock jobs:`, err);
+    return callMockFallback(action, queryParams);
+  }
+};
+
+export const uploadFileToDrive = async (file, folderPathArray, targetScriptUrl = null) => {
   if (!file) return null;
   
   try {
     const base64Data = await fileToBase64(file);
-    const response = await callApi("uploadFile", {
-      fileData: base64Data,
-      fileName: file.name,
-      mimeType: file.type,
-      pathArray: folderPathArray
-    });
-    
-    // For PDFs, use standard Drive Viewer URL for proper in-app preview rendering.
-    // For images, use Direct Stream Download URL to allow direct native image rendering.
-    if (file.type === 'application/pdf') {
-      return response.fileUrl;
+    const targetUrl = targetScriptUrl || GOOGLE_SCRIPT_URL;
+
+    if (!targetUrl) {
+      const dataUrl = `data:${file.type || 'image/png'};base64,${base64Data}`;
+      return dataUrl;
     }
-    return response.downloadUrl;
+
+    const response = await fetch(targetUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'text/plain;charset=utf-8',
+      },
+      body: JSON.stringify({
+        action: "uploadFile",
+        fileData: base64Data,
+        fileName: file.name,
+        mimeType: file.type,
+        pathArray: folderPathArray
+      })
+    });
+
+    if (!response.ok) {
+      throw new Error(`Upload API returned HTTP Status ${response.status}`);
+    }
+
+    const json = await response.json();
+    if (!json.success) {
+      throw new Error(json.error || "Upload failed");
+    }
+
+    const result = json.data;
+    if (file.type === 'application/pdf') {
+      return result.fileUrl;
+    }
+    return result.downloadUrl;
   } catch (err) {
     console.error("File upload to Google Drive failed:", err);
     throw new Error("Failed to store file in Google Drive. Make sure file size is under 10MB.");
@@ -149,10 +265,11 @@ export const uploadPostImage = async (file) => {
   return { img_url: url };
 };
 
-// --- JOBS SERVICE ---
+// --- JOBS SERVICE (ISOLATED DEDICATED JOB SHEET) ---
+// Only uses the dedicated Job Sheet URL, preventing interference with other sheets
 export const getJobs = async () => {
   try {
-    const data = await callApiGet("getJobs");
+    const data = await callJobApiGet("getJobs");
     return Array.isArray(data) ? data : [];
   } catch (err) {
     console.error("Error in getJobs:", err);
@@ -161,19 +278,20 @@ export const getJobs = async () => {
 };
 
 export const createJob = async (jobData) => {
-  return await callApi("createJob", { payload: jobData });
+  return await callJobApi("createJob", { payload: jobData });
 };
 
 export const updateJob = async (id, jobData) => {
-  return await callApi("updateJob", { id, payload: jobData });
+  return await callJobApi("updateJob", { id, payload: jobData });
 };
 
 export const deleteJob = async (id) => {
-  return await callApi("deleteJob", { id });
+  return await callJobApi("deleteJob", { id });
 };
 
 export const uploadJobImage = async (file) => {
-  const url = await uploadFileToDrive(file, ["WhatsBroTNService_Uploads", "Job_Banners"]);
+  const jobUrl = getJobScriptUrl();
+  const url = await uploadFileToDrive(file, ["WhatsBroTNService_Uploads", "Job_Banners"], jobUrl);
   return { img_url: url };
 };
 
@@ -724,6 +842,24 @@ export const getSettings = async () => {
 
 export const updateSettings = async (settingsData) => {
   return await callApi("updateSettings", { payload: settingsData });
+};
+
+export const saveFooterShowcaseImages = async (images) => {
+  let fileSaved = false;
+  try {
+    const res = await fetch('/api/footer-showcase/save', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(images)
+    });
+    if (res.ok) {
+      fileSaved = true;
+    }
+  } catch (e) {
+    console.warn("Could not write to local footerShowcase.json via Vite middleware:", e);
+  }
+  await updateSettings({ footer_showcase_images: images });
+  return { success: true, fileSaved };
 };
 
 // --- ANNOUNCEMENTS SERVICE ---
@@ -1410,12 +1546,22 @@ Official Website$https://www.tnpsc.gov.in/
       throw new Error("Feedback entry not found.");
     }
     
-    case "getSettings":
-      return JSON.parse(localStorage.getItem('mock_settings') || '{"admin_email":""}');
+    case "getSettings": {
+      const saved = JSON.parse(localStorage.getItem('mock_settings') || '{}');
+      return {
+        admin_email: "",
+        footer_showcase_images: defaultFooterShowcase,
+        ...saved
+      };
+    }
       
     case "updateSettings": {
-      const currentSettings = JSON.parse(localStorage.getItem('mock_settings') || '{"admin_email":""}');
-      const mergedSettings = { ...currentSettings, ...payload.payload };
+      const currentSettings = JSON.parse(localStorage.getItem('mock_settings') || '{}');
+      const mergedSettings = {
+        footer_showcase_images: defaultFooterShowcase,
+        ...currentSettings,
+        ...payload.payload
+      };
       localStorage.setItem('mock_settings', JSON.stringify(mergedSettings));
       return mergedSettings;
     }

@@ -139,12 +139,12 @@ h1, h2, h3, h4 {
   background: rgba(255, 255, 255, 0.9);
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(30, 168, 103, 0.08);
+  border-bottom: 2.5px solid #10b981;
   padding: 14px 20px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.02);
+  box-shadow: 0 4px 18px -2px rgba(16, 185, 129, 0.22), 0 2px 6px rgba(0, 0, 0, 0.04);
 }
 
 .fixed-header .logo-container {
@@ -718,12 +718,12 @@ h1, h2, h3, h4 {
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(16px);
   -webkit-backdrop-filter: blur(16px);
-  border-top: 1px solid var(--border-light);
+  border-top: 2.5px solid #10b981;
   display: flex;
   justify-content: space-around;
   align-items: center;
   padding: 8px 12px 14px 12px;
-  box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.05);
+  box-shadow: 0 -8px 24px rgba(16, 185, 129, 0.16), 0 -2px 6px rgba(0, 0, 0, 0.04);
 }
 
 .bottom-nav-item {
@@ -761,6 +761,310 @@ h1, h2, h3, h4 {
 .bottom-nav-item.active .bottom-nav-icon {
   transform: scale(1.1);
   color: var(--primary);
+}
+
+.bottom-nav-badge {
+  position: absolute;
+  top: -4px;
+  right: -8px;
+  background: #ef4444;
+  color: #ffffff;
+  font-size: 0.62rem;
+  font-weight: 800;
+  min-width: 17px;
+  height: 17px;
+  border-radius: 9px;
+  padding: 0 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid #ffffff;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.45);
+  animation: pulse-badge 2s infinite;
+  z-index: 10;
+}
+
+@keyframes pulse-badge {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.18); }
+}
+
+@keyframes pulseScale {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.12); }
+}
+
+@keyframes slideUpFade {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Animated & Highlighted Location Button */
+.loc-btn-highlight {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #047857 0%, #10b981 50%, #059669 100%) !important;
+  background-size: 200% 200% !important;
+  animation: locGradientShift 3.5s ease infinite, locGlowPulse 2.2s infinite alternate !important;
+  box-shadow: 0 4px 16px rgba(16, 185, 129, 0.4) !important;
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.loc-btn-highlight::after {
+  content: '';
+  position: absolute;
+  top: -50%;
+  left: -60%;
+  width: 40%;
+  height: 200%;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.38) 50%,
+    transparent 100%
+  );
+  transform: rotate(25deg);
+  animation: locShimmerSweep 3s infinite ease-in-out;
+  pointer-events: none;
+}
+
+.loc-btn-highlight:hover {
+  transform: translateY(-2px) scale(1.01) !important;
+  box-shadow: 0 8px 26px rgba(16, 185, 129, 0.6) !important;
+}
+
+.loc-btn-highlight:active {
+  transform: translateY(0) scale(0.99) !important;
+}
+
+.loc-beacon-dot {
+  position: relative;
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #ffffff;
+  flex-shrink: 0;
+}
+
+.loc-beacon-dot::after {
+  content: '';
+  position: absolute;
+  top: -3px;
+  left: -3px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.7);
+  animation: beaconPulse 1.6s infinite cubic-bezier(0, 0, 0.2, 1);
+}
+
+.loc-nav-icon {
+  animation: navBounce 2s infinite ease-in-out;
+  flex-shrink: 0;
+}
+
+@keyframes locGradientShift {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes locGlowPulse {
+  0% {
+    box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35);
+  }
+  100% {
+    box-shadow: 0 8px 26px rgba(16, 185, 129, 0.65), 0 0 14px rgba(52, 211, 153, 0.45);
+  }
+}
+
+@keyframes locShimmerSweep {
+  0% { left: -60%; }
+  40% { left: 140%; }
+  100% { left: 140%; }
+}
+
+@keyframes beaconPulse {
+  0% { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(2.2); opacity: 0; }
+}
+
+@keyframes navBounce {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(3px, -3px); }
+}
+
+.badge-highlight-pulse {
+  animation: pulseScale 1.8s infinite;
+}
+
+/* Premium Footer Micro-Interactions & Staggered Animations */
+.footer-fade-up {
+  animation: footerFadeUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+
+@keyframes footerFadeUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.footer-card-interactive {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease !important;
+  will-change: transform, box-shadow;
+}
+
+.footer-card-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 25px -4px rgba(16, 185, 129, 0.16) !important;
+}
+
+.footer-trust-badge {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease !important;
+  cursor: default;
+}
+
+.footer-trust-badge:hover {
+  transform: translateY(-1.5px) scale(1.02);
+  background: #ecfdf5 !important;
+  border-color: #86efac !important;
+  box-shadow: 0 4px 10px rgba(16, 185, 129, 0.1);
+}
+
+/* Footer 1:1 Showcase Scroll & Card */
+.footer-showcase-scroll {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+.footer-showcase-scroll::-webkit-scrollbar {
+  display: none;
+}
+.footer-showcase-card {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+.footer-showcase-card:hover {
+  transform: translateY(-3px) scale(1.02);
+  box-shadow: 0 10px 20px -3px rgba(6, 78, 59, 0.18) !important;
+}
+.footer-showcase-card:active {
+  transform: scale(0.98);
+}
+.footer-showcase-card:hover img {
+  transform: scale(1.06);
+}
+
+
+.footer-group-card {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease, box-shadow 0.25s ease !important;
+}
+
+.footer-group-card:hover {
+  transform: translateY(-2px) !important;
+  box-shadow: 0 6px 18px rgba(16, 185, 129, 0.12) !important;
+  border-color: #10b981 !important;
+}
+
+.footer-group-card:hover .footer-group-icon {
+  transform: scale(1.08) rotate(3deg);
+}
+
+.footer-group-card:hover .footer-external-icon {
+  transform: translate(2px, -2px);
+  color: #10b981 !important;
+}
+
+.footer-group-card:active {
+  transform: translateY(0) scale(0.99) !important;
+}
+
+.footer-group-icon {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.footer-external-icon {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), color 0.2s ease !important;
+}
+
+.footer-contact-btn {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1), filter 0.2s ease, box-shadow 0.2s ease !important;
+}
+
+.footer-contact-btn:hover {
+  transform: translateY(-2px) scale(1.02) !important;
+  filter: brightness(1.06);
+}
+
+.footer-contact-btn:hover svg {
+  transform: scale(1.12);
+}
+
+.footer-contact-btn svg {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1) !important;
+}
+
+.footer-contact-btn:active {
+  transform: translateY(0) scale(0.97) !important;
+}
+
+.footer-dev-credit {
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1) !important;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.footer-dev-credit:hover {
+  color: #ffffff !important;
+  transform: translateX(2px);
+}
+
+.footer-dev-credit:hover svg {
+  transform: translate(1px, -1px);
+  color: #4ade80 !important;
+}
+
+.footer-dev-credit svg {
+  transition: transform 0.2s ease, color 0.2s ease !important;
+}
+
+.footer-legal-link {
+  transition: color 0.2s ease, text-shadow 0.2s ease !important;
+}
+
+.footer-legal-link:hover {
+  color: #ffffff !important;
+  text-shadow: 0 0 8px rgba(74, 222, 128, 0.4);
+}
+
+/* Reduced Motion Support */
+@media (prefers-reduced-motion: reduce) {
+  .footer-fade-up,
+  .loc-btn-highlight,
+  .loc-beacon-dot::after,
+  .loc-nav-icon,
+  .badge-highlight-pulse,
+  .footer-card-interactive,
+  .footer-trust-badge,
+  .footer-group-card,
+  .footer-contact-btn,
+  .footer-dev-credit,
+  .footer-legal-link {
+    animation: none !important;
+    transition: none !important;
+    transform: none !important;
+  }
 }
 
 /* Responsive Admin Submissions Table for Mobile viewports */
@@ -1431,7 +1735,267 @@ input:focus, select:focus, textarea:focus {
   transition: all 0.2s ease;
 }
 
+/* ==========================================================================
+   SCROLL-TRIGGERED MOTION UI ANIMATIONS & MICRO-INTERACTIONS
+   Lightweight, 60fps hardware-accelerated animations with natural cubic easing
+   ========================================================================== */
+
+/* 1. Base Scroll Reveal (Subtle Fade-Up) */
+.scroll-reveal,
+[data-scroll-reveal] {
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.scroll-reveal.is-revealed,
+[data-scroll-reveal].is-revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* 2. Pure Fade-In (Ideal for banners, modals, and overlays) */
+.scroll-reveal-fade {
+  opacity: 0;
+  transition: opacity 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity;
+}
+
+.scroll-reveal-fade.is-revealed {
+  opacity: 1;
+}
+
+/* 3. Subtle Slide-In from Left */
+.scroll-reveal-left {
+  opacity: 0;
+  transform: translateX(-22px);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.scroll-reveal-left.is-revealed {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* 4. Subtle Slide-In from Right */
+.scroll-reveal-right {
+  opacity: 0;
+  transform: translateX(22px);
+  transition: opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.6s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.scroll-reveal-right.is-revealed {
+  opacity: 1;
+  transform: translateX(0);
+}
+
+/* 5. Scale + Fade Entrance (Card highlights) */
+.scroll-reveal-scale {
+  opacity: 0;
+  transform: scale(0.96) translateY(12px);
+  transition: opacity 0.55s cubic-bezier(0.16, 1, 0.3, 1),
+              transform 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+  will-change: opacity, transform;
+}
+
+.scroll-reveal-scale.is-revealed {
+  opacity: 1;
+  transform: scale(1) translateY(0);
+}
+
+/* 6. Staggered Delays for Card Grids and Child Elements */
+.scroll-stagger > *:nth-child(1) { transition-delay: 0.04s; }
+.scroll-stagger > *:nth-child(2) { transition-delay: 0.10s; }
+.scroll-stagger > *:nth-child(3) { transition-delay: 0.16s; }
+.scroll-stagger > *:nth-child(4) { transition-delay: 0.22s; }
+.scroll-stagger > *:nth-child(5) { transition-delay: 0.28s; }
+.scroll-stagger > *:nth-child(6) { transition-delay: 0.34s; }
+.scroll-stagger > *:nth-child(7) { transition-delay: 0.40s; }
+.scroll-stagger > *:nth-child(8) { transition-delay: 0.46s; }
+
+/* 7. Footer Interactive Elements & Micro-Interactions */
+.footer-card-interactive {
+  transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.footer-card-interactive:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px -6px rgba(16, 185, 129, 0.14) !important;
+}
+
+.footer-trust-badge {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              background-color 0.25s ease;
+}
+.footer-trust-badge:hover {
+  transform: translateY(-2px) scale(1.02);
+  box-shadow: 0 4px 12px rgba(16, 185, 129, 0.12);
+  background-color: #ecfdf5 !important;
+}
+
+.footer-group-card {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1),
+              border-color 0.25s ease;
+}
+.footer-group-card:hover {
+  transform: translateY(-2px) scale(1.01);
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06) !important;
+}
+.footer-group-card:active {
+  transform: scale(0.99);
+}
+
+.footer-contact-btn {
+  transition: transform 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              box-shadow 0.2s cubic-bezier(0.16, 1, 0.3, 1),
+              filter 0.2s ease;
+}
+.footer-contact-btn:hover {
+  transform: translateY(-2px) scale(1.02);
+  filter: brightness(1.05);
+}
+.footer-contact-btn:active {
+  transform: scale(0.97);
+}
+
+/* 8. Accessibility: Respect prefers-reduced-motion */
+@media (prefers-reduced-motion: reduce) {
+  .scroll-reveal,
+  [data-scroll-reveal],
+  .scroll-reveal-fade,
+  .scroll-reveal-left,
+  .scroll-reveal-right,
+  .scroll-reveal-scale,
+  .scroll-stagger > *,
+  .footer-card-interactive,
+  .footer-trust-badge,
+  .footer-group-card,
+  .footer-contact-btn {
+    opacity: 1 !important;
+    transform: none !important;
+    transition: none !important;
+    animation: none !important;
+  }
+}
 
 
 
 
+
+
+
+
+/* ==========================================================================
+   CHATBOT ANIMATIVE ACTION BUTTONS & UI ENHANCEMENTS
+   ========================================================================== */
+
+@keyframes ctaButtonShimmer {
+  0% { transform: translateX(-180%) skewX(-20deg); }
+  35%, 100% { transform: translateX(280%) skewX(-20deg); }
+}
+
+@keyframes ctaPulseGlow {
+  0%, 100% {
+    box-shadow: 0 0 0 2px #ffffff, 0 0 0 4.5px #10b981, 0 6px 18px rgba(16, 185, 129, 0.45);
+    transform: scale(1);
+  }
+  50% {
+    box-shadow: 0 0 0 2.5px #ffffff, 0 0 0 6.5px #059669, 0 10px 24px rgba(16, 185, 129, 0.7);
+    transform: scale(1.02);
+  }
+}
+
+@keyframes ctaBounceFinger {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(4px); }
+}
+
+.chatbot-action-btn {
+  position: relative;
+  overflow: hidden;
+  border-radius: 12px;
+  padding: 11px 14px;
+  font-size: 0.82rem;
+  font-weight: 800;
+  cursor: pointer;
+  border: 1.5px solid rgba(255, 255, 255, 0.6);
+  transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  width: 100%;
+  box-sizing: border-box;
+  text-decoration: none;
+  font-family: inherit;
+  WebkitTapHighlightColor: transparent;
+}
+
+.chatbot-action-btn:hover {
+  transform: translateY(-2px) scale(1.02);
+  filter: brightness(1.06);
+}
+
+.chatbot-action-btn:active {
+  transform: scale(0.97) translateY(0) !important;
+}
+
+/* Primary Apply CTA Button (Highlighted, Pulsing & Shimmering) */
+.chatbot-action-btn-primary {
+  background: linear-gradient(135deg, #10b981 0%, #059669 50%, #047857 100%) !important;
+  color: #ffffff !important;
+  border: 2px solid #ffffff !important;
+  animation: ctaPulseGlow 2.5s infinite ease-in-out;
+}
+
+.chatbot-action-btn-primary:hover {
+  animation: none;
+  transform: translateY(-2px) scale(1.03);
+  box-shadow: 0 0 0 2.5px #ffffff, 0 0 0 7px #059669, 0 12px 28px rgba(16, 185, 129, 0.75) !important;
+}
+
+/* Shimmer Light Ribbon Effect */
+.chatbot-action-btn-primary::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 60%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.45), transparent);
+  animation: ctaButtonShimmer 3.2s infinite ease-in-out;
+  pointer-events: none;
+}
+
+/* Apply Online Direct URL Button */
+.chatbot-action-btn-url {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%) !important;
+  color: #ffffff !important;
+  border: 1.5px solid rgba(255, 255, 255, 0.6) !important;
+  box-shadow: 0 4px 12px rgba(5, 150, 105, 0.3);
+}
+
+.chatbot-action-btn-url:hover {
+  box-shadow: 0 6px 18px rgba(5, 150, 105, 0.45);
+}
+
+/* Secondary Action Buttons */
+.chatbot-action-btn-secondary {
+  background: linear-gradient(135deg, #25D366 0%, #128C7E 100%) !important;
+  color: #ffffff !important;
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.28);
+}
+
+.chatbot-action-btn-secondary:hover {
+  box-shadow: 0 6px 18px rgba(37, 211, 102, 0.45);
+}
+
+/* Bouncing Down Finger Animation */
+.cta-bounce-finger {
+  display: inline-block;
+  animation: ctaBounceFinger 1.2s infinite ease-in-out;
+}

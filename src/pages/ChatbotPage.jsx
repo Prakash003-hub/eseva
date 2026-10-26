@@ -474,36 +474,50 @@ export default function ChatbotPage({ systemSettings }) {
 
               {/* Action Buttons */}
               {currentNode.response && Array.isArray(currentNode.response.actions) && currentNode.response.actions.length > 0 && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '2px' }}>
-                  {currentNode.response.actions.map((action) => (
-                    <button
-                      key={action.id}
-                      onClick={() => handleActionClick(action)}
-                      className="chat-touch-btn"
-                      style={{
-                        background: action.type === 'url'
-                          ? 'linear-gradient(135deg, #10b981 0%, #059669 100%)'
-                          : 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
-                        color: '#ffffff',
-                        border: 'none',
-                        borderRadius: '12px',
-                        padding: '12px 16px',
-                        fontSize: '0.92rem',
-                        fontWeight: '800',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        gap: '8px',
-                        cursor: 'pointer',
-                        boxShadow: '0 4px 12px rgba(16, 185, 129, 0.25)',
-                        transition: 'all 0.15s ease',
-                        WebkitTapHighlightColor: 'transparent'
-                      }}
-                    >
-                      {action.type === 'url' ? <ExternalLink size={17} /> : action.type === 'whatsapp_msg' ? <MessageCircle size={17} /> : <Share2 size={17} />}
-                      <span>{action.button_text}</span>
-                    </button>
-                  ))}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
+                  {currentNode.response.actions.map((action) => {
+                    const isPrimary =
+                      action.button_text.includes('விண்ணப்பிக்க') ||
+                      action.button_text.includes('👇');
+
+                    const hasDownFinger = action.button_text.includes('👇');
+                    let cleanText = hasDownFinger ? action.button_text.replace('👇', '').trim() : action.button_text;
+                    if (cleanText.startsWith('=')) cleanText = cleanText.substring(1).trim();
+
+                    const hasDocEmoji = cleanText.startsWith('📄') || cleanText.startsWith('📲');
+
+                    const btnClass = isPrimary
+                      ? 'chatbot-action-btn chatbot-action-btn-primary'
+                      : action.type === 'url'
+                      ? 'chatbot-action-btn chatbot-action-btn-url'
+                      : 'chatbot-action-btn chatbot-action-btn-secondary';
+
+                    return (
+                      <button
+                        key={action.id}
+                        onClick={() => handleActionClick(action)}
+                        className={btnClass}
+                      >
+                        <span style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%', position: 'relative', zIndex: 1 }}>
+                          {!hasDocEmoji && (
+                            action.type === 'url' ? (
+                              <ExternalLink size={17} style={{ flexShrink: 0 }} />
+                            ) : action.type === 'whatsapp_msg' ? (
+                              <MessageCircle size={17} style={{ flexShrink: 0 }} />
+                            ) : (
+                              <Share2 size={17} style={{ flexShrink: 0 }} />
+                            )
+                          )}
+                          <span style={{ textAlign: 'center', lineHeight: 1.35 }}>
+                            {cleanText}
+                            {hasDownFinger && (
+                              <span className="cta-bounce-finger" style={{ marginLeft: '6px' }}>👇</span>
+                            )}
+                          </span>
+                        </span>
+                      </button>
+                    );
+                  })}
                 </div>
               )}
 
@@ -512,26 +526,12 @@ export default function ChatbotPage({ systemSettings }) {
                (!currentNode.response || !Array.isArray(currentNode.response.actions) || currentNode.response.actions.length === 0) && (
                 <button
                   onClick={() => sendToWhatsApp(`வணக்கம் Subi E-Sevai, "${currentNode.button_text || currentNode.title}" சேவை பற்றி விவரம் தேவை.`)}
-                  className="chat-touch-btn"
-                  style={{
-                    background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '12px',
-                    padding: '12px 16px',
-                    fontSize: '0.92rem',
-                    fontWeight: '800',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 12px rgba(37, 211, 102, 0.3)',
-                    WebkitTapHighlightColor: 'transparent'
-                  }}
+                  className="chatbot-action-btn chatbot-action-btn-primary"
                 >
-                  <MessageCircle size={18} />
-                  <span>WhatsApp மூலம் விசாரிக்க கிளிக் செய்யவும்</span>
+                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%', position: 'relative', zIndex: 1 }}>
+                    <MessageCircle size={18} style={{ flexShrink: 0 }} />
+                    <span style={{ flex: 1, textAlign: 'center', lineHeight: 1.35 }}>WhatsApp மூலம் விசாரிக்க கிளிக் செய்யவும்</span>
+                  </span>
                 </button>
               )}
 

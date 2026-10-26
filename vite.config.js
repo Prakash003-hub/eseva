@@ -463,6 +463,88 @@ function localOgUploadPlugin() {
   };
 }
 
+function localFooterShowcasePlugin() {
+  const FOOTER_SHOWCASE_CONFIG_PATH = path.join(process.cwd(), 'src', 'config', 'footerShowcase.json');
+  const FOOTER_SHOWCASE_PUBLIC_PATH = path.join(process.cwd(), 'public', 'data', 'footerShowcase.json');
+
+  return {
+    name: 'local-footer-showcase-sync',
+    configureServer(server) {
+      server.middlewares.use(async (req, res, next) => {
+        if (!req.url) {
+          next();
+          return;
+        }
+
+        if (req.url.startsWith('/api/footer-showcase/upload-image') && req.method === 'POST') {
+          try {
+            const body = JSON.parse(await readRequestBody(req));
+            if (!body.image) {
+              sendJson(res, 400, { success: false, error: 'Missing image data.' });
+              return;
+            }
+            const uploadsDir = path.join(process.cwd(), 'public/uploads');
+            ensureDir(uploadsDir);
+
+            const base64Data = String(body.image).replace(/^data:image\/\w+;base64,/, '');
+            const buffer = Buffer.from(base64Data, 'base64');
+            const fileName = `showcase-${Date.now()}-${Math.random().toString(36).slice(2, 7)}.jpg`;
+            const filePath = path.join(uploadsDir, fileName);
+            fs.writeFileSync(filePath, buffer);
+
+            const distUploadsDir = path.join(process.cwd(), 'dist/uploads');
+            if (fs.existsSync(path.join(process.cwd(), 'dist'))) {
+              ensureDir(distUploadsDir);
+              fs.writeFileSync(path.join(distUploadsDir, fileName), buffer);
+            }
+
+            sendJson(res, 200, {
+              success: true,
+              imagePath: `/uploads/${fileName}`,
+              message: 'Showcase image saved to local file successfully'
+            });
+          } catch (error) {
+            console.error('[Footer Showcase Upload Error]:', error);
+            sendJson(res, 500, { success: false, error: error.message || 'Failed to save showcase image file' });
+          }
+          return;
+        }
+
+        if (req.url.startsWith('/api/footer-showcase/save') && req.method === 'POST') {
+          try {
+            const body = JSON.parse(await readRequestBody(req));
+            const content = Array.isArray(body) ? body : (body.images || []);
+            writeJsonFile(FOOTER_SHOWCASE_CONFIG_PATH, content);
+            writeJsonFile(FOOTER_SHOWCASE_PUBLIC_PATH, content);
+            sendJson(res, 200, {
+              success: true,
+              message: 'Successfully updated footerShowcase.json on disk.',
+              data: content
+            });
+          } catch (error) {
+            console.error('[Footer Showcase Save Error]:', error);
+            sendJson(res, 500, { success: false, error: error.message || 'Failed to save footerShowcase.json' });
+          }
+          return;
+        }
+
+        if (req.url.startsWith('/api/footer-showcase') && req.method === 'GET') {
+          try {
+            const content = readJsonFile(FOOTER_SHOWCASE_CONFIG_PATH, []);
+            sendJson(res, 200, { success: true, data: content });
+          } catch (error) {
+            sendJson(res, 500, { success: false, error: 'Failed to read footerShowcase.json' });
+          }
+          return;
+        }
+
+        next();
+      });
+    }
+  };
+}
+
 export default defineConfig({
-  plugins: [react(), localOgUploadPlugin(), localChatbotPlugin()]
+  plugins: [react(), localOgUploadPlugin(), localChatbotPlugin(), localFooterShowcasePlugin()]
 });
+

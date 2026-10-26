@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import defaultCoverImg from '../assets/default-cover.jpg';
+import defaultFooterShowcase from '../config/footerShowcase.json';
 import { useSearchParams } from 'react-router-dom';
 import { 
   getPosts, 
@@ -26,6 +27,7 @@ import {
   replyFeedback,
   getSettings,
   updateSettings,
+  saveFooterShowcaseImages,
   uploadFormImage,
   uploadFileToDrive,
   verifyAdminLogin,
@@ -51,7 +53,9 @@ import {
   createJob,
   updateJob,
   deleteJob,
-  uploadJobImage
+  uploadJobImage,
+  getJobScriptUrl,
+  setJobScriptUrl
 } from '../services/db';
 import { normalizeOgTargetPath, parseOgConfig } from '../utils/og.js';
 import { 
@@ -68,6 +72,9 @@ import {
   ChevronRight, 
   Search, 
   ArrowUpDown,
+  ArrowUp,
+  ArrowDown,
+  Image as ImageIcon,
   Upload,
   ExternalLink,
   ChevronDown,
@@ -188,7 +195,7 @@ const getImageUrl = (url) => {
       }
       const driveId = getGoogleDriveId(url);
       if (driveId) {
-        return `https://drive.google.com/thumbnail?id=${driveId}&sz=w1000`;
+        return `https://lh3.googleusercontent.com/d/${driveId}`;
       }
     }
     return url;
@@ -404,7 +411,8 @@ export default function AdminPortal() {
     apply_url: '',
     button_name: '',
     details_doc: '',
-    coming_soon: false
+    coming_soon: false,
+    order_index: 0
   });
   const [uploadingJobImg, setUploadingJobImg] = useState(false);
 
@@ -462,7 +470,8 @@ export default function AdminPortal() {
         apply_url: '',
         button_name: '',
         details_doc: '',
-        coming_soon: false
+        coming_soon: false,
+        order_index: 0
       });
       fetchAdminJobs();
     } catch (err) {
@@ -482,20 +491,9 @@ export default function AdminPortal() {
       apply_url: job.apply_url || '',
       button_name: job.button_name || '',
       details_doc: job.details_doc || '',
-      coming_soon: job.coming_soon === true || String(job.coming_soon).toLowerCase() === 'true'
+      coming_soon: job.coming_soon === true || String(job.coming_soon).toLowerCase() === 'true',
+      order_index: job.order_index !== undefined ? parseInt(job.order_index) || 0 : 0
     });
-  };
-
-  const handleDeleteJob = async (id) => {
-    if (!window.confirm('Are you sure you want to delete this job alert?')) return;
-    try {
-      await deleteJob(id);
-      setJobs(jobs.filter(j => j.id !== id));
-      alert('Job alert deleted.');
-    } catch (err) {
-      console.error(err);
-      alert('Failed to delete job alert.');
-    }
   };
 
   // Accessories & Tempered Glass States
@@ -603,6 +601,12 @@ export default function AdminPortal() {
   const [replySubmitting, setReplySubmitting] = useState({});
   
   // Settings
+  // Footer 1:1 Showcase Images State
+  const [showcaseItems, setShowcaseItems] = useState(() => defaultFooterShowcase || []);
+  const [newShowcaseItem, setNewShowcaseItem] = useState({ title: '', subtitle: '', image: '', link: '' });
+  const [isUploadingShowcaseImg, setIsUploadingShowcaseImg] = useState(false);
+  const [isSavingShowcase, setIsSavingShowcase] = useState(false);
+
   const [settings, setSettings] = useState({ 
     admin_email: '', 
     admin_whatsapp_number: '',
@@ -712,7 +716,18 @@ export default function AdminPortal() {
         setForms(formsData);
         setUsers(usersData);
         setFeedbackList(feedbackData);
-        if (settingsData) setSettings(settingsData);
+        if (settingsData) {
+          setSettings(settingsData);
+          if (settingsData.footer_showcase_images) {
+            let imgs = settingsData.footer_showcase_images;
+            if (typeof imgs === 'string') {
+              try { imgs = JSON.parse(imgs); } catch(e) {}
+            }
+            if (Array.isArray(imgs) && imgs.length > 0) {
+              setShowcaseItems(imgs);
+            }
+          }
+        }
         if (announcementsData) setAnnouncements(announcementsData);
         setProducts(productsData || []);
         setTemperedGlassList(tgData || []);
@@ -1773,8 +1788,397 @@ export default function AdminPortal() {
     )
     .sort((a, b) => new Date(b.last_active) - new Date(a.last_active));
 
+  // Footer 1:1 Showcase Image Handlers (Stored locally as files & in frontend JSON - No Google Drive)
+  const handleShowcaseImageUpload = async (file) => {
+    if (!file) return;
+    setIsUploadingShowcaseImg(true);
+    try {
+      const croppedSquareFile = await cropToSquareImage(file, 800);
+      const base64Data = await new Promise((resolve) => {
+        const reader = new FileReader();
+        reader.onload = (e) => resolve(e.target.result);
+        reader.onerror = () => resolve(null);
+        reader.readAsDataURL(croppedSquareFile);
+      });
+
+      if (!base64Data) throw new Error("Could not read image file.");
+
+      let localImagePath = '';
+      try {
+        const resp = await fetch('/api/footer-showcase/upload-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            image: base64Data,
+            fileName: file.name
+          })
+        });
+        if (resp.ok) {
+          const resJson = await resp.json();
+          if (resJson.success && resJson.imagePath) {
+            localImagePath = resJson.imagePath;
+          }
+        }
+      } catch (err) {
+        console.warn("Could not save to /api/footer-showcase/upload-image, fallback to data URL:", err);
+      }
+
+      const finalUrl = localImagePath || base64Data;
+      setNewShowcaseItem(prev => ({ ...prev, image: finalUrl }));
+    } catch (err) {
+      console.error("Showcase image upload error:", err);
+      alert("Failed to process image: " + err.message);
+    } finally {
+      setIsUploadingShowcaseImg(false);
+    }
+  };
+
+  const persistShowcase = async (items) => {
+    setIsSavingShowcase(true);
+    try {
+      await saveFooterShowcaseImages(items);
+      setSettings(prev => ({ ...prev, footer_showcase_images: items }));
+    } catch (err) {
+      console.error("Auto-persist showcase error:", err);
+    } finally {
+      setIsSavingShowcase(false);
+    }
+  };
+
+  const handleAddShowcaseItem = async (e) => {
+    e.preventDefault();
+    if (!newShowcaseItem.image.trim()) {
+      alert("Please upload an image or enter an image URL first.");
+      return;
+    }
+    const newItem = {
+      id: 'showcase-' + Date.now(),
+      title: newShowcaseItem.title.trim(),
+      subtitle: newShowcaseItem.subtitle.trim(),
+      image: newShowcaseItem.image.trim(),
+      link: newShowcaseItem.link.trim()
+    };
+    const nextList = [...showcaseItems, newItem];
+    setShowcaseItems(nextList);
+    setNewShowcaseItem({ title: '', subtitle: '', image: '', link: '' });
+    await persistShowcase(nextList);
+  };
+
+  const handleMoveShowcaseItem = async (index, direction) => {
+    const targetIdx = index + direction;
+    if (targetIdx < 0 || targetIdx >= showcaseItems.length) return;
+    const updated = [...showcaseItems];
+    const temp = updated[index];
+    updated[index] = updated[targetIdx];
+    updated[targetIdx] = temp;
+    setShowcaseItems(updated);
+    await persistShowcase(updated);
+  };
+
+  const handleDeleteShowcaseItem = async (index) => {
+    if (!window.confirm("Remove this image from the footer showcase?")) return;
+    const nextList = showcaseItems.filter((_, i) => i !== index);
+    setShowcaseItems(nextList);
+    await persistShowcase(nextList);
+  };
+
+  const handleSaveShowcase = async () => {
+    setIsSavingShowcase(true);
+    try {
+      const res = await saveFooterShowcaseImages(showcaseItems);
+      setSettings(prev => ({ ...prev, footer_showcase_images: showcaseItems }));
+      alert("✅ Footer 1:1 Showcase Images saved directly to JSON file and settings successfully!");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to save showcase images: " + err.message);
+    } finally {
+      setIsSavingShowcase(false);
+    }
+  };
+
+
+  const renderFooterShowcaseManager = () => (
+    <div className="premium-card" style={{ borderTop: '6px solid var(--primary)', margin: 0 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '18px', flexWrap: 'wrap', gap: '12px' }}>
+        <div>
+          <h3 style={{ fontSize: '1.15rem', margin: 0, fontWeight: '800', color: 'var(--text-light-main)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <ImageIcon size={22} style={{ color: 'var(--primary)' }} />
+            Footer Showcase Images (1:1 Square Ratio)
+          </h3>
+          <p style={{ margin: '4px 0 0 0', fontSize: '0.78rem', color: 'var(--text-light-muted)' }}>
+            Manage the 1:1 showcase images displayed in the website footer. Uploaded images are cropped to 1:1, saved locally as files, and synced to frontend JSON (no Google Drive storage needed).
+          </p>
+        </div>
+        <button
+          type="button"
+          onClick={handleSaveShowcase}
+          disabled={isSavingShowcase}
+          className="premium-btn premium-btn-primary"
+          style={{ width: 'auto', padding: '10px 22px', fontSize: '0.85rem', height: '40px', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 14px rgba(16,185,129,0.25)' }}
+        >
+          <Save size={16} /> {isSavingShowcase ? 'Saving JSON...' : 'Save & Store JSON'}
+        </button>
+      </div>
+
+      {/* Form to Add New 1:1 Image */}
+      <form onSubmit={handleAddShowcaseItem} style={{
+        background: '#f8fafc',
+        border: '1.5px solid var(--border-light)',
+        borderRadius: '16px',
+        padding: '18px',
+        marginBottom: '24px',
+        display: 'flex',
+        flexDirection: 'column',
+        gap: '14px'
+      }}>
+        <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: '800', color: 'var(--text-light-main)', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Plus size={16} style={{ color: 'var(--primary)' }} /> Add New 1:1 Showcase Image
+        </h4>
+
+        {/* Image Preview & Upload Row */}
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+          {/* 1:1 Square Live Thumbnail */}
+          <div style={{
+            width: '90px',
+            height: '90px',
+            aspectRatio: '1 / 1',
+            borderRadius: '12px',
+            border: '2px dashed var(--primary)',
+            background: '#ffffff',
+            overflow: 'hidden',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0,
+            position: 'relative'
+          }}>
+            {newShowcaseItem.image ? (
+              <img src={newShowcaseItem.image} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : (
+              <div style={{ textAlign: 'center', padding: '4px', color: 'var(--text-light-muted)', fontSize: '0.68rem', fontWeight: '600' }}>
+                <ImageIcon size={22} style={{ color: 'var(--primary)', margin: '0 auto 2px auto', display: 'block' }} />
+                1:1 Square
+              </div>
+            )}
+          </div>
+
+          {/* Upload Button & Direct URL Input */}
+          <div style={{ flex: 1, minWidth: '220px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
+              <label className="premium-btn premium-btn-secondary" style={{
+                padding: '8px 14px',
+                fontSize: '0.8rem',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                cursor: 'pointer',
+                background: '#ffffff',
+                border: '1.5px solid var(--primary)',
+                color: 'var(--primary)',
+                fontWeight: '700',
+                margin: 0,
+                width: 'fit-content'
+              }}>
+                <Upload size={14} />
+                <span>{isUploadingShowcaseImg ? 'Cropping to 1:1...' : 'Upload Image (Auto 1:1 Crop)'}</span>
+                <input
+                  type="file"
+                  accept="image/*"
+                  disabled={isUploadingShowcaseImg}
+                  onChange={(e) => handleShowcaseImageUpload(e.target.files?.[0])}
+                  style={{ display: 'none' }}
+                />
+              </label>
+              {newShowcaseItem.image && (
+                <button
+                  type="button"
+                  onClick={() => setNewShowcaseItem(prev => ({ ...prev, image: '' }))}
+                  style={{ border: 'none', background: 'none', color: '#dc2626', fontSize: '0.75rem', cursor: 'pointer', fontWeight: '700' }}
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <input
+              type="text"
+              value={newShowcaseItem.image}
+              onChange={(e) => setNewShowcaseItem(prev => ({ ...prev, image: e.target.value }))}
+              placeholder="Or paste image URL (e.g. /income_og_preview.jpg or https://...)"
+              className="premium-input"
+              style={{ fontSize: '0.8rem', padding: '8px 12px', height: '36px' }}
+            />
+          </div>
+        </div>
+
+        {/* Title, Subtitle, and Link inputs */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '12px' }}>
+          <div>
+            <label className="premium-label" style={{ fontSize: '0.75rem', fontWeight: '700' }}>Title / Label (Optional - leave blank for clean image)</label>
+            <input
+              type="text"
+              value={newShowcaseItem.title}
+              onChange={(e) => setNewShowcaseItem(prev => ({ ...prev, title: e.target.value }))}
+              placeholder="e.g. Aadhaar Services / Certificate Desk"
+              className="premium-input"
+              style={{ fontSize: '0.82rem', padding: '8px 12px', height: '36px' }}
+            />
+          </div>
+          <div>
+            <label className="premium-label" style={{ fontSize: '0.75rem', fontWeight: '700' }}>Subtitle / Badge (Optional)</label>
+            <input
+              type="text"
+              value={newShowcaseItem.subtitle}
+              onChange={(e) => setNewShowcaseItem(prev => ({ ...prev, subtitle: e.target.value }))}
+              placeholder="e.g. Govt Verified / Fast Turnaround"
+              className="premium-input"
+              style={{ fontSize: '0.82rem', padding: '8px 12px', height: '36px' }}
+            />
+          </div>
+          <div>
+            <label className="premium-label" style={{ fontSize: '0.75rem', fontWeight: '700' }}>Link / Action (Optional)</label>
+            <input
+              type="text"
+              value={newShowcaseItem.link}
+              onChange={(e) => setNewShowcaseItem(prev => ({ ...prev, link: e.target.value }))}
+              placeholder="e.g. /user?tab=apply or https://..."
+              className="premium-input"
+              style={{ fontSize: '0.82rem', padding: '8px 12px', height: '36px' }}
+            />
+          </div>
+        </div>
+
+        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: '4px' }}>
+          <button
+            type="submit"
+            className="premium-btn premium-btn-primary"
+            style={{ width: 'auto', padding: '8px 18px', fontSize: '0.82rem', height: '36px', display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <Plus size={15} /> Add to Showcase
+          </button>
+        </div>
+      </form>
+
+      {/* List of current showcase images */}
+      <div>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '12px' }}>
+          <h4 style={{ margin: 0, fontSize: '0.92rem', fontWeight: '800', color: '#1e293b' }}>
+            Current Showcase Images ({showcaseItems.length})
+          </h4>
+          <span style={{ fontSize: '0.72rem', color: 'var(--primary)', fontWeight: '600' }}>
+            ✓ Auto-saved to JSON file on add/edit
+          </span>
+        </div>
+
+        {showcaseItems.length === 0 ? (
+          <div style={{ padding: '24px', textAlign: 'center', background: '#f8fafc', borderRadius: '12px', border: '1px solid var(--border-light)', color: 'var(--text-light-muted)', fontSize: '0.85rem' }}>
+            No showcase images configured yet. Add your first 1:1 image above!
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            {showcaseItems.map((item, idx) => (
+              <div
+                key={item.id || idx}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '14px',
+                  padding: '10px 14px',
+                  background: '#ffffff',
+                  border: '1.5px solid var(--border-light)',
+                  borderRadius: '12px',
+                  boxShadow: 'var(--shadow-sm)'
+                }}
+              >
+                {/* 1:1 Square Preview */}
+                <div style={{
+                  width: '64px',
+                  height: '64px',
+                  aspectRatio: '1 / 1',
+                  borderRadius: '10px',
+                  overflow: 'hidden',
+                  border: '1.5px solid #bbf7d0',
+                  background: '#f0fdf4',
+                  flexShrink: 0
+                }}>
+                  <img
+                    src={item.image}
+                    alt={item.title}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    onError={(e) => { e.target.src = '/income_og_preview.jpg'; }}
+                  />
+                </div>
+
+                {/* Info */}
+                <div style={{ flex: 1, minWidth: '160px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                    <span style={{ fontWeight: '800', fontSize: '0.88rem', color: '#064e3b' }}>
+                      {item.title || '(Untitled)'}
+                    </span>
+                    {item.subtitle && (
+                      <span style={{ fontSize: '0.65rem', background: '#dcfce7', color: '#047857', padding: '1px 7px', borderRadius: '8px', fontWeight: '700' }}>
+                        {item.subtitle}
+                      </span>
+                    )}
+                    <span style={{ fontSize: '0.65rem', background: '#f1f5f9', color: '#64748b', padding: '1px 6px', borderRadius: '6px', fontWeight: '600' }}>
+                      1:1 Square
+                    </span>
+                  </div>
+                  {item.link ? (
+                    <span style={{ fontSize: '0.72rem', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '3px' }}>
+                      <ExternalLink size={11} /> {item.link}
+                    </span>
+                  ) : (
+                    <span style={{ fontSize: '0.7rem', color: 'var(--text-light-muted)', display: 'block', marginTop: '3px' }}>
+                      (Opens image zoom lightbox)
+                    </span>
+                  )}
+                </div>
+
+                {/* Reorder and Delete Actions */}
+                <div style={{ display: 'flex', gap: '6px', flexShrink: 0 }}>
+                  <button
+                    type="button"
+                    disabled={idx === 0}
+                    onClick={() => handleMoveShowcaseItem(idx, -1)}
+                    className="premium-btn premium-btn-secondary"
+                    style={{ width: '30px', height: '30px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0, opacity: idx === 0 ? 0.4 : 1 }}
+                    title="Move Up"
+                  >
+                    <ArrowUp size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    disabled={idx === showcaseItems.length - 1}
+                    onClick={() => handleMoveShowcaseItem(idx, 1)}
+                    className="premium-btn premium-btn-secondary"
+                    style={{ width: '30px', height: '30px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0, opacity: idx === showcaseItems.length - 1 ? 0.4 : 1 }}
+                    title="Move Down"
+                  >
+                    <ArrowDown size={14} />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleDeleteShowcaseItem(idx)}
+                    className="premium-btn premium-btn-danger"
+                    style={{ width: '30px', height: '30px', padding: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', margin: 0 }}
+                    title="Delete Image"
+                  >
+                    <Trash2 size={14} />
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+
   if (!isAuth) {
-    return (
+  
+
+
+  return (
       <div className="layout-viewport-container" style={{ background: 'var(--bg-light)', alignItems: 'center' }}>
         <div className="app-mobile-container" style={{ justifyContent: 'center', alignItems: 'center', background: 'white' }}>
           <div className="premium-card" style={{ width: '90%', maxWidth: '400px', textAlign: 'center', borderTop: '6px solid var(--primary)' }}>
@@ -1957,6 +2361,23 @@ export default function AdminPortal() {
             Settings
           </button>
           <button
+            onClick={() => setActiveTab('footer-showcase')}
+            style={{
+              padding: '8px 12px',
+              borderRadius: '8px',
+              border: activeTab === 'footer-showcase' ? '2px solid var(--primary)' : '1px solid var(--border-light)',
+              background: activeTab === 'footer-showcase' ? 'rgba(16,185,129,0.06)' : 'white',
+              cursor: 'pointer',
+              fontWeight: activeTab === 'footer-showcase' ? 800 : 600,
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              color: activeTab === 'footer-showcase' ? 'var(--primary)' : 'var(--text-light-main)'
+            }}
+          >
+            <ImageIcon size={16} /> Footer 1:1 Images ({showcaseItems.length})
+          </button>
+          <button
             onClick={() => setActiveTab('og')}
             style={{
               padding: '8px 12px',
@@ -1994,7 +2415,92 @@ export default function AdminPortal() {
 
         {/* --- TAB: JOBS MANAGER --- */}
         {activeTab === 'jobs' && (
-          <div className="desktop-grid-2" style={{ gap: '20px' }}>
+          <div>
+            {/* Dedicated Job Sheet Notification & Configuration Banner */}
+            <div style={{
+              background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.08) 0%, rgba(5, 150, 105, 0.04) 100%)',
+              border: '1.5px solid rgba(16, 185, 129, 0.3)',
+              borderRadius: '14px',
+              padding: '14px 18px',
+              marginBottom: '20px',
+              display: 'flex',
+              flexWrap: 'wrap',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+              gap: '12px',
+              boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+            }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                <div style={{
+                  width: '38px',
+                  height: '38px',
+                  borderRadius: '10px',
+                  background: 'var(--primary)',
+                  color: 'white',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontWeight: 'bold',
+                  fontSize: '18px',
+                  boxShadow: '0 2px 6px rgba(16, 185, 129, 0.3)'
+                }}>
+                  <Briefcase size={20} />
+                </div>
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <h4 style={{ margin: 0, fontSize: '0.96rem', fontWeight: 800, color: '#0f172a' }}>
+                      Dedicated Job Alerts Google Sheet
+                    </h4>
+                    <span style={{
+                      background: '#dcfce7',
+                      color: '#15803d',
+                      fontSize: '0.68rem',
+                      fontWeight: 800,
+                      padding: '2px 8px',
+                      borderRadius: '999px',
+                      border: '1px solid #bbf7d0',
+                      letterSpacing: '0.3px'
+                    }}>
+                      ● Isolated Sheet Only
+                    </span>
+                  </div>
+                  <p style={{ margin: '3px 0 0', fontSize: '0.74rem', color: '#64748b' }}>
+                    Jobs are strictly fetched from and saved to this designated sheet. General services/forms will not use this sheet.
+                  </p>
+                </div>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const currentUrl = getJobScriptUrl();
+                    const newUrl = window.prompt("Configure Dedicated Job Sheet Google Apps Script URL:\n\n(Only this sheet will be used for Job alerts)", currentUrl);
+                    if (newUrl !== null) {
+                      setJobScriptUrl(newUrl.trim());
+                      alert("Job Sheet URL updated successfully!");
+                      fetchAdminJobs();
+                    }
+                  }}
+                  className="premium-btn premium-btn-secondary"
+                  style={{ padding: '7px 14px', fontSize: '0.75rem', height: 'auto', background: 'white', border: '1px solid var(--border-light)' }}
+                >
+                  ⚙ Configure URL
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    fetchAdminJobs();
+                    alert("Job listings re-synchronized from Google Sheet!");
+                  }}
+                  className="premium-btn premium-btn-primary"
+                  style={{ padding: '7px 14px', fontSize: '0.75rem', height: 'auto' }}
+                >
+                  🔄 Sync Jobs
+                </button>
+              </div>
+            </div>
+
+            <div className="desktop-grid-2" style={{ gap: '20px' }}>
             
             {/* Form: Add / Edit Job Alert */}
             <div>
@@ -2064,6 +2570,7 @@ export default function AdminPortal() {
                       <div style={{ marginBottom: '10px', position: 'relative', width: '100%', height: '140px', borderRadius: '8px', overflow: 'hidden', border: '1px solid var(--border-light)' }}>
                         <img
                           src={getImageUrl(jobForm.img_url)}
+                          referrerPolicy="no-referrer"
                           alt="Uploaded banner"
                           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
                         />
@@ -2117,6 +2624,21 @@ export default function AdminPortal() {
                     />
                     <span style={{ fontSize: '0.65rem', color: '#64748b' }}>
                       Defaults to "Apply Now" if left blank.
+                    </span>
+                  </div>
+
+                  {/* Display Order Index */}
+                  <div className="premium-input-group">
+                    <label className="premium-label">Display Order Index (Priority)</label>
+                    <input
+                      type="number"
+                      value={jobForm.order_index ?? 0}
+                      onChange={(e) => setJobForm({ ...jobForm, order_index: parseInt(e.target.value) || 0 })}
+                      placeholder="0"
+                      className="premium-input"
+                    />
+                    <span style={{ fontSize: '0.65rem', color: '#64748b' }}>
+                      Lower numbers appear first (e.g. 0, 1, 2...).
                     </span>
                   </div>
 
@@ -2238,7 +2760,8 @@ export default function AdminPortal() {
             </div>
 
           </div>
-        )}
+        </div>
+      )}
 
         {/* --- TAB 1: MANAGE POSTS --- */}
         {activeTab === 'posts' && (
@@ -3207,10 +3730,21 @@ export default function AdminPortal() {
           </div>
         )}
 
+        
+        {/* --- TAB: FOOTER 1:1 SHOWCASE IMAGES --- */}
+        {activeTab === 'footer-showcase' && (
+          <div style={{ maxWidth: '900px', margin: '0 auto', paddingBottom: '100px' }}>
+            {renderFooterShowcaseManager()}
+          </div>
+        )}
+
         {/* --- TAB: SETTINGS --- */}
         {activeTab === 'settings' && (
           <div className="desktop-grid-2">
             <div className="premium-card" style={{ borderTop: '6px solid var(--primary)', alignSelf: 'flex-start' }}>
+              <div style={{ marginBottom: '24px' }}>
+                {renderFooterShowcaseManager()}
+              </div>
               <h3 style={{ fontSize: '1.1rem', marginBottom: '12px' }}>
                 Platform Settings
               </h3>

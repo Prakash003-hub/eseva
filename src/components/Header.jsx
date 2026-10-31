@@ -155,6 +155,42 @@ export default function Header({
           <div className="brand-name" style={{ fontSize: '1.4rem', lineHeight: '1.2' }}>Subi - e seva</div>
           <div className="brand-subtitle" style={{ fontSize: '0.8rem' }}> இ சேவை மையம் & CSC </div>
         </div>
+
+        {/* Official Tamil Nadu Government Emblem & e-Sevai Logos */}
+        <div className="header-official-logos" style={{ display: 'flex', alignItems: 'center', gap: '8px', marginLeft: '6px' }}>
+          <img
+            src="/tn_govt_logo.png"
+            alt="Tamil Nadu Government Emblem"
+            title="Tamil Nadu Government"
+            style={{
+              width: '48px',
+              height: '48px',
+              objectFit: 'contain',
+              borderRadius: '50%',
+              backgroundColor: '#ffffff',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+              border: '1.5px solid #86efac',
+              padding: '2px',
+              flexShrink: 0
+            }}
+          />
+          <img
+            src="/esevai_logo.png"
+            alt="e-Sevai Logo"
+            title="e-Sevai TN e-Governance"
+            style={{
+              width: '48px',
+              height: '48px',
+              objectFit: 'contain',
+              borderRadius: '50%',
+              backgroundColor: '#ffffff',
+              boxShadow: '0 2px 8px rgba(0, 0, 0, 0.1)',
+              border: '1.5px solid #86efac',
+              padding: '2px',
+              flexShrink: 0
+            }}
+          />
+        </div>
       </div>
 
       {!isAdmin && (

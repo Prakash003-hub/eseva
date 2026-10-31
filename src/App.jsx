@@ -792,7 +792,7 @@ export default function App() {
   useEffect(() => {
     const timer = setTimeout(() => {
       setShowSplash(false);
-    }, 2000);
+    }, 2600);
     return () => clearTimeout(timer);
   }, []);
 
@@ -810,7 +810,7 @@ export default function App() {
         alignItems: 'center',
         justifyContent: 'center',
         zIndex: 999999,
-        animation: 'fadeOut 0.5s ease-in-out 1.5s forwards'
+        animation: 'fadeOut 0.5s ease-in-out 2.2s forwards'
       }}>
         <style>{`
           @keyframes slideUpFade {
@@ -819,7 +819,49 @@ export default function App() {
           }
           @keyframes pulseScale {
             0%, 100% { transform: scale(1); }
-            50% { transform: scale(1.05); }
+            50% { transform: scale(1.04); }
+          }
+          @keyframes flyInFromTopLeft {
+            0% {
+              transform: translate(-120px, -100px) scale(0.2) rotate(-40deg);
+              opacity: 0;
+            }
+            65% {
+              transform: translate(8px, 6px) scale(1.08) rotate(6deg);
+              opacity: 1;
+            }
+            85% {
+              transform: translate(-3px, -2px) scale(0.98) rotate(-2deg);
+            }
+            100% {
+              transform: translate(0, 0) scale(1) rotate(0deg);
+              opacity: 1;
+            }
+          }
+          @keyframes flyInFromTopRight {
+            0% {
+              transform: translate(120px, -100px) scale(0.2) rotate(40deg);
+              opacity: 0;
+            }
+            65% {
+              transform: translate(-8px, 6px) scale(1.08) rotate(-6deg);
+              opacity: 1;
+            }
+            85% {
+              transform: translate(3px, -2px) scale(0.98) rotate(2deg);
+            }
+            100% {
+              transform: translate(0, 0) scale(1) rotate(0deg);
+              opacity: 1;
+            }
+          }
+          @keyframes floatLeftLogo {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-7px) rotate(-3deg); }
+          }
+          @keyframes floatRightLogo {
+            0%, 100% { transform: translateY(0px) rotate(0deg); }
+            50% { transform: translateY(-7px) rotate(3deg); }
           }
           @keyframes fadeOut {
             to { opacity: 0; visibility: hidden; }
@@ -832,16 +874,91 @@ export default function App() {
           alignItems: 'center',
           gap: '16px'
         }}>
-          <img
-            src="/whatsbro_logo.png"
-            alt="Logo"
-            style={{
-              width: '240px',
-              height: '240px',
-              objectFit: 'contain',
-              animation: 'pulseScale 2s ease-in-out infinite'
-            }}
-          />
+          {/* Logo container with flanking animated emblems */}
+          <div style={{
+            position: 'relative',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}>
+            {/* Left Emblem: Tamil Nadu Government seal */}
+            <div
+              style={{
+                position: 'absolute',
+                left: '-40px',
+                top: '20px',
+                width: '76px',
+                height: '76px',
+                borderRadius: '50%',
+                backgroundColor: '#ffffff',
+                border: '2.5px solid #86efac',
+                boxShadow: '0 8px 24px rgba(16, 185, 129, 0.25), 0 2px 8px rgba(0, 0, 0, 0.08)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '4px',
+                zIndex: 2,
+                animation: 'flyInFromTopLeft 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards, floatLeftLogo 2.5s ease-in-out 0.9s infinite'
+              }}
+            >
+              <img
+                src="/tn_govt_logo.png"
+                alt="Tamil Nadu Government"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                  borderRadius: '50%'
+                }}
+              />
+            </div>
+
+            {/* Central Main Logo */}
+            <img
+              src="/whatsbro_logo.png"
+              alt="Logo"
+              style={{
+                width: '210px',
+                height: '210px',
+                objectFit: 'contain',
+                animation: 'pulseScale 2s ease-in-out infinite',
+                zIndex: 1
+              }}
+            />
+
+            {/* Right Emblem: e-Sevai Logo */}
+            <div
+              style={{
+                position: 'absolute',
+                right: '-40px',
+                top: '20px',
+                width: '76px',
+                height: '76px',
+                borderRadius: '50%',
+                backgroundColor: '#ffffff',
+                border: '2.5px solid #86efac',
+                boxShadow: '0 8px 24px rgba(16, 185, 129, 0.25), 0 2px 8px rgba(0, 0, 0, 0.08)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '4px',
+                zIndex: 2,
+                animation: 'flyInFromTopRight 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards, floatRightLogo 2.5s ease-in-out 0.9s infinite'
+              }}
+            >
+              <img
+                src="/esevai_logo.png"
+                alt="e-Sevai"
+                style={{
+                  width: '100%',
+                  height: '100%',
+                  objectFit: 'contain',
+                  borderRadius: '50%'
+                }}
+              />
+            </div>
+          </div>
+
           <h1 style={{
             fontSize: '2.5rem',
             fontWeight: '900',

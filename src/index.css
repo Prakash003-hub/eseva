@@ -181,6 +181,69 @@ h1, h2, h3, h4 {
   font-weight: 500;
 }
 
+.header-official-logos {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: 6px;
+}
+
+.header-official-logos img {
+  width: 48px;
+  height: 48px;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  cursor: pointer;
+}
+
+.header-official-logos img:hover {
+  transform: scale(1.08);
+  box-shadow: 0 4px 14px rgba(16, 185, 129, 0.35) !important;
+}
+
+@media (max-width: 600px) {
+  .fixed-header {
+    padding: 8px 12px !important;
+  }
+  .fixed-header .logo-container {
+    gap: 8px !important;
+  }
+  .fixed-header .brand-name {
+    font-size: 1.15rem !important;
+  }
+  .fixed-header .brand-subtitle {
+    font-size: 0.7rem !important;
+  }
+  .header-official-logos {
+    gap: 6px !important;
+    margin-left: 4px !important;
+  }
+  .header-official-logos img {
+    width: 40px !important;
+    height: 40px !important;
+  }
+}
+
+@media (max-width: 400px) {
+  .fixed-header {
+    padding: 8px 6px !important;
+  }
+  .fixed-header .brand-name {
+    font-size: 1rem !important;
+  }
+  .fixed-header .brand-subtitle {
+    font-size: 0.62rem !important;
+  }
+  .header-official-logos {
+    gap: 4px !important;
+    margin-left: 2px !important;
+  }
+  .header-official-logos img {
+    width: 34px !important;
+    height: 34px !important;
+    padding: 1px !important;
+  }
+}
+
 /* Nav Menu Tabs */
 .nav-tab-container {
   display: flex;
@@ -1922,8 +1985,8 @@ input:focus, select:focus, textarea:focus {
   position: relative;
   overflow: hidden;
   border-radius: 12px;
-  padding: 11px 14px;
-  font-size: 0.82rem;
+  padding: 12px 14px;
+  font-size: 0.90rem;
   font-weight: 800;
   cursor: pointer;
   border: 1.5px solid rgba(255, 255, 255, 0.6);

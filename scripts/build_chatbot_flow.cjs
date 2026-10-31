@@ -61,7 +61,7 @@ function cleanDescription(rawDesc, docs, notes) {
 
     // Strip H1:, H2:, H3: headers into neat bullet points
     if (/^H[1-3]:\s*/i.test(trim)) {
-      trim = '📌 ' + trim.replace(/^H[1-3]:\s*/i, '');
+      trim = '📌 ' + trim.replace(/^H[1-3]:\s*/i, '').replace(/^\s*\d+(\.\d+)*\.?\s+/, '');
     }
 
     cleanedLines.push(trim);
@@ -102,7 +102,10 @@ function cleanDescription(rawDesc, docs, notes) {
 // Clean title: remove numbers like 1.1., ₹ amounts, etc.
 function cleanTitle(rawName) {
   if (!rawName) return '';
-  return rawName.replace(/₹\s*[\d,]+/g, '').trim();
+  return rawName
+    .replace(/^\s*\d+(\.\d+)*\.?\s+/, '')
+    .replace(/₹\s*[\d,]+/g, '')
+    .trim();
 }
 
 function createLeafNode(site, parentId, sortOrder) {

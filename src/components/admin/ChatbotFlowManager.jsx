@@ -10,6 +10,7 @@ import {
   validateChatbotConfig,
   duplicateNodeHierarchy
 } from '../../services/chatbotStorage';
+import ChatbotContentRenderer from '../ChatbotContentRenderer';
 import {
   Plus,
   Trash2,
@@ -866,18 +867,62 @@ export default function ChatbotFlowManager() {
 
                     {/* Response Description */}
                     <div className="premium-input-group">
-                      <label className="premium-label" style={{ color: '#6b21a8' }}>Response Content / Description *</label>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '4px', flexWrap: 'wrap', gap: '4px' }}>
+                        <label className="premium-label" style={{ color: '#6b21a8', marginBottom: 0 }}>Response Content / Description *</label>
+                        <div style={{ display: 'flex', gap: '6px' }}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const tName = editingNode.title || 'Service Name (சேவை பெயர்)';
+                              const tmpl = `H1: ${tName}\n\nH2: விளக்கம் (Description)\nசேவை தொடர்பான அதிகாரப்பூர்வ விளக்கக் குறிப்பு.\n\nH2: தகுதி (Eligibility)\nதமிழ்நாட்டில் வசிக்கும் தகுதியுடைய குடிமக்கள்.\n\nH2: பயன்கள் (Benefits)\n- அரசின் அதிகாரப்பூர்வ சான்றிதழ் மற்றும் சேவையைப் பெறலாம்.\n- பல்வேறு அரசு நலத்திட்டங்கள் மற்றும் கல்வி வேலைவாய்ப்புகளுக்குப் பயன்படுத்தலாம்.\n\nH2: தேவையான ஆவணங்கள் (Required Documents)\n\ntable:\nS.No$Document Name$Description\n1$ஆதார் அட்டை (Aadhaar Card)$விண்ணப்பதாரரின் ஆதார் அட்டை நகல்\n2$குடும்ப அட்டை (Ration Card)$முகவரிச் சான்றிற்கான ஸ்மார்ட் கார்டு நகல்\n3$புகைப்படம் (Photo)$சமீபத்திய பாஸ்போர்ட் அளவு புகைப்படம்\n\nH2: குறிப்பு (Note)\nஅனைத்து ஆவணங்களின் விவரங்களையும் சரிபார்த்து சரியான தகவல்களுடன் விண்ணப்பிக்கவும்.`;
+                              setEditingNode({
+                                ...editingNode,
+                                response: { ...editingNode.response, description: tmpl }
+                              });
+                            }}
+                            className="premium-btn premium-btn-secondary"
+                            style={{ padding: '3px 8px', fontSize: '0.72rem', background: '#f3e8ff', color: '#6b21a8', border: '1px solid #d8b4fe' }}
+                            title="Insert Standard Custom Markdown Template"
+                          >
+                            📋 Standard Template
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const tbl = `\n\ntable:\nS.No$Document Name$Description\n1$Document 1$Description 1\n2$Document 2$Description 2\n`;
+                              setEditingNode({
+                                ...editingNode,
+                                response: { ...editingNode.response, description: (editingNode.response.description || '') + tbl }
+                              });
+                            }}
+                            className="premium-btn premium-btn-secondary"
+                            style={{ padding: '3px 8px', fontSize: '0.72rem', background: '#ecfdf5', color: '#047857', border: '1px solid #a7f3d0' }}
+                            title="Append table syntax"
+                          >
+                            📊 + Table
+                          </button>
+                        </div>
+                      </div>
+
                       <textarea
-                        rows={4}
+                        rows={8}
                         value={editingNode.response.description}
                         onChange={(e) => setEditingNode({
                           ...editingNode,
                           response: { ...editingNode.response, description: e.target.value }
                         })}
-                        placeholder="Enter guidelines, Tamil/English details, required documents..."
+                        placeholder="H1: Main Title&#10;H2: விளக்கம் (Description)&#10;H2: தகுதி (Eligibility)&#10;H2: பயன்கள் (Benefits)&#10;H2: தேவையான ஆவணங்கள் (Required Documents)&#10;table:&#10;S.No$Document Name$Description&#10;1$Document 1$Description 1&#10;H2: குறிப்பு (Note)"
                         className="premium-input"
+                        style={{ fontFamily: 'monospace', fontSize: '0.84rem', lineHeight: '1.5' }}
                         required
                       />
+
+                      <div style={{ marginTop: '4px', fontSize: '0.72rem', color: '#64748b', lineHeight: '1.45', background: '#f8fafc', padding: '6px 8px', borderRadius: '6px', border: '1px solid #e2e8f0' }}>
+                        <span style={{ fontWeight: '700', color: '#334155' }}>💡 Formatting Guide:</span><br />
+                        • <code>H1:</code> Title | <code>H2:</code> Headings (விளக்கம், தகுதி, பயன்கள், தேவையான ஆவணங்கள், குறிப்பு) | <code>H3:</code> Sub-heading<br />
+                        • <code>---</code> Horizontal divider line | <code>-</code> Bullet lists | <code>1.</code> Numbered lists<br />
+                        • <code>table:</code> followed by lines separated by <code>$</code> (e.g. <code>S.No$Document Name$Description</code>)
+                      </div>
                     </div>
 
                     {/* Response Multiple Action Buttons */}
@@ -1147,9 +1192,13 @@ function AdminChatbotPreviewModal({ flows, onClose }) {
                 {currentNodes.node.response.title}
               </h4>
 
-              <p style={{ fontSize: '0.82rem', color: '#475569', margin: 0, whiteSpace: 'pre-line', lineHeight: '1.5' }}>
-                {currentNodes.node.response.description}
-              </p>
+              <div style={{ marginTop: '4px' }}>
+                <ChatbotContentRenderer
+                  content={currentNodes.node.response.description}
+                  currentTitle={currentNodes.node.response.title}
+                  compact={false}
+                />
+              </div>
 
               {/* Action Buttons */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' }}>

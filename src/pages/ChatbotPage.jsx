@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bot, ArrowLeft, RefreshCw, MessageCircle, ChevronRight, ExternalLink, Share2, Home, Send } from 'lucide-react';
+import { Bot, ArrowLeft, RefreshCw, MessageCircle, ChevronRight, ExternalLink, Share2, Home, Send, Search } from 'lucide-react';
 import { getPublishedFlows } from '../services/chatbotStorage';
 import { playSelectSound } from '../utils/sound';
+import ChatbotContentRenderer, { splitBilingualTitle } from '../components/ChatbotContentRenderer';
+import ChatbotAssistantResponse from '../components/ChatbotAssistantResponse';
+import { processUserQuery, getAllServices } from '../services/chatbotAssistantEngine';
 
 const CATEGORY_COLORS = [
   { border: '#10b981', color: '#047857', bg: '#f0fdf4', chevron: '#10b981', dot: '#10b981' }, // Emerald
@@ -107,23 +110,47 @@ export default function ChatbotPage({ systemSettings }) {
     }
   };
 
-  const handleCustomSend = (e) => {
-    e.preventDefault();
-    if (!customText.trim()) return;
-    const query = customText.trim();
-    const defaultWaText = `வணக்கம் Subi E-Sevai, "${query}" விண்ணப்பிக்க என்னென்ன விவரங்கள் தேவை?`;
-    sendToWhatsApp(defaultWaText);
+  // Natural Language & Assistant Query Execution
+  const executeQuery = (queryText) => {
+    if (!queryText || !queryText.trim()) return;
+    const query = queryText.trim();
+    playSelectSound();
+
+    const result = processUserQuery(query);
 
     setCustomQuery({
       text: query,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      waText: defaultWaText
+      result
     });
     setCustomText('');
+
+    setTimeout(() => {
+      if (chatBodyRef.current) {
+        chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
+      }
+    }, 120);
   };
 
+  const handleCustomSend = (e) => {
+    e.preventDefault();
+    executeQuery(customText);
+  };
+
+  const searchResults = customText.trim()
+    ? getAllServices().filter(s => {
+        const q = customText.toLowerCase().trim();
+        return (
+          s.title.toLowerCase().includes(q) ||
+          (s.category && s.category.toLowerCase().includes(q)) ||
+          s.keywords.some(k => k.includes(q))
+        );
+      })
+    : [];
+
+  const isSearching = customText.trim().length > 0 && !customQuery;
   const currentNode = navHistory.length > 0 ? navHistory[navHistory.length - 1] : null;
-  const isAtRoot = navHistory.length === 0 && !customQuery;
+  const isAtRoot = navHistory.length === 0 && !customQuery && !isSearching;
   const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   return (
@@ -294,6 +321,145 @@ export default function ChatbotPage({ systemSettings }) {
             </span>
           </div>
 
+          {/* ======================================================== */}
+          {/* SEARCHABLE LIST VIEW (TOP TO BOTTOM)                     */}
+          {/* Matches are rendered cleanly from top to bottom          */}
+          {/* ======================================================== */}
+          {isSearching && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '9px', animation: 'viewFadeIn 0.2s ease-out' }}>
+              {/* Search Header Bar */}
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  background: '#ecfdf5',
+                  border: '1.5px solid #10b981',
+                  borderRadius: '11px',
+                  padding: '8px 12px'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <Search size={15} style={{ color: '#047857' }} />
+                  <span style={{ fontSize: '0.80rem', fontWeight: '800', color: '#065f46' }}>
+                    "{customText.trim()}" - {searchResults.length} சேவைகள்
+                  </span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setCustomText('')}
+                  style={{
+                    background: '#ffffff',
+                    border: '1px solid #a7f3d0',
+                    color: '#065f46',
+                    fontSize: '0.70rem',
+                    fontWeight: '800',
+                    cursor: 'pointer',
+                    padding: '3px 8px',
+                    borderRadius: '6px'
+                  }}
+                >
+                  ✕ Clear
+                </button>
+              </div>
+
+              {/* Matched Services List (Rendered Top to Bottom) */}
+              {searchResults.length > 0 ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  {searchResults.map((service, idx) => {
+                    const { primary, secondary } = splitBilingualTitle(service.title);
+                    return (
+                      <button
+                        key={service.id || idx}
+                        onClick={() => {
+                          setCustomText('');
+                          handleNodeClick(service.rawNode || service);
+                        }}
+                        style={{
+                          background: '#ffffff',
+                          border: '1.5px solid #10b981',
+                          borderRadius: '12px',
+                          padding: '11px 14px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          cursor: 'pointer',
+                          textAlign: 'left',
+                          boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                          transition: 'all 0.15s ease',
+                          width: '100%',
+                          gap: '8px'
+                        }}
+                        onMouseEnter={(e) => {
+                          e.currentTarget.style.background = '#f0fdf4';
+                          e.currentTarget.style.transform = 'translateX(2px)';
+                        }}
+                        onMouseLeave={(e) => {
+                          e.currentTarget.style.background = '#ffffff';
+                          e.currentTarget.style.transform = 'translateX(0)';
+                        }}
+                      >
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, flex: 1 }}>
+                          <span style={{ fontSize: '0.90rem', fontWeight: '800', color: '#0f172a', lineHeight: '1.35' }}>
+                            📄 {primary}
+                          </span>
+                          {secondary && (
+                            <span style={{ fontSize: '0.78rem', fontWeight: '600', color: '#059669', lineHeight: '1.2', paddingLeft: '20px' }}>
+                              {secondary}
+                            </span>
+                          )}
+                          {service.category && (
+                            <span style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '2px', paddingLeft: '20px' }}>
+                              பிரிவு: {service.category.replace(/^[^\w\s\u0B80-\u0BFF]+/gu, '').trim()}
+                            </span>
+                          )}
+                        </div>
+                        <ChevronRight size={17} style={{ color: '#10b981', flexShrink: 0 }} />
+                      </button>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div
+                  style={{
+                    background: '#ffffff',
+                    border: '1px solid #cbd5e1',
+                    borderRadius: '12px',
+                    padding: '14px',
+                    textAlign: 'center',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    gap: '8px'
+                  }}
+                >
+                  <div style={{ fontSize: '0.86rem', color: '#334155', fontWeight: '700' }}>
+                    "{customText}" தொடர்பான நேரடி சேவை இல்லை.
+                  </div>
+                  <div style={{ fontSize: '0.76rem', color: '#64748b' }}>
+                    Enter அல்லது கீழே உள்ள Send பொத்தானை கிளிக் செய்து AI உதவியாளரிடம் கேட்கலாம்.
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => executeQuery(customText)}
+                    style={{
+                      background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
+                      color: '#ffffff',
+                      border: 'none',
+                      borderRadius: '8px',
+                      padding: '9px 14px',
+                      fontSize: '0.80rem',
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      marginTop: '4px'
+                    }}
+                  >
+                    🤖 AI உதவியாளரிடம் கேட்கவும் (Ask AI)
+                  </button>
+                </div>
+              )}
+            </div>
+          )}
+
           {/* VIEW 1: ROOT / MAIN CATEGORIES */}
           {isAtRoot && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', animation: 'viewFadeIn 0.25s ease-out' }}>
@@ -325,6 +491,7 @@ export default function ChatbotPage({ systemSettings }) {
               <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '4px' }}>
                 {publishedFlows.filter(f => f.status !== 'disabled').map((flow, idx) => {
                   const palette = CATEGORY_COLORS[idx % CATEGORY_COLORS.length];
+                  const { primary, secondary } = splitBilingualTitle(flow.button_text || flow.title);
                   return (
                     <button
                       key={flow.id}
@@ -335,9 +502,6 @@ export default function ChatbotPage({ systemSettings }) {
                         border: `1.5px solid ${palette.border}`,
                         borderRadius: '12px',
                         padding: '12px 14px',
-                        fontSize: '0.92rem',
-                        fontWeight: '700',
-                        color: palette.color,
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'space-between',
@@ -345,12 +509,20 @@ export default function ChatbotPage({ systemSettings }) {
                         boxShadow: '0 2px 4px rgba(0,0,0,0.04)',
                         transition: 'all 0.15s ease',
                         textAlign: 'left',
-                        WebkitTapHighlightColor: 'transparent'
+                        WebkitTapHighlightColor: 'transparent',
+                        gap: '10px'
                       }}
                     >
-                      <span style={{ flex: 1, paddingRight: '8px', lineHeight: 1.4 }}>
-                        {flow.button_text || flow.title}
-                      </span>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, flex: 1 }}>
+                        <span style={{ fontSize: '0.94rem', fontWeight: '800', color: palette.color, lineHeight: 1.35 }}>
+                          {primary}
+                        </span>
+                        {secondary && (
+                          <span style={{ fontSize: '0.80rem', fontWeight: '600', color: '#64748b', lineHeight: 1.2 }}>
+                            {secondary}
+                          </span>
+                        )}
+                      </div>
                       <ChevronRight size={18} style={{ color: palette.chevron, flexShrink: 0 }} />
                     </button>
                   );
@@ -360,7 +532,7 @@ export default function ChatbotPage({ systemSettings }) {
           )}
 
           {/* VIEW 2: CATEGORY / SUB-SELECTION VIEW */}
-          {currentNode && !customQuery && (
+          {!isSearching && currentNode && !customQuery && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', animation: 'viewFadeIn 0.25s ease-out' }}>
               
               {/* Back / Navigation Bar */}
@@ -418,57 +590,84 @@ export default function ChatbotPage({ systemSettings }) {
               {/* Selected Node Header Card */}
               <div style={{
                 backgroundColor: '#ffffff',
-                borderRadius: '14px',
-                padding: '12px 14px',
-                boxShadow: '0 2px 5px rgba(0,0,0,0.06)',
+                borderRadius: '16px',
+                padding: '14px 16px',
+                boxShadow: '0 3px 10px -2px rgba(0,0,0,0.06), 0 1px 3px rgba(0,0,0,0.04)',
+                border: '1px solid #e2e8f0',
                 borderLeft: '4px solid #10b981'
               }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                  <Bot size={16} style={{ color: '#075e54' }} />
-                  <span style={{ fontSize: '0.78rem', fontWeight: '800', color: '#075e54' }}>Subi E-Sevai Bot</span>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Bot size={16} style={{ color: '#075e54' }} />
+                    <span style={{ fontSize: '0.78rem', fontWeight: '800', color: '#075e54' }}>Subi E-Sevai Bot</span>
+                  </div>
+                  <span style={{ fontSize: '0.64rem', fontWeight: '700', color: '#059669', background: '#ecfdf5', padding: '2px 8px', borderRadius: '4px' }}>
+                    Service Details
+                  </span>
                 </div>
-                <h4 style={{ margin: '2px 0 6px 0', fontSize: '0.94rem', fontWeight: '800', color: '#0f172a' }}>
-                  {currentNode.response ? currentNode.response.title : (currentNode.title || currentNode.button_text)}
-                </h4>
-                <div style={{ fontSize: '0.84rem', color: '#334155', lineHeight: '1.5', whiteSpace: 'pre-line' }}>
-                  {currentNode.response
-                    ? currentNode.response.description
-                    : (currentNode.description || 'கீழே உள்ள விருப்பங்களில் ஒன்றைத் தேர்ந்தெடுக்கவும்:')}
-                </div>
+                {(() => {
+                  const fullTitle = currentNode.response ? currentNode.response.title : (currentNode.title || currentNode.button_text);
+                  const { primary, secondary } = splitBilingualTitle(fullTitle);
+                  return (
+                    <div style={{ margin: '0 0 12px 0' }}>
+                      <h4 style={{ margin: 0, fontSize: '1.08rem', fontWeight: '800', color: '#0f172a', lineHeight: '1.35' }}>
+                        📄 {primary}
+                      </h4>
+                      {secondary && (
+                        <div style={{ fontSize: '0.86rem', fontWeight: '600', color: '#059669', marginTop: '3px', paddingLeft: '24px' }}>
+                          {secondary}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })()}
+                <ChatbotContentRenderer
+                  content={currentNode.response ? currentNode.response.description : (currentNode.description || 'கீழே உள்ள விருப்பங்களில் ஒன்றைத் தேர்ந்தெடுக்கவும்:')}
+                  currentTitle={currentNode.response ? currentNode.response.title : (currentNode.title || currentNode.button_text)}
+                  compact={false}
+                />
               </div>
 
               {/* Sub-Items / Children List */}
               {Array.isArray(currentNode.children) && currentNode.children.filter(c => c.status !== 'disabled').length > 0 && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-                  {currentNode.children.filter(c => c.status !== 'disabled').map((child) => (
-                    <button
-                      key={child.id}
-                      onClick={() => handleNodeClick(child)}
-                      className="chat-touch-btn"
-                      style={{
-                        background: '#ffffff',
-                        border: '1.5px solid #10b981',
-                        borderRadius: '12px',
-                        padding: '12px 14px',
-                        fontSize: '0.92rem',
-                        fontWeight: '700',
-                        color: '#065f46',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'space-between',
-                        cursor: 'pointer',
-                        boxShadow: '0 2px 4px rgba(0,0,0,0.04)',
-                        transition: 'all 0.15s ease',
-                        textAlign: 'left',
-                        WebkitTapHighlightColor: 'transparent'
-                      }}
-                    >
-                      <span style={{ flex: 1, paddingRight: '8px', lineHeight: 1.4 }}>
-                        👉 {child.button_text || child.title}
-                      </span>
-                      <ChevronRight size={18} style={{ color: '#10b981', flexShrink: 0 }} />
-                    </button>
-                  ))}
+                  {currentNode.children.filter(c => c.status !== 'disabled').map((child) => {
+                    const { primary, secondary } = splitBilingualTitle(child.button_text || child.title);
+                    return (
+                      <button
+                        key={child.id}
+                        onClick={() => handleNodeClick(child)}
+                        className="chat-touch-btn"
+                        style={{
+                          background: '#ffffff',
+                          border: '1.5px solid #10b981',
+                          borderRadius: '12px',
+                          padding: '12px 14px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'space-between',
+                          cursor: 'pointer',
+                          boxShadow: '0 2px 4px rgba(0,0,0,0.04)',
+                          transition: 'all 0.15s ease',
+                          textAlign: 'left',
+                          WebkitTapHighlightColor: 'transparent',
+                          gap: '10px'
+                        }}
+                      >
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, flex: 1 }}>
+                          <span style={{ fontSize: '0.94rem', fontWeight: '700', color: '#065f46', lineHeight: 1.35 }}>
+                            👉 {primary}
+                          </span>
+                          {secondary && (
+                            <span style={{ fontSize: '0.80rem', fontWeight: '500', color: '#64748b', paddingLeft: '22px', lineHeight: 1.2 }}>
+                              {secondary}
+                            </span>
+                          )}
+                        </div>
+                        <ChevronRight size={18} style={{ color: '#10b981', flexShrink: 0 }} />
+                      </button>
+                    );
+                  })}
                 </div>
               )}
 
@@ -563,100 +762,28 @@ export default function ChatbotPage({ systemSettings }) {
             </div>
           )}
 
-          {/* VIEW 3: CUSTOM QUERY VIEW */}
+          {/* VIEW 3: INTELLIGENT MULTILINGUAL ASSISTANT VIEW */}
           {customQuery && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', animation: 'viewFadeIn 0.25s ease-out' }}>
-              <div style={{
-                backgroundColor: '#dcf8c6',
-                borderRadius: '14px 0px 14px 14px',
-                padding: '10px 14px',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                alignSelf: 'flex-end',
-                maxWidth: '85%'
-              }}>
-                <div style={{ fontSize: '0.88rem', color: '#1e293b', lineHeight: '1.4' }}>
-                  {customQuery.text}
-                </div>
-                <span style={{ fontSize: '0.62rem', color: '#64748b', display: 'block', textAlign: 'right', marginTop: '4px' }}>
-                  {customQuery.timestamp}
-                </span>
-              </div>
-
-              <div style={{
-                backgroundColor: '#ffffff',
-                borderRadius: '0px 14px 14px 14px',
-                padding: '12px 14px',
-                boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                alignSelf: 'flex-start',
-                maxWidth: '90%'
-              }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                  <Bot size={16} style={{ color: '#075e54' }} />
-                  <span style={{ fontSize: '0.78rem', fontWeight: '800', color: '#075e54' }}>Subi E-Sevai Bot</span>
-                </div>
-                <div style={{ fontSize: '0.86rem', color: '#1e293b', lineHeight: '1.5' }}>
-                  <p style={{ margin: '0 0 6px 0' }}>💬 <strong>WhatsApp Chat திறக்கப்பட்டது:</strong></p>
-                  <p style={{ margin: 0, color: '#475569' }}>
-                    "{customQuery.text}" - தொடர்பான WhatsApp Message அனுப்பப்பட்டுள்ளது. அதிகாரிகள் விரைவில் பதிலளிப்பார்கள்.
-                  </p>
-                </div>
-              </div>
-
-              <button
-                onClick={() => sendToWhatsApp(customQuery.waText)}
-                className="chat-touch-btn"
-                style={{
-                  background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
-                  color: '#ffffff',
-                  border: 'none',
-                  borderRadius: '12px',
-                  padding: '12px 16px',
-                  fontSize: '0.92rem',
-                  fontWeight: '800',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  cursor: 'pointer',
-                  boxShadow: '0 4px 12px rgba(37, 211, 102, 0.3)',
-                  WebkitTapHighlightColor: 'transparent'
-                }}
-              >
-                <MessageCircle size={18} />
-                <span>WhatsApp Chat திறக்கவும்</span>
-              </button>
-
-              <button
-                onClick={handleResetToMainMenu}
-                className="chat-touch-btn"
-                style={{
-                  background: '#ffffff',
-                  border: '1.5px solid #075e54',
-                  borderRadius: '12px',
-                  padding: '10px 14px',
-                  fontSize: '0.86rem',
-                  fontWeight: '800',
-                  color: '#075e54',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  cursor: 'pointer',
-                  justifyContent: 'center',
-                  marginTop: '4px',
-                  WebkitTapHighlightColor: 'transparent'
-                }}
-              >
-                <ArrowLeft size={16} />
-                <span>← சேவைகளுக்குத் திரும்பு (Back to Categories)</span>
-              </button>
-            </div>
+            <ChatbotAssistantResponse
+              customQuery={customQuery}
+              onExecuteQuery={executeQuery}
+              onSendToWhatsApp={(msg) => sendToWhatsApp(msg)}
+              onBackToMenu={handleResetToMainMenu}
+            />
           )}
 
         </div>
 
         {/* Bottom Fixed Input Bar */}
         <form
-          onSubmit={handleCustomSend}
+          onSubmit={(e) => {
+            e.preventDefault();
+            if (customText.trim()) {
+              executeQuery(customText);
+            } else {
+              executeQuery('services');
+            }
+          }}
           style={{
             paddingTop: '10px',
             paddingBottom: 'max(10px, env(safe-area-inset-bottom, 10px))',
@@ -669,31 +796,51 @@ export default function ChatbotPage({ systemSettings }) {
             gap: '8px',
             flexShrink: 0,
             zIndex: 50,
+            position: 'relative',
             boxShadow: '0 -2px 10px rgba(0,0,0,0.04)'
           }}
         >
-          <input
-            type="text"
-            placeholder="Type your query (தமிழ் / English)..."
-            value={customText}
-            onChange={(e) => setCustomText(e.target.value)}
+          {/* Input Bar with Search Icon */}
+          <div
             style={{
               flex: 1,
-              padding: '11px 16px',
+              display: 'flex',
+              alignItems: 'center',
+              backgroundColor: '#f8fafc',
               borderRadius: '24px',
               border: '1.5px solid #cbd5e1',
-              fontSize: '16px',
-              outline: 'none',
-              backgroundColor: '#f8fafc',
-              color: '#1e293b'
+              padding: '0 14px',
+              boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
             }}
-          />
+          >
+            <Search size={16} style={{ color: customText.trim() ? '#10b981' : '#94a3b8', flexShrink: 0, marginRight: '8px' }} />
+            <input
+              type="text"
+              placeholder="Search service or ask query (தமிழ் / Eng)..."
+              value={customText}
+              onChange={(e) => setCustomText(e.target.value)}
+              style={{
+                flex: 1,
+                padding: '11px 0',
+                border: 'none',
+                backgroundColor: 'transparent',
+                color: '#0f172a',
+                fontSize: '16px',
+                outline: 'none',
+                fontWeight: '500'
+              }}
+            />
+          </div>
+
+          {/* Dynamic Send / Search Action Button */}
           <button
             type="submit"
-            disabled={!customText.trim()}
+            title={customText.trim() ? "Search & Send message" : "Search services"}
             className="chat-touch-btn"
             style={{
-              backgroundColor: customText.trim() ? '#128C7E' : '#cbd5e1',
+              background: customText.trim()
+                ? 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)'
+                : 'linear-gradient(135deg, #059669 0%, #047857 100%)',
               color: '#ffffff',
               border: 'none',
               width: '42px',
@@ -702,14 +849,19 @@ export default function ChatbotPage({ systemSettings }) {
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              cursor: customText.trim() ? 'pointer' : 'default',
-              boxShadow: customText.trim() ? '0 3px 10px rgba(18, 140, 126, 0.3)' : 'none',
-              transition: 'all 0.15s ease',
+              cursor: 'pointer',
+              boxShadow: '0 3px 10px rgba(18, 140, 126, 0.3)',
+              transition: 'all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+              transform: customText.trim() ? 'scale(1.06)' : 'scale(1)',
               flexShrink: 0,
               WebkitTapHighlightColor: 'transparent'
             }}
           >
-            <Send size={18} />
+            {customText.trim() ? (
+              <Send size={18} style={{ marginLeft: '1px' }} />
+            ) : (
+              <Search size={18} />
+            )}
           </button>
         </form>
 

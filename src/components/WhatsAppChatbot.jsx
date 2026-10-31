@@ -1,8 +1,11 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { X, Send, Bot, ArrowLeft, RefreshCw, MessageCircle, ChevronRight, Maximize2, Minimize2, ExternalLink, Share2, Home } from 'lucide-react';
+import { X, Send, Bot, ArrowLeft, RefreshCw, MessageCircle, ChevronRight, Maximize2, Minimize2, ExternalLink, Share2, Home, Search } from 'lucide-react';
 import { getPublishedFlows } from '../services/chatbotStorage';
 import { playSelectSound } from '../utils/sound';
+import ChatbotContentRenderer, { splitBilingualTitle } from './ChatbotContentRenderer';
+import ChatbotAssistantResponse from './ChatbotAssistantResponse';
+import { processUserQuery, getAllServices } from '../services/chatbotAssistantEngine';
 
 const CATEGORY_COLORS = [
   { border: '#10b981', color: '#047857', bg: '#ecfdf5', chevron: '#10b981' }, // Emerald Green
@@ -144,27 +147,49 @@ export default function WhatsAppChatbot({ systemSettings }) {
     }
   };
 
-  // Custom text submit
-  const handleCustomSend = (e) => {
-    e.preventDefault();
-    if (!customText.trim()) return;
-
-    const query = customText.trim();
-    const defaultWaText = `Hi Subi E-Sevai, ${query} - விண்ணப்பிக்க என்னென்ன விவரங்கள் தேவை?`;
+  // Natural Language & Assistant Query Execution
+  const executeQuery = (queryText) => {
+    if (!queryText || !queryText.trim()) return;
+    const query = queryText.trim();
+    playSelectSound();
     
-    // Open WhatsApp directly
-    sendToWhatsApp(defaultWaText);
+    // Process query using intelligent assistant engine
+    const result = processUserQuery(query);
 
     setCustomQuery({
       text: query,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      waText: defaultWaText
+      result
     });
     setCustomText('');
+
+    setTimeout(() => {
+      if (chatBodyRef.current) {
+        chatBodyRef.current.scrollTop = chatBodyRef.current.scrollHeight;
+      }
+    }, 120);
   };
 
+  // Custom text submit from input form
+  const handleCustomSend = (e) => {
+    e.preventDefault();
+    executeQuery(customText);
+  };
+
+  const searchResults = customText.trim()
+    ? getAllServices().filter(s => {
+        const q = customText.toLowerCase().trim();
+        return (
+          s.title.toLowerCase().includes(q) ||
+          (s.category && s.category.toLowerCase().includes(q)) ||
+          s.keywords.some(k => k.includes(q))
+        );
+      })
+    : [];
+
+  const isSearching = customText.trim().length > 0 && !customQuery;
   const currentNode = navHistory.length > 0 ? navHistory[navHistory.length - 1] : null;
-  const isAtRoot = navHistory.length === 0 && !customQuery;
+  const isAtRoot = navHistory.length === 0 && !customQuery && !isSearching;
   const nowTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
   return (
@@ -270,10 +295,10 @@ export default function WhatsAppChatbot({ systemSettings }) {
           border: 'none',
           animation: 'chatSlideUp 0.25s ease-out forwards'
         } : {
-          width: '360px',
+          width: '400px',
           maxWidth: 'calc(100vw - 28px)',
-          height: '560px',
-          maxHeight: 'calc(100vh - 100px)',
+          height: '620px',
+          maxHeight: 'calc(100vh - 90px)',
           backgroundColor: '#efeae2',
           borderRadius: '18px',
           boxShadow: '0 20px 35px rgba(0, 0, 0, 0.25), 0 4px 10px rgba(0,0,0,0.1)',
@@ -428,6 +453,145 @@ export default function WhatsAppChatbot({ systemSettings }) {
             </div>
 
             {/* ======================================================== */}
+            {/* SEARCHABLE LIST VIEW (TOP TO BOTTOM)                     */}
+            {/* Matches are listed cleanly from top to bottom            */}
+            {/* ======================================================== */}
+            {isSearching && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '9px', animation: 'viewFadeIn 0.2s ease-out' }}>
+                {/* Search Header Bar */}
+                <div
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    background: '#ecfdf5',
+                    border: '1.5px solid #10b981',
+                    borderRadius: '11px',
+                    padding: '8px 12px'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Search size={15} style={{ color: '#047857' }} />
+                    <span style={{ fontSize: '0.80rem', fontWeight: '800', color: '#065f46' }}>
+                      "{customText.trim()}" - {searchResults.length} சேவைகள்
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setCustomText('')}
+                    style={{
+                      background: '#ffffff',
+                      border: '1px solid #a7f3d0',
+                      color: '#065f46',
+                      fontSize: '0.70rem',
+                      fontWeight: '800',
+                      cursor: 'pointer',
+                      padding: '3px 8px',
+                      borderRadius: '6px'
+                    }}
+                  >
+                    ✕ Clear
+                  </button>
+                </div>
+
+                {/* Matched Services List (Rendered Top to Bottom) */}
+                {searchResults.length > 0 ? (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {searchResults.map((service, idx) => {
+                      const { primary, secondary } = splitBilingualTitle(service.title);
+                      return (
+                        <button
+                          key={service.id || idx}
+                          onClick={() => {
+                            setCustomText('');
+                            handleNodeClick(service.rawNode || service);
+                          }}
+                          style={{
+                            background: '#ffffff',
+                            border: '1.5px solid #10b981',
+                            borderRadius: '12px',
+                            padding: '11px 14px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.03)',
+                            transition: 'all 0.15s ease',
+                            width: '100%',
+                            gap: '8px'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = '#f0fdf4';
+                            e.currentTarget.style.transform = 'translateX(2px)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = '#ffffff';
+                            e.currentTarget.style.transform = 'translateX(0)';
+                          }}
+                        >
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, flex: 1 }}>
+                            <span style={{ fontSize: '0.90rem', fontWeight: '800', color: '#0f172a', lineHeight: '1.35' }}>
+                              📄 {primary}
+                            </span>
+                            {secondary && (
+                              <span style={{ fontSize: '0.78rem', fontWeight: '600', color: '#059669', lineHeight: '1.2', paddingLeft: '20px' }}>
+                                {secondary}
+                              </span>
+                            )}
+                            {service.category && (
+                              <span style={{ fontSize: '0.68rem', color: '#64748b', marginTop: '2px', paddingLeft: '20px' }}>
+                                பிரிவு: {service.category.replace(/^[^\w\s\u0B80-\u0BFF]+/gu, '').trim()}
+                              </span>
+                            )}
+                          </div>
+                          <ChevronRight size={17} style={{ color: '#10b981', flexShrink: 0 }} />
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div
+                    style={{
+                      background: '#ffffff',
+                      border: '1px solid #cbd5e1',
+                      borderRadius: '12px',
+                      padding: '14px',
+                      textAlign: 'center',
+                      display: 'flex',
+                      flexDirection: 'column',
+                      gap: '8px'
+                    }}
+                  >
+                    <div style={{ fontSize: '0.86rem', color: '#334155', fontWeight: '700' }}>
+                      "{customText}" தொடர்பான நேரடி சேவை இல்லை.
+                    </div>
+                    <div style={{ fontSize: '0.76rem', color: '#64748b' }}>
+                      Enter அல்லது கீழே உள்ள Send பொத்தானை கிளிக் செய்து AI உதவியாளரிடம் கேட்கலாம்.
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => executeQuery(customText)}
+                      style={{
+                        background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '8px',
+                        padding: '9px 14px',
+                        fontSize: '0.80rem',
+                        fontWeight: '800',
+                        cursor: 'pointer',
+                        marginTop: '4px'
+                      }}
+                    >
+                      🤖 AI உதவியாளரிடம் கேட்கவும் (Ask AI)
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ======================================================== */}
             {/* VIEW 1: ROOT / MAIN CATEGORIES LIST                      */}
             {/* When at root, show greeting and the 12 category buttons  */}
             {/* ======================================================== */}
@@ -438,29 +602,30 @@ export default function WhatsAppChatbot({ systemSettings }) {
                   style={{
                     backgroundColor: '#ffffff',
                     borderRadius: '0px 14px 14px 14px',
-                    padding: '10px 12px',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                    padding: '12px 14px',
+                    boxShadow: '0 1px 4px rgba(0,0,0,0.08)',
                     alignSelf: 'flex-start',
                     maxWidth: '92%'
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                    <Bot size={15} style={{ color: '#075e54' }} />
-                    <span style={{ fontSize: '0.72rem', fontWeight: '800', color: '#075e54' }}>Subi E-Sevai Bot</span>
+                    <Bot size={16} style={{ color: '#075e54' }} />
+                    <span style={{ fontSize: '0.78rem', fontWeight: '800', color: '#075e54' }}>Subi E-Sevai Bot</span>
                   </div>
-                  <div style={{ fontSize: '0.8rem', color: '#1e293b', lineHeight: '1.45', whiteSpace: 'pre-line' }}>
-                    <p style={{ margin: '0 0 4px 0' }}>👋 <strong>வணக்கம்! சுபி இ-சேவை 24/7 WhatsApp உதவி மையம்.</strong></p>
+                  <div style={{ fontSize: '0.88rem', color: '#1e293b', lineHeight: '1.55', whiteSpace: 'pre-line' }}>
+                    <p style={{ margin: '0 0 6px 0' }}>👋 <strong>வணக்கம்! சுபி இ-சேவை 24/7 WhatsApp உதவி மையம்.</strong></p>
                     <p style={{ margin: 0 }}>தயவுசெய்து உங்களுக்குத் தேவையான சேவையைத் தேர்ந்தெடுக்கவும்:</p>
                   </div>
-                  <span style={{ fontSize: '0.58rem', color: '#94a3b8', display: 'block', textAlign: 'right', marginTop: '4px' }}>
+                  <span style={{ fontSize: '0.62rem', color: '#94a3b8', display: 'block', textAlign: 'right', marginTop: '6px' }}>
                     {nowTime}
                   </span>
                 </div>
 
                 {/* Categories Buttons List */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                   {publishedFlows.filter(f => f.status !== 'disabled').map((flow, idx) => {
                     const palette = CATEGORY_COLORS[idx % CATEGORY_COLORS.length];
+                    const { primary, secondary } = splitBilingualTitle(flow.button_text || flow.title);
                     return (
                       <button
                         key={flow.id}
@@ -468,11 +633,8 @@ export default function WhatsAppChatbot({ systemSettings }) {
                         style={{
                           background: '#ffffff',
                           border: `1.5px solid ${palette.border}`,
-                          borderRadius: '10px',
-                          padding: '10px 12px',
-                          fontSize: '0.78rem',
-                          fontWeight: '800',
-                          color: palette.color,
+                          borderRadius: '12px',
+                          padding: '11px 14px',
                           display: 'flex',
                           alignItems: 'center',
                           justifyContent: 'space-between',
@@ -480,7 +642,8 @@ export default function WhatsAppChatbot({ systemSettings }) {
                           textAlign: 'left',
                           boxShadow: '0 2px 4px rgba(0,0,0,0.03)',
                           transition: 'all 0.2s ease',
-                          width: '100%'
+                          width: '100%',
+                          gap: '10px'
                         }}
                         onMouseEnter={(e) => {
                           e.currentTarget.style.background = palette.bg;
@@ -491,10 +654,17 @@ export default function WhatsAppChatbot({ systemSettings }) {
                           e.currentTarget.style.transform = 'translateX(0)';
                         }}
                       >
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          {flow.button_text || flow.title}
-                        </span>
-                        <ChevronRight size={15} style={{ color: palette.chevron, flexShrink: 0, marginLeft: '6px' }} />
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, flex: 1 }}>
+                          <span style={{ fontSize: '0.92rem', fontWeight: '800', color: palette.color, lineHeight: '1.35' }}>
+                            {primary}
+                          </span>
+                          {secondary && (
+                            <span style={{ fontSize: '0.78rem', fontWeight: '600', color: '#64748b', lineHeight: '1.2' }}>
+                              {secondary}
+                            </span>
+                          )}
+                        </div>
+                        <ChevronRight size={17} style={{ color: palette.chevron, flexShrink: 0 }} />
                       </button>
                     );
                   })}
@@ -507,7 +677,7 @@ export default function WhatsAppChatbot({ systemSettings }) {
             {/* Previous categories are hidden, new selection is shown!  */}
             {/* Back button returns to show previous data!               */}
             {/* ======================================================== */}
-            {currentNode && !customQuery && (
+            {!isSearching && currentNode && !customQuery && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', animation: 'viewFadeIn 0.25s ease-out' }}>
                 
                 {/* Navigation Bar: Prominent Back / Return Button */}
@@ -574,65 +744,94 @@ export default function WhatsAppChatbot({ systemSettings }) {
                 <div
                   style={{
                     backgroundColor: '#ffffff',
-                    borderRadius: '12px',
-                    padding: '10px 12px',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+                    borderRadius: '14px',
+                    padding: '14px 16px',
+                    boxShadow: '0 2px 8px -2px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04)',
+                    border: '1px solid #e2e8f0',
                     borderLeft: '4px solid #10b981'
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                    <Bot size={15} style={{ color: '#075e54' }} />
-                    <span style={{ fontSize: '0.72rem', fontWeight: '800', color: '#075e54' }}>Subi E-Sevai Bot</span>
+                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                      <Bot size={16} style={{ color: '#075e54' }} />
+                      <span style={{ fontSize: '0.78rem', fontWeight: '800', color: '#075e54' }}>Subi E-Sevai Bot</span>
+                    </div>
+                    <span style={{ fontSize: '0.66rem', fontWeight: '700', color: '#059669', background: '#ecfdf5', padding: '2px 8px', borderRadius: '4px' }}>
+                      24/7 E-Sevai
+                    </span>
                   </div>
-                  <h4 style={{ margin: '2px 0 4px 0', fontSize: '0.84rem', fontWeight: '800', color: '#0f172a' }}>
-                    {currentNode.response ? currentNode.response.title : (currentNode.title || currentNode.button_text)}
-                  </h4>
-                  <div style={{ fontSize: '0.75rem', color: '#334155', lineHeight: '1.45', whiteSpace: 'pre-line' }}>
-                    {currentNode.response
-                      ? currentNode.response.description
-                      : (currentNode.description || 'கீழே உள்ள விருப்பங்களில் ஒன்றைத் தேர்ந்தெடுக்கவும்:')}
-                  </div>
+
+                  {(() => {
+                    const fullTitle = currentNode.response ? currentNode.response.title : (currentNode.title || currentNode.button_text);
+                    const { primary, secondary } = splitBilingualTitle(fullTitle);
+                    return (
+                      <div style={{ margin: '0 0 10px 0' }}>
+                        <h4 style={{ margin: 0, fontSize: '1.02rem', fontWeight: '800', color: '#0f172a', lineHeight: '1.35' }}>
+                          📄 {primary}
+                        </h4>
+                        {secondary && (
+                          <div style={{ fontSize: '0.82rem', fontWeight: '600', color: '#059669', marginTop: '3px', paddingLeft: '22px' }}>
+                            {secondary}
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })()}
+
+                  <ChatbotContentRenderer
+                    content={currentNode.response ? currentNode.response.description : (currentNode.description || 'கீழே உள்ள விருப்பங்களில் ஒன்றைத் தேர்ந்தெடுக்கவும்:')}
+                    currentTitle={currentNode.response ? currentNode.response.title : (currentNode.title || currentNode.button_text)}
+                    compact={true}
+                  />
                 </div>
 
                 {/* Sub-Items / Children List (if node has children) */}
                 {Array.isArray(currentNode.children) && currentNode.children.filter(c => c.status !== 'disabled').length > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
-                    {currentNode.children.filter(c => c.status !== 'disabled').map((child) => (
-                      <button
-                        key={child.id}
-                        onClick={() => handleNodeClick(child)}
-                        style={{
-                          background: '#ffffff',
-                          border: '1.5px solid #10b981',
-                          borderRadius: '10px',
-                          padding: '9px 12px',
-                          fontSize: '0.76rem',
-                          fontWeight: '700',
-                          color: '#065f46',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'space-between',
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                          boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
-                          transition: 'all 0.2s ease',
-                          width: '100%'
-                        }}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = '#ecfdf5';
-                          e.currentTarget.style.transform = 'translateX(3px)';
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = '#ffffff';
-                          e.currentTarget.style.transform = 'translateX(0)';
-                        }}
-                      >
-                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                          👉 {child.button_text || child.title}
-                        </span>
-                        <ChevronRight size={14} style={{ color: '#10b981', flexShrink: 0, marginLeft: '6px' }} />
-                      </button>
-                    ))}
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '7px' }}>
+                    {currentNode.children.filter(c => c.status !== 'disabled').map((child) => {
+                      const { primary, secondary } = splitBilingualTitle(child.button_text || child.title);
+                      return (
+                        <button
+                          key={child.id}
+                          onClick={() => handleNodeClick(child)}
+                          style={{
+                            background: '#ffffff',
+                            border: '1.5px solid #10b981',
+                            borderRadius: '11px',
+                            padding: '10px 13px',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            cursor: 'pointer',
+                            textAlign: 'left',
+                            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+                            transition: 'all 0.2s ease',
+                            width: '100%',
+                            gap: '8px'
+                          }}
+                          onMouseEnter={(e) => {
+                            e.currentTarget.style.background = '#ecfdf5';
+                            e.currentTarget.style.transform = 'translateX(3px)';
+                          }}
+                          onMouseLeave={(e) => {
+                            e.currentTarget.style.background = '#ffffff';
+                            e.currentTarget.style.transform = 'translateX(0)';
+                          }}
+                        >
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: '2px', minWidth: 0, flex: 1 }}>
+                            <span style={{ fontSize: '0.90rem', fontWeight: '700', color: '#065f46', lineHeight: '1.3' }}>
+                              👉 {primary}
+                            </span>
+                            {secondary && (
+                              <span style={{ fontSize: '0.76rem', fontWeight: '500', color: '#64748b', paddingLeft: '20px', lineHeight: '1.2' }}>
+                                {secondary}
+                              </span>
+                            )}
+                          </div>
+                          <ChevronRight size={16} style={{ color: '#10b981', flexShrink: 0 }} />
+                        </button>
+                      );
+                    })}
                   </div>
                 )}
 
@@ -732,111 +931,33 @@ export default function WhatsAppChatbot({ systemSettings }) {
             )}
 
             {/* ======================================================== */}
-            {/* VIEW 3: CUSTOM TYPED QUERY VIEW                          */}
-            {/* When user types in the input box                         */}
+            {/* VIEW 3: INTELLIGENT MULTILINGUAL ASSISTANT VIEW          */}
+            {/* When user types in the input box or clicks a quick chip   */}
             {/* ======================================================== */}
             {customQuery && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', animation: 'viewFadeIn 0.25s ease-out' }}>
-                {/* User Message Bubble */}
-                <div
-                  style={{
-                    backgroundColor: '#dcf8c6',
-                    borderRadius: '14px 0px 14px 14px',
-                    padding: '9px 12px',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                    alignSelf: 'flex-end',
-                    maxWidth: '85%'
-                  }}
-                >
-                  <div style={{ fontSize: '0.8rem', color: '#1e293b', lineHeight: '1.4' }}>
-                    {customQuery.text}
-                  </div>
-                  <span style={{ fontSize: '0.58rem', color: '#64748b', display: 'block', textAlign: 'right', marginTop: '3px' }}>
-                    {customQuery.timestamp}
-                  </span>
-                </div>
-
-                {/* Bot Response Bubble */}
-                <div
-                  style={{
-                    backgroundColor: '#ffffff',
-                    borderRadius: '0px 14px 14px 14px',
-                    padding: '10px 12px',
-                    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
-                    alignSelf: 'flex-start',
-                    maxWidth: '90%'
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '4px' }}>
-                    <Bot size={15} style={{ color: '#075e54' }} />
-                    <span style={{ fontSize: '0.72rem', fontWeight: '800', color: '#075e54' }}>Subi E-Sevai Bot</span>
-                  </div>
-                  <div style={{ fontSize: '0.78rem', color: '#1e293b', lineHeight: '1.45' }}>
-                    <p style={{ margin: '0 0 6px 0' }}>
-                      💬 <strong>WhatsApp Chat திறக்கப்பட்டது:</strong>
-                    </p>
-                    <p style={{ margin: 0, color: '#475569' }}>
-                      "{customQuery.text}" - தொடர்பான WhatsApp Message அனுப்பப்பட்டுள்ளது. அதிகாரிகள் விரைவில் பதிலளிப்பார்கள்.
-                    </p>
-                  </div>
-                </div>
-
-                {/* Direct WhatsApp Action Button */}
-                <button
-                  onClick={() => sendToWhatsApp(customQuery.waText)}
-                  style={{
-                    background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
-                    color: '#ffffff',
-                    border: 'none',
-                    borderRadius: '12px',
-                    padding: '10px 14px',
-                    fontSize: '0.78rem',
-                    fontWeight: '800',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: '8px',
-                    cursor: 'pointer',
-                    boxShadow: '0 4px 12px rgba(37, 211, 102, 0.35)'
-                  }}
-                >
-                  <MessageCircle size={16} />
-                  <span>WhatsApp Chat திறக்கவும்</span>
-                </button>
-
-                {/* Return to Categories Button */}
-                <button
-                  onClick={handleResetToMainMenu}
-                  style={{
-                    background: '#ffffff',
-                    border: '1.5px solid #075e54',
-                    borderRadius: '10px',
-                    padding: '8px 12px',
-                    fontSize: '0.75rem',
-                    fontWeight: '800',
-                    color: '#075e54',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '6px',
-                    cursor: 'pointer',
-                    justifyContent: 'center',
-                    marginTop: '4px'
-                  }}
-                >
-                  <ArrowLeft size={15} />
-                  <span>← சேவைகளுக்குத் திரும்பு (Back to Categories)</span>
-                </button>
-              </div>
+              <ChatbotAssistantResponse
+                customQuery={customQuery}
+                onExecuteQuery={executeQuery}
+                onSendToWhatsApp={(msg) => sendToWhatsApp(msg)}
+                onBackToMenu={handleResetToMainMenu}
+              />
             )}
 
           </div>
 
           {/* INPUT FORM FOOTER */}
           <form
-            onSubmit={handleCustomSend}
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (customText.trim()) {
+                executeQuery(customText);
+              } else {
+                executeQuery('services');
+              }
+            }}
             style={{
               padding: '9px 12px',
-              backgroundColor: '#f0f2f5',
+              backgroundColor: '#f8fafc',
               borderTop: '1px solid #cbd5e1',
               display: 'flex',
               alignItems: 'center',
@@ -844,42 +965,70 @@ export default function WhatsAppChatbot({ systemSettings }) {
               flexShrink: 0
             }}
           >
-            <input
-              type="text"
-              placeholder="Type message (தமிழ் / Eng)..."
-              value={customText}
-              onChange={(e) => setCustomText(e.target.value)}
-              style={{
-                flex: 1,
-                padding: '9px 14px',
-                borderRadius: '20px',
-                border: '1px solid #cbd5e1',
-                backgroundColor: '#ffffff',
-                color: '#1e293b',
-                fontSize: '0.8rem',
-                outline: 'none'
-              }}
-            />
-            <button
-              type="submit"
-              disabled={!customText.trim()}
-              style={{
-                backgroundColor: customText.trim() ? '#128C7E' : '#cbd5e1',
-                color: '#ffffff',
-                border: 'none',
-                width: '36px',
-                height: '36px',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: customText.trim() ? 'pointer' : 'default',
-                transition: 'background-color 0.2s'
-              }}
-            >
-              <Send size={16} />
-            </button>
-          </form>
+            {/* Input Bar with Search Icon */}
+                <div
+                  style={{
+                    flex: 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    backgroundColor: '#ffffff',
+                    borderRadius: '24px',
+                    border: '1.5px solid #cbd5e1',
+                    padding: '0 12px',
+                    boxShadow: '0 1px 3px rgba(0,0,0,0.03)'
+                  }}
+                >
+                  <Search size={15} style={{ color: customText.trim() ? '#10b981' : '#94a3b8', flexShrink: 0, marginRight: '6px' }} />
+                  <input
+                    type="text"
+                    placeholder="Search service or ask query (தமிழ் / Eng)..."
+                    value={customText}
+                    onChange={(e) => setCustomText(e.target.value)}
+                    style={{
+                      flex: 1,
+                      padding: '9px 0',
+                      border: 'none',
+                      backgroundColor: 'transparent',
+                      color: '#0f172a',
+                      fontSize: '0.82rem',
+                      outline: 'none',
+                      fontWeight: '500'
+                    }}
+                  />
+                </div>
+
+                {/* Dynamic Send / Search Action Button */}
+                <button
+                  type="submit"
+                  title={customText.trim() ? "Search & Send message" : "Search services"}
+                  style={{
+                    background: customText.trim()
+                      ? 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)'
+                      : 'linear-gradient(135deg, #059669 0%, #047857 100%)',
+                    color: '#ffffff',
+                    border: 'none',
+                    width: '38px',
+                    height: '38px',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    boxShadow: '0 2px 8px rgba(37, 211, 102, 0.35)',
+                    transition: 'all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                    transform: customText.trim() ? 'scale(1.06)' : 'scale(1)',
+                    flexShrink: 0
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.transform = 'scale(1.12)'}
+                  onMouseLeave={(e) => e.currentTarget.style.transform = customText.trim() ? 'scale(1.06)' : 'scale(1)'}
+                >
+                  {customText.trim() ? (
+                    <Send size={16} style={{ marginLeft: '1px' }} />
+                  ) : (
+                    <Search size={16} />
+                  )}
+                </button>
+              </form>
 
         </div>
       )}

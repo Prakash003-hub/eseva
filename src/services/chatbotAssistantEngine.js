@@ -126,6 +126,12 @@ function generateServiceKeywords(node) {
   if (/passport|பாஸ்போர்ட்/i.test(text)) {
     kw.add('passport'); kw.add('பாஸ்போர்ட்');
   }
+  if (/\bpf\b|epf|epfo|uan|provident|வருங்கால வைப்பு நிதி|பி\.?எஃப்/i.test(text)) {
+    kw.add('pf'); kw.add('epf'); kw.add('epfo'); kw.add('uan'); kw.add('provident fund'); kw.add('வருங்கால வைப்பு நிதி'); kw.add('பிஎப்'); kw.add('advance'); kw.add('settlement'); kw.add('nomination');
+  }
+  if (/bank|banking|வங்கி|balance|இருப்பு|statement|ஸ்டேட்மென்ட்|sbi|iob|hdfc|icici|axis|canara|bob|pnb|boi|kvb|cub|tmb|sib|ippb/i.test(text)) {
+    kw.add('bank'); kw.add('banking'); kw.add('வங்கி'); kw.add('balance'); kw.add('mini statement'); kw.add('வாட்ஸ்அப் பேங்கிங்'); kw.add('whatsapp banking'); kw.add('sbi'); kw.add('indian bank'); kw.add('canara');
+  }
 
   return Array.from(kw);
 }

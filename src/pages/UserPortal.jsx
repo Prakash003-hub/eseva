@@ -2504,6 +2504,8 @@ export default function UserPortal({ currentUser, onUpdateProfile, onLoginTrigge
     'pan card': { label: 'PAN Card Services', tamilLabel: 'பான் கார்டு சேவைகள்', icon: '💳', accent: '#7c3aed' },
     'voter id': { label: 'Voter ID Services', tamilLabel: 'வாக்காளர் அடையாள அட்டை', icon: '🆔', accent: '#059669' },
     'aadhaar': { label: 'Aadhaar Services', tamilLabel: 'ஆதார் சேவைகள்', icon: '🪪', accent: '#d97706' },
+    'pf': { label: 'EPF / PF Services', tamilLabel: 'வருங்கால வைப்பு நிதி', icon: '💰', accent: '#059669' },
+    'epf': { label: 'EPF / PF Services', tamilLabel: 'வருங்கால வைப்பு நிதி', icon: '💰', accent: '#059669' },
     'others': { label: 'Other Services & Downloads', tamilLabel: 'இதர சேவைகள்', icon: '📄', accent: '#64748b' }
   };
 

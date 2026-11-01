@@ -87,6 +87,17 @@ button img, a img, .cursor-pointer img, .interactive-img {
   pointer-events: auto;
 }
 
+/* Global Modal Overlay Styles - Keep modal fixed on screen and prevent scrolling bottom UI */
+.modal-overlay {
+  position: fixed !important;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 999999;
+  overscroll-behavior: contain;
+}
+
 /* Master Layout Container - Centers the App in Desktop Viewports */
 .layout-viewport-container {
   display: flex;

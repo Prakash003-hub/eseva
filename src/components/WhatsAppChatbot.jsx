@@ -359,6 +359,30 @@ export default function WhatsAppChatbot({ systemSettings }) {
             </div>
 
             <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              {/* Official Logos Pill */}
+              <div style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: '5px',
+                background: 'rgba(0,0,0,0.22)',
+                padding: '2px 6px',
+                borderRadius: '20px',
+                border: '1.5px solid rgba(255,255,255,0.22)'
+              }}>
+                <img
+                  src="/tn_govt_logo.png"
+                  alt="Tamil Nadu Government"
+                  title="Tamil Nadu Government"
+                  style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'contain', backgroundColor: '#ffffff', padding: '1.5px', border: '1.5px solid #86efac' }}
+                />
+                <img
+                  src="/esevai_logo.png"
+                  alt="e-Sevai"
+                  title="e-Sevai"
+                  style={{ width: '34px', height: '34px', borderRadius: '50%', objectFit: 'contain', backgroundColor: '#ffffff', padding: '1.5px', border: '1.5px solid #86efac' }}
+                />
+              </div>
+
               {/* FullScreen Toggle Button */}
               <button
                 onClick={() => setIsFullScreen(!isFullScreen)}

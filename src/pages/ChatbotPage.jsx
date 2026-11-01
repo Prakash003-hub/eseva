@@ -1,11 +1,21 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bot, ArrowLeft, RefreshCw, MessageCircle, ChevronRight, ExternalLink, Share2, Home, Send, Search } from 'lucide-react';
+import { Bot, ArrowLeft, RefreshCw, MessageCircle, ChevronRight, ChevronLeft, ExternalLink, Share2, Home, Send, Search, X } from 'lucide-react';
+import defaultFooterShowcase from '../config/footerShowcase.json';
 import { getPublishedFlows } from '../services/chatbotStorage';
 import { playSelectSound } from '../utils/sound';
 import ChatbotContentRenderer, { splitBilingualTitle } from '../components/ChatbotContentRenderer';
 import ChatbotAssistantResponse from '../components/ChatbotAssistantResponse';
 import { processUserQuery, getAllServices } from '../services/chatbotAssistantEngine';
+import { getAnnouncements } from '../services/db';
+
+const getImageUrl = (url) => {
+  if (!url) return '';
+  if (url.startsWith('data:') || url.startsWith('blob:') || url.startsWith('http://') || url.startsWith('https://') || url.startsWith('/')) {
+    return url;
+  }
+  return url;
+};
 
 const CATEGORY_COLORS = [
   { border: '#10b981', color: '#047857', bg: '#f0fdf4', chevron: '#10b981', dot: '#10b981' }, // Emerald
@@ -29,9 +39,102 @@ export default function ChatbotPage({ systemSettings }) {
   // [categoryNode] = Sub-selection of category (previous root categories hidden)
   // [categoryNode, childNode] = Deep child details (previous sub-selection hidden)
   const [navHistory, setNavHistory] = useState([]);
-  
+
   // Custom query state (when user types a message in the input box)
   const [customQuery, setCustomQuery] = useState(null);
+
+  // Showcase & Admin Advertisements State (Big Rectangle Ad)
+  const [showcaseItems, setShowcaseItems] = useState(() => {
+    let list = systemSettings?.footer_showcase_images;
+    if (typeof list === 'string') {
+      try { list = JSON.parse(list); } catch (e) { list = null; }
+    }
+    return Array.isArray(list) && list.length > 0 ? list : defaultFooterShowcase;
+  });
+
+  // Sync Admin Announcements (Ads/Popups) + Showcase Images directly to Chatbot Ad
+  useEffect(() => {
+    let isMounted = true;
+    const loadAdsAndShowcase = async () => {
+      try {
+        const annData = await getAnnouncements().catch(() => []);
+        if (!isMounted) return;
+
+        let adminAnnAds = [];
+        if (Array.isArray(annData)) {
+          adminAnnAds = annData
+            .filter(a => String(a.enabled).toLowerCase() !== 'false' && (a.img_url || a.image))
+            .map(a => ({
+              id: a.id || `ann-${Date.now()}`,
+              title: a.title || '',
+              subtitle: a.content || a.description || '',
+              image: getImageUrl(a.img_url || a.image),
+              link: a.button_url || ''
+            }));
+        }
+
+        let showcaseList = systemSettings?.footer_showcase_images;
+        if (typeof showcaseList === 'string') {
+          try { showcaseList = JSON.parse(showcaseList); } catch (e) { showcaseList = null; }
+        }
+        const baseShowcase = Array.isArray(showcaseList) && showcaseList.length > 0 ? showcaseList : defaultFooterShowcase;
+
+        // Admin-uploaded ads appear first on the chatbot ad banner
+        if (adminAnnAds.length > 0) {
+          setShowcaseItems([...adminAnnAds, ...baseShowcase]);
+        } else {
+          setShowcaseItems(baseShowcase);
+        }
+      } catch (err) {
+        console.warn('Could not load announcements in chatbot:', err);
+      }
+    };
+
+    loadAdsAndShowcase();
+    return () => { isMounted = false; };
+  }, [systemSettings]);
+
+  // Auto-scrolling carousel state for chatbot showcase banner
+  const [currentShowcaseIdx, setCurrentShowcaseIdx] = useState(0);
+  const [isAutoScrollPaused, setIsAutoScrollPaused] = useState(false);
+  const [showcaseZoomModal, setShowcaseZoomModal] = useState(null);
+  const touchStartXRef = useRef(null);
+
+  useEffect(() => {
+    if (!showcaseItems || showcaseItems.length <= 1 || isAutoScrollPaused) return;
+    const interval = setInterval(() => {
+      setCurrentShowcaseIdx(prev => (prev + 1) % showcaseItems.length);
+    }, 3600);
+    return () => clearInterval(interval);
+  }, [showcaseItems, isAutoScrollPaused]);
+
+  const handleNextShowcase = (e) => {
+    if (e) e.stopPropagation();
+    setCurrentShowcaseIdx(prev => (prev + 1) % showcaseItems.length);
+  };
+
+  const handlePrevShowcase = (e) => {
+    if (e) e.stopPropagation();
+    setCurrentShowcaseIdx(prev => (prev - 1 + showcaseItems.length) % showcaseItems.length);
+  };
+
+  const handleTouchStart = (e) => {
+    touchStartXRef.current = e.touches[0].clientX;
+    setIsAutoScrollPaused(true);
+  };
+
+  const handleTouchEnd = (e) => {
+    if (touchStartXRef.current === null) return;
+    const touchEndX = e.changedTouches[0].clientX;
+    const diff = touchStartXRef.current - touchEndX;
+    if (diff > 35) {
+      handleNextShowcase();
+    } else if (diff < -35) {
+      handlePrevShowcase();
+    }
+    touchStartXRef.current = null;
+    setTimeout(() => setIsAutoScrollPaused(false), 2500);
+  };
 
   const chatBodyRef = useRef(null);
 
@@ -139,13 +242,13 @@ export default function ChatbotPage({ systemSettings }) {
 
   const searchResults = customText.trim()
     ? getAllServices().filter(s => {
-        const q = customText.toLowerCase().trim();
-        return (
-          s.title.toLowerCase().includes(q) ||
-          (s.category && s.category.toLowerCase().includes(q)) ||
-          s.keywords.some(k => k.includes(q))
-        );
-      })
+      const q = customText.toLowerCase().trim();
+      return (
+        s.title.toLowerCase().includes(q) ||
+        (s.category && s.category.toLowerCase().includes(q)) ||
+        s.keywords.some(k => k.includes(q))
+      );
+    })
     : [];
 
   const isSearching = customText.trim().length > 0 && !customQuery;
@@ -200,15 +303,17 @@ export default function ChatbotPage({ systemSettings }) {
         <div style={{
           backgroundColor: '#075e54',
           color: '#ffffff',
-          padding: '10px 14px',
+          padding: '8px 12px',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
           flexShrink: 0,
           zIndex: 50,
-          boxShadow: '0 2px 8px rgba(0,0,0,0.15)'
+          boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
+          gap: '8px'
         }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          {/* Header Left (Avatar & Brand) */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', minWidth: 0, flex: 1 }}>
             <button
               onClick={handleHeaderBack}
               title="Go Back"
@@ -217,27 +322,28 @@ export default function ChatbotPage({ systemSettings }) {
                 background: 'rgba(255,255,255,0.12)',
                 border: 'none',
                 color: '#ffffff',
-                width: '36px',
-                height: '36px',
+                width: '32px',
+                height: '32px',
                 borderRadius: '50%',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
                 transition: 'background 0.2s ease',
-                WebkitTapHighlightColor: 'transparent'
+                WebkitTapHighlightColor: 'transparent',
+                flexShrink: 0
               }}
             >
-              <ArrowLeft size={20} />
+              <ArrowLeft size={18} />
             </button>
 
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative', flexShrink: 0 }}>
               <img
                 src="/whatsbro_avatar.png"
                 alt="Chatbot Avatar"
                 style={{
-                  width: '42px',
-                  height: '42px',
+                  width: '36px',
+                  height: '36px',
                   borderRadius: '50%',
                   objectFit: 'contain',
                   backgroundColor: '#ffffff',
@@ -249,26 +355,72 @@ export default function ChatbotPage({ systemSettings }) {
                 position: 'absolute',
                 bottom: '1px',
                 right: '1px',
-                width: '11px',
-                height: '11px',
+                width: '9px',
+                height: '9px',
                 backgroundColor: '#22c55e',
                 border: '2px solid #075e54',
                 borderRadius: '50%'
               }} />
             </div>
 
-            <div>
-              <h3 style={{ margin: 0, fontSize: '0.98rem', fontWeight: '800', color: '#ffffff', lineHeight: 1.2 }}>
-                Subi E-Sevai 24/7 Chatbot
+            <div style={{ minWidth: 0, flex: 1 }}>
+              <h3 style={{ margin: 0, fontSize: '0.88rem', fontWeight: '800', color: '#ffffff', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                Subi E-Sevai 2.0 Chatbot
               </h3>
-              <div style={{ fontSize: '0.72rem', color: '#86efac', display: 'flex', alignItems: 'center', gap: '5px', marginTop: '2px' }}>
-                <span style={{ width: '7px', height: '7px', borderRadius: '50%', backgroundColor: '#22c55e', display: 'inline-block' }} />
-                <span>Online • WhatsApp Direct Help</span>
+              <div style={{ fontSize: '0.66rem', color: '#86efac', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '1px' }}>
+
+                <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Burkitmanagaram</span>
               </div>
             </div>
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          {/* Header Right: Official Logos (BIG SIZE) & Reset */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+            {/* Official Logos: Tamil Nadu Government Emblem & e-Sevai */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '6px',
+              background: 'rgba(0,0,0,0.22)',
+              padding: '3px 8px',
+              borderRadius: '28px',
+              border: '1.5px solid rgba(255,255,255,0.25)',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.18)'
+            }}>
+              <img
+                src="/tn_govt_logo.png"
+                alt="Tamil Nadu Government Emblem"
+                title="Tamil Nadu Government"
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  objectFit: 'contain',
+                  backgroundColor: '#ffffff',
+                  padding: '2px',
+                  border: '2px solid #86efac',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                  flexShrink: 0
+                }}
+              />
+              <img
+                src="/esevai_logo.png"
+                alt="e-Sevai Logo"
+                title="e-Sevai TN e-Governance"
+                style={{
+                  width: '44px',
+                  height: '44px',
+                  borderRadius: '50%',
+                  objectFit: 'contain',
+                  backgroundColor: '#ffffff',
+                  padding: '2px',
+                  border: '2px solid #86efac',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+                  flexShrink: 0
+                }}
+              />
+            </div>
+
             <button
               onClick={handleResetToMainMenu}
               title="Restart / Main Menu"
@@ -277,18 +429,19 @@ export default function ChatbotPage({ systemSettings }) {
                 background: 'rgba(255,255,255,0.12)',
                 border: 'none',
                 color: '#ffffff',
-                width: '34px',
-                height: '34px',
+                width: '32px',
+                height: '32px',
                 borderRadius: '50%',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 cursor: 'pointer',
                 transition: 'background 0.2s ease',
-                WebkitTapHighlightColor: 'transparent'
+                WebkitTapHighlightColor: 'transparent',
+                flexShrink: 0
               }}
             >
-              <RefreshCw size={16} />
+              <RefreshCw size={15} />
             </button>
           </div>
         </div>
@@ -317,7 +470,7 @@ export default function ChatbotPage({ systemSettings }) {
               fontWeight: '700',
               boxShadow: '0 1px 3px rgba(0,0,0,0.06)'
             }}>
-              Subi E-Sevai 24/7 WhatsApp Chat Support
+              Subi E-Sevai 2.0 WhatsApp Chat Support
             </span>
           </div>
 
@@ -463,28 +616,231 @@ export default function ChatbotPage({ systemSettings }) {
           {/* VIEW 1: ROOT / MAIN CATEGORIES */}
           {isAtRoot && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', animation: 'viewFadeIn 0.25s ease-out' }}>
-              {/* Bot Greeting Bubble */}
+              {/* Bot Greeting Bubble with Admin-configured Scrolled Showcase */}
               <div
                 style={{
                   backgroundColor: '#ffffff',
                   borderRadius: '0px 16px 16px 16px',
                   padding: '12px 14px',
-                  boxShadow: '0 2px 5px rgba(0,0,0,0.06)',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.06)',
                   alignSelf: 'flex-start',
-                  maxWidth: '92%'
+                  maxWidth: '100%',
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  border: '1px solid rgba(16, 185, 129, 0.15)'
                 }}
               >
-                <div style={{ display: 'flex', alignItems: 'center', gap: '6px', marginBottom: '6px' }}>
-                  <Bot size={16} style={{ color: '#075e54' }} />
-                  <span style={{ fontSize: '0.78rem', fontWeight: '800', color: '#075e54' }}>Subi E-Sevai Bot</span>
+                {/* Bot Identity Header */}
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                    <Bot size={16} style={{ color: '#075e54' }} />
+                    <span style={{ fontSize: '0.78rem', fontWeight: '800', color: '#075e54' }}>Subi E-Sevai Bot</span>
+                  </div>
+                  <span style={{ fontSize: '0.62rem', color: '#94a3b8' }}>
+                    {nowTime}
+                  </span>
                 </div>
+
+                {/* Scrolled Image Carousel (Set on Admin) - Big Widescreen Rectangle Banner */}
+                {showcaseItems && showcaseItems.length > 0 && (
+                  <div
+                    onMouseEnter={() => setIsAutoScrollPaused(true)}
+                    onMouseLeave={() => setIsAutoScrollPaused(false)}
+                    onTouchStart={handleTouchStart}
+                    onTouchEnd={handleTouchEnd}
+                    style={{
+                      position: 'relative',
+                      width: '100%',
+                      borderRadius: '16px',
+                      overflow: 'hidden',
+                      marginBottom: '10px',
+                      boxShadow: '0 4px 14px rgba(0,0,0,0.1)',
+                      border: '2px solid #86efac',
+                      background: '#043831'
+                    }}
+                  >
+                    <div
+                      style={{
+                        position: 'relative',
+                        width: '100%',
+                        aspectRatio: '2.35 / 1',
+                        overflow: 'hidden'
+                      }}
+                    >
+                      <div
+                        style={{
+                          display: 'flex',
+                          width: `${showcaseItems.length * 100}%`,
+                          height: '100%',
+                          transform: `translateX(-${currentShowcaseIdx * (100 / showcaseItems.length)}%)`,
+                          transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)'
+                        }}
+                      >
+                        {showcaseItems.map((item, idx) => (
+                          <div
+                            key={item.id || idx}
+                            onClick={() => {
+                              if (item.link) {
+                                if (item.link.startsWith('http')) {
+                                  window.open(item.link, '_blank');
+                                } else {
+                                  navigate(item.link);
+                                }
+                              } else {
+                                setShowcaseZoomModal(item);
+                              }
+                            }}
+                            style={{
+                              position: 'relative',
+                              width: `${100 / showcaseItems.length}%`,
+                              height: '100%',
+                              flexShrink: 0,
+                              cursor: 'pointer'
+                            }}
+                          >
+                            <img
+                              src={item.image}
+                              alt={item.title || 'Service Banner'}
+                              style={{
+                                width: '100%',
+                                height: '100%',
+                                objectFit: 'cover',
+                                display: 'block'
+                              }}
+                              onError={(e) => {
+                                e.target.src = '/income_og_preview.jpg';
+                              }}
+                            />
+                            {/* Overlay Gradient with Title */}
+                            {(item.title || item.subtitle) && (
+                              <div
+                                style={{
+                                  position: 'absolute',
+                                  bottom: 0,
+                                  left: 0,
+                                  right: 0,
+                                  background: 'linear-gradient(transparent, rgba(0,0,0,0.85))',
+                                  padding: '16px 10px 8px 10px',
+                                  color: '#ffffff',
+                                  display: 'flex',
+                                  alignItems: 'center',
+                                  justifyContent: 'space-between',
+                                  gap: '6px'
+                                }}
+                              >
+                                <div style={{ minWidth: 0, flex: 1 }}>
+                                  {item.title && (
+                                    <div style={{ fontSize: '0.78rem', fontWeight: '800', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                      {item.title}
+                                    </div>
+                                  )}
+                                  {item.subtitle && (
+                                    <div style={{ fontSize: '0.65rem', color: '#86efac', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                                      {item.subtitle}
+                                    </div>
+                                  )}
+                                </div>
+                                {item.link && (
+                                  <span style={{ fontSize: '0.65rem', color: '#ffffff', background: '#25d366', padding: '2px 8px', borderRadius: '10px', fontWeight: '700', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '3px' }}>
+                                    View <ExternalLink size={10} />
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Left / Right Chevron Controls */}
+                      {showcaseItems.length > 1 && (
+                        <>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handlePrevShowcase(); }}
+                            aria-label="Previous image"
+                            style={{
+                              position: 'absolute',
+                              left: '6px',
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              background: 'rgba(0,0,0,0.5)',
+                              border: 'none',
+                              color: '#ffffff',
+                              width: '26px',
+                              height: '26px',
+                              borderRadius: '50%',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              zIndex: 2
+                            }}
+                          >
+                            <ChevronLeft size={16} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); handleNextShowcase(); }}
+                            aria-label="Next image"
+                            style={{
+                              position: 'absolute',
+                              right: '6px',
+                              top: '50%',
+                              transform: 'translateY(-50%)',
+                              background: 'rgba(0,0,0,0.5)',
+                              border: 'none',
+                              color: '#ffffff',
+                              width: '26px',
+                              height: '26px',
+                              borderRadius: '50%',
+                              display: 'flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              cursor: 'pointer',
+                              zIndex: 2
+                            }}
+                          >
+                            <ChevronRight size={16} />
+                          </button>
+                        </>
+                      )}
+                    </div>
+
+                    {/* Pagination Indicator Dots */}
+                    {showcaseItems.length > 1 && (
+                      <div
+                        style={{
+                          display: 'flex',
+                          justifyContent: 'center',
+                          alignItems: 'center',
+                          gap: '5px',
+                          padding: '5px 0',
+                          background: '#042e28'
+                        }}
+                      >
+                        {showcaseItems.map((_, dotIdx) => (
+                          <span
+                            key={dotIdx}
+                            onClick={() => setCurrentShowcaseIdx(dotIdx)}
+                            style={{
+                              width: currentShowcaseIdx === dotIdx ? '16px' : '6px',
+                              height: '6px',
+                              borderRadius: '3px',
+                              backgroundColor: currentShowcaseIdx === dotIdx ? '#22c55e' : 'rgba(255,255,255,0.4)',
+                              transition: 'all 0.3s ease',
+                              cursor: 'pointer'
+                            }}
+                          />
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 <div style={{ fontSize: '0.88rem', color: '#1e293b', lineHeight: '1.5', whiteSpace: 'pre-line' }}>
-                  <p style={{ margin: '0 0 6px 0' }}>👋 <strong>வணக்கம்! சுபி இ-சேவை 24/7 ஆன்லைன் உதவி மையம்.</strong></p>
+                  <p style={{ margin: '0 0 6px 0' }}>👋 <strong>வணக்கம்! சுபி இ-சேவை 2.0 உதவி மையம்.</strong></p>
                   <p style={{ margin: 0 }}>உங்களுக்குத் தேவையான அரசு மற்றும் ஆன்லைன் சேவையைத் தேர்ந்தெடுக்கவும்:</p>
                 </div>
-                <span style={{ fontSize: '0.62rem', color: '#94a3b8', display: 'block', textAlign: 'right', marginTop: '6px' }}>
-                  {nowTime}
-                </span>
               </div>
 
               {/* Categories Buttons List */}
@@ -534,7 +890,7 @@ export default function ChatbotPage({ systemSettings }) {
           {/* VIEW 2: CATEGORY / SUB-SELECTION VIEW */}
           {!isSearching && currentNode && !customQuery && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', animation: 'viewFadeIn 0.25s ease-out' }}>
-              
+
               {/* Back / Navigation Bar */}
               <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <button
@@ -688,8 +1044,8 @@ export default function ChatbotPage({ systemSettings }) {
                     const btnClass = isPrimary
                       ? 'chatbot-action-btn chatbot-action-btn-primary'
                       : action.type === 'url'
-                      ? 'chatbot-action-btn chatbot-action-btn-url'
-                      : 'chatbot-action-btn chatbot-action-btn-secondary';
+                        ? 'chatbot-action-btn chatbot-action-btn-url'
+                        : 'chatbot-action-btn chatbot-action-btn-secondary';
 
                     return (
                       <button
@@ -722,17 +1078,17 @@ export default function ChatbotPage({ systemSettings }) {
 
               {/* Fallback Direct WhatsApp Contact */}
               {(!Array.isArray(currentNode.children) || currentNode.children.filter(c => c.status !== 'disabled').length === 0) &&
-               (!currentNode.response || !Array.isArray(currentNode.response.actions) || currentNode.response.actions.length === 0) && (
-                <button
-                  onClick={() => sendToWhatsApp(`வணக்கம் Subi E-Sevai, "${currentNode.button_text || currentNode.title}" சேவை பற்றி விவரம் தேவை.`)}
-                  className="chatbot-action-btn chatbot-action-btn-primary"
-                >
-                  <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%', position: 'relative', zIndex: 1 }}>
-                    <MessageCircle size={18} style={{ flexShrink: 0 }} />
-                    <span style={{ flex: 1, textAlign: 'center', lineHeight: 1.35 }}>WhatsApp மூலம் விசாரிக்க கிளிக் செய்யவும்</span>
-                  </span>
-                </button>
-              )}
+                (!currentNode.response || !Array.isArray(currentNode.response.actions) || currentNode.response.actions.length === 0) && (
+                  <button
+                    onClick={() => sendToWhatsApp(`வணக்கம் Subi E-Sevai, "${currentNode.button_text || currentNode.title}" சேவை பற்றி விவரம் தேவை.`)}
+                    className="chatbot-action-btn chatbot-action-btn-primary"
+                  >
+                    <span style={{ display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: '8px', width: '100%', position: 'relative', zIndex: 1 }}>
+                      <MessageCircle size={18} style={{ flexShrink: 0 }} />
+                      <span style={{ flex: 1, textAlign: 'center', lineHeight: 1.35 }}>WhatsApp மூலம் விசாரிக்க கிளிக் செய்யவும்</span>
+                    </span>
+                  </button>
+                )}
 
               {/* Bottom Back Button */}
               <button
@@ -864,6 +1220,84 @@ export default function ChatbotPage({ systemSettings }) {
             )}
           </button>
         </form>
+
+        {/* Showcase Image Zoom Lightbox Modal */}
+        {showcaseZoomModal && (
+          <div
+            onClick={() => setShowcaseZoomModal(null)}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.85)',
+              backdropFilter: 'blur(6px)',
+              WebkitBackdropFilter: 'blur(6px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 999999,
+              padding: '20px'
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                maxWidth: '420px',
+                width: '100%',
+                backgroundColor: '#ffffff',
+                borderRadius: '16px',
+                overflow: 'hidden',
+                boxShadow: '0 25px 50px -12px rgba(0,0,0,0.5)',
+                position: 'relative',
+                animation: 'slideUpFade 0.25s ease-out'
+              }}
+            >
+              <button
+                type="button"
+                onClick={() => setShowcaseZoomModal(null)}
+                style={{
+                  position: 'absolute',
+                  top: '12px',
+                  right: '12px',
+                  background: 'rgba(0,0,0,0.6)',
+                  border: 'none',
+                  color: '#ffffff',
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  zIndex: 10
+                }}
+              >
+                <X size={18} />
+              </button>
+              <img
+                src={showcaseZoomModal.image}
+                alt={showcaseZoomModal.title || 'Zoom Preview'}
+                style={{ width: '100%', maxHeight: '65vh', objectFit: 'contain', background: '#0f172a', display: 'block' }}
+              />
+              {(showcaseZoomModal.title || showcaseZoomModal.subtitle) && (
+                <div style={{ padding: '14px 16px', background: '#ffffff' }}>
+                  {showcaseZoomModal.title && (
+                    <h4 style={{ margin: 0, fontSize: '0.96rem', color: '#1e293b', fontWeight: '800' }}>
+                      {showcaseZoomModal.title}
+                    </h4>
+                  )}
+                  {showcaseZoomModal.subtitle && (
+                    <p style={{ margin: '4px 0 0 0', fontSize: '0.78rem', color: '#059669', fontWeight: '600' }}>
+                      {showcaseZoomModal.subtitle}
+                    </p>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
 
       </div>
     </div>

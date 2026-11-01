@@ -265,6 +265,26 @@ function PortalLayout() {
   // Notification center state
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [isInstallModalOpen, setIsInstallModalOpen] = useState(false);
+
+  // Lock body & document scroll when any modal is open to keep screen fixed and prevent background scrolling
+  useEffect(() => {
+    if (isAuthModalOpen || isNotificationOpen || isInstallModalOpen) {
+      const originalBodyOverflow = document.body.style.overflow;
+      const originalHtmlOverflow = document.documentElement.style.overflow;
+      const originalTouchAction = document.body.style.touchAction;
+
+      document.body.style.overflow = 'hidden';
+      document.documentElement.style.overflow = 'hidden';
+      document.body.style.touchAction = 'none';
+
+      return () => {
+        document.body.style.overflow = originalBodyOverflow;
+        document.documentElement.style.overflow = originalHtmlOverflow;
+        document.body.style.touchAction = originalTouchAction;
+      };
+    }
+  }, [isAuthModalOpen, isNotificationOpen, isInstallModalOpen]);
+
   const [notificationState, setNotificationState] = useState({
     notifications: [],
     unreadCounts: { home: 0, apply: 0, jobs: 0, announcements: 0, total: 0 }
@@ -625,34 +645,47 @@ function PortalLayout() {
 
         {/* Authentication Modal */}
         {isAuthModalOpen && (
-          <div className="modal-overlay" style={{
-            position: 'absolute',
-            top: 0,
-            left: 0,
-            right: 0,
-            bottom: 0,
-            backgroundColor: 'rgba(15, 23, 42, 0.4)',
-            backdropFilter: 'blur(4px)',
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'flex-start',
-            zIndex: 9999,
-            padding: '16px',
-            paddingTop: '60px'
-          }}>
-            <div className="auth-card" style={{
-              backgroundColor: '#ffffff',
-              border: '1px solid #e2e8f0',
-              borderRadius: '16px',
-              width: '100%',
-              maxWidth: '360px',
-              padding: '24px',
-              boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.1), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+          <div
+            className="modal-overlay"
+            onClick={() => setIsAuthModalOpen(false)}
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(15, 23, 42, 0.65)',
+              backdropFilter: 'blur(6px)',
+              WebkitBackdropFilter: 'blur(6px)',
               display: 'flex',
-              flexDirection: 'column',
-              gap: '16px',
-              position: 'relative'
-            }}>
+              justifyContent: 'center',
+              alignItems: 'center',
+              zIndex: 999999,
+              padding: '16px',
+              overflowY: 'auto',
+              overscrollBehavior: 'contain'
+            }}
+          >
+            <div
+              className="auth-card"
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
+                borderRadius: '16px',
+                width: '100%',
+                maxWidth: '360px',
+                padding: '24px',
+                boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.15), 0 8px 10px -6px rgba(0, 0, 0, 0.1)',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '16px',
+                position: 'relative',
+                maxHeight: '90vh',
+                overflowY: 'auto',
+                animation: 'slideUpFade 0.25s cubic-bezier(0.16, 1, 0.3, 1) forwards'
+              }}
+            >
               {/* Close Button */}
               <button
                 onClick={() => setIsAuthModalOpen(false)}

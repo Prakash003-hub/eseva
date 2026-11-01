@@ -318,6 +318,40 @@ const cropToSquareImage = (file, size = 600) => {
   });
 };
 
+const resizeBannerImage = (file, maxWidth = 1200) => {
+  return new Promise((resolve) => {
+    if (!file || !file.type.startsWith('image/')) {
+      resolve(file);
+      return;
+    }
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onload = (event) => {
+      const img = new Image();
+      img.src = event.target.result;
+      img.onload = () => {
+        let width = img.width;
+        let height = img.height;
+        if (width > maxWidth) {
+          height = Math.round((height * maxWidth) / width);
+          width = maxWidth;
+        }
+        const canvas = document.createElement('canvas');
+        canvas.width = width;
+        canvas.height = height;
+        const ctx = canvas.getContext('2d');
+        ctx.drawImage(img, 0, 0, width, height);
+        canvas.toBlob((blob) => {
+          if (!blob) return resolve(file);
+          resolve(new File([blob], file.name, { type: file.type || 'image/jpeg', lastModified: Date.now() }));
+        }, file.type || 'image/jpeg', 0.9);
+      };
+      img.onerror = () => resolve(file);
+    };
+    reader.onerror = () => resolve(file);
+  });
+};
+
 const handleExportToCsv = (submissionsList, customTitle = "submissions_export") => {
   if (!submissionsList || submissionsList.length === 0) {
     alert("No submissions available to export.");
@@ -1360,8 +1394,8 @@ export default function AdminPortal() {
     if (!file) return;
     setUploadingAnnImg(true);
     try {
-      const croppedFile = await cropToSquareImage(file, 600);
-      const res = await uploadAnnouncementImage(croppedFile);
+      const bannerFile = await resizeBannerImage(file, 1200);
+      const res = await uploadAnnouncementImage(bannerFile);
       setAnnForm(prev => ({ ...prev, img_url: res.img_url }));
       alert('Advertisement banner image uploaded successfully!');
     } catch (err) {
@@ -1793,12 +1827,12 @@ export default function AdminPortal() {
     if (!file) return;
     setIsUploadingShowcaseImg(true);
     try {
-      const croppedSquareFile = await cropToSquareImage(file, 800);
+      const bannerFile = await resizeBannerImage(file, 1200);
       const base64Data = await new Promise((resolve) => {
         const reader = new FileReader();
         reader.onload = (e) => resolve(e.target.result);
         reader.onerror = () => resolve(null);
-        reader.readAsDataURL(croppedSquareFile);
+        reader.readAsDataURL(bannerFile);
       });
 
       if (!base64Data) throw new Error("Could not read image file.");

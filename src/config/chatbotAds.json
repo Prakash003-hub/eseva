@@ -1,0 +1,30 @@
+[
+  {
+    "id": "chatbot-ad-esevai",
+    "title": "தமிழ் நாடு அரசு இ-சேவை",
+    "subtitle": "சேவைக் கட்டணம் ₹60 மட்டுமே!",
+    "image": "/banners/subi_esevai_banner.png",
+    "link": "/user?tab=apply"
+  },
+  {
+    "id": "chatbot-ad-ration",
+    "title": "ரேஷன் கார்டு சேவைகள்",
+    "subtitle": "குறைந்த கட்டணத்தில் எளிய சேவை",
+    "image": "/banners/subi_ration_banner.png",
+    "link": "/user?tab=apply"
+  },
+  {
+    "id": "chatbot-ad-voter",
+    "title": "வாக்காளர் அட்டை சேவைகள்",
+    "subtitle": "புதிய அட்டை, திருத்தம் & முகவரி மாற்றம்",
+    "image": "/banners/subi_voter_banner.png",
+    "link": "/user?tab=apply"
+  },
+  {
+    "id": "chatbot-ad-pan",
+    "title": "PAN Card விண்ணப்பம்",
+    "subtitle": "5 நிமிடங்களில் அப்ளை செய்து தரப்படும்",
+    "image": "/banners/subi_pancard_banner.png",
+    "link": "/user?tab=apply"
+  }
+]

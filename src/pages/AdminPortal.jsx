@@ -1827,7 +1827,7 @@ export default function AdminPortal() {
     if (!file) return;
     setIsUploadingShowcaseImg(true);
     try {
-      const bannerFile = await resizeBannerImage(file, 1200);
+      const bannerFile = await cropToSquareImage(file, 600);
       const base64Data = await new Promise((resolve) => {
         const reader = new FileReader();
         reader.onload = (e) => resolve(e.target.result);

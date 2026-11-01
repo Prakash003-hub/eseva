@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Bot, ArrowLeft, RefreshCw, MessageCircle, ChevronRight, ChevronLeft, ExternalLink, Share2, Home, Send, Search, X } from 'lucide-react';
-import defaultFooterShowcase from '../config/footerShowcase.json';
+import defaultChatbotAds from '../config/chatbotAds.json';
 import { getPublishedFlows } from '../services/chatbotStorage';
 import { playSelectSound } from '../utils/sound';
 import ChatbotContentRenderer, { splitBilingualTitle } from '../components/ChatbotContentRenderer';
@@ -43,16 +43,16 @@ export default function ChatbotPage({ systemSettings }) {
   // Custom query state (when user types a message in the input box)
   const [customQuery, setCustomQuery] = useState(null);
 
-  // Showcase & Admin Advertisements State (Big Rectangle Ad)
+  // Chatbot Advertisements State (Big Rectangle Ad - Aspect Ratio 2.35 : 1)
   const [showcaseItems, setShowcaseItems] = useState(() => {
-    let list = systemSettings?.footer_showcase_images;
+    let list = systemSettings?.chatbot_ad_banners;
     if (typeof list === 'string') {
       try { list = JSON.parse(list); } catch (e) { list = null; }
     }
-    return Array.isArray(list) && list.length > 0 ? list : defaultFooterShowcase;
+    return Array.isArray(list) && list.length > 0 ? list : defaultChatbotAds;
   });
 
-  // Sync Admin Announcements (Ads/Popups) + Showcase Images directly to Chatbot Ad
+  // Sync Admin Announcements (Ads/Popups) + Dedicated Chatbot Widescreen Ads (2.35 : 1)
   useEffect(() => {
     let isMounted = true;
     const loadAdsAndShowcase = async () => {
@@ -73,17 +73,17 @@ export default function ChatbotPage({ systemSettings }) {
             }));
         }
 
-        let showcaseList = systemSettings?.footer_showcase_images;
-        if (typeof showcaseList === 'string') {
-          try { showcaseList = JSON.parse(showcaseList); } catch (e) { showcaseList = null; }
+        let customChatbotAds = systemSettings?.chatbot_ad_banners;
+        if (typeof customChatbotAds === 'string') {
+          try { customChatbotAds = JSON.parse(customChatbotAds); } catch (e) { customChatbotAds = null; }
         }
-        const baseShowcase = Array.isArray(showcaseList) && showcaseList.length > 0 ? showcaseList : defaultFooterShowcase;
+        const baseAds = Array.isArray(customChatbotAds) && customChatbotAds.length > 0 ? customChatbotAds : defaultChatbotAds;
 
-        // Admin-uploaded ads appear first on the chatbot ad banner
+        // Admin-uploaded announcement ads appear first, followed by default 2.35:1 chatbot banners
         if (adminAnnAds.length > 0) {
-          setShowcaseItems([...adminAnnAds, ...baseShowcase]);
+          setShowcaseItems([...adminAnnAds, ...baseAds]);
         } else {
-          setShowcaseItems(baseShowcase);
+          setShowcaseItems(baseAds);
         }
       } catch (err) {
         console.warn('Could not load announcements in chatbot:', err);
@@ -641,7 +641,7 @@ export default function ChatbotPage({ systemSettings }) {
                   </span>
                 </div>
 
-                {/* Scrolled Image Carousel (Set on Admin) - Big Widescreen Rectangle Banner */}
+                {/* Chatbot Ad Banners (Clean 2.35 : 1 Widescreen - No overlays or clutter) */}
                 {showcaseItems && showcaseItems.length > 0 && (
                   <div
                     onMouseEnter={() => setIsAutoScrollPaused(true)}
@@ -651,189 +651,62 @@ export default function ChatbotPage({ systemSettings }) {
                     style={{
                       position: 'relative',
                       width: '100%',
-                      borderRadius: '16px',
+                      borderRadius: '14px',
                       overflow: 'hidden',
                       marginBottom: '10px',
-                      boxShadow: '0 4px 14px rgba(0,0,0,0.1)',
+                      boxShadow: '0 3px 12px rgba(0,0,0,0.08)',
                       border: '2px solid #86efac',
-                      background: '#043831'
+                      background: '#043831',
+                      aspectRatio: '2.35 / 1'
                     }}
                   >
                     <div
                       style={{
-                        position: 'relative',
-                        width: '100%',
-                        aspectRatio: '2.35 / 1',
-                        overflow: 'hidden'
+                        display: 'flex',
+                        width: `${showcaseItems.length * 100}%`,
+                        height: '100%',
+                        transform: `translateX(-${currentShowcaseIdx * (100 / showcaseItems.length)}%)`,
+                        transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)'
                       }}
                     >
-                      <div
-                        style={{
-                          display: 'flex',
-                          width: `${showcaseItems.length * 100}%`,
-                          height: '100%',
-                          transform: `translateX(-${currentShowcaseIdx * (100 / showcaseItems.length)}%)`,
-                          transition: 'transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)'
-                        }}
-                      >
-                        {showcaseItems.map((item, idx) => (
-                          <div
-                            key={item.id || idx}
-                            onClick={() => {
-                              if (item.link) {
-                                if (item.link.startsWith('http')) {
-                                  window.open(item.link, '_blank');
-                                } else {
-                                  navigate(item.link);
-                                }
+                      {showcaseItems.map((item, idx) => (
+                        <div
+                          key={item.id || idx}
+                          onClick={() => {
+                            if (item.link) {
+                              if (item.link.startsWith('http')) {
+                                window.open(item.link, '_blank');
                               } else {
-                                setShowcaseZoomModal(item);
+                                navigate(item.link);
                               }
-                            }}
+                            } else {
+                              setShowcaseZoomModal(item);
+                            }
+                          }}
+                          style={{
+                            position: 'relative',
+                            width: `${100 / showcaseItems.length}%`,
+                            height: '100%',
+                            flexShrink: 0,
+                            cursor: 'pointer'
+                          }}
+                        >
+                          <img
+                            src={item.image}
+                            alt={item.title || 'Service Banner'}
                             style={{
-                              position: 'relative',
-                              width: `${100 / showcaseItems.length}%`,
+                              width: '100%',
                               height: '100%',
-                              flexShrink: 0,
-                              cursor: 'pointer'
+                              objectFit: 'cover',
+                              display: 'block'
                             }}
-                          >
-                            <img
-                              src={item.image}
-                              alt={item.title || 'Service Banner'}
-                              style={{
-                                width: '100%',
-                                height: '100%',
-                                objectFit: 'cover',
-                                display: 'block'
-                              }}
-                              onError={(e) => {
-                                e.target.src = '/income_og_preview.jpg';
-                              }}
-                            />
-                            {/* Overlay Gradient with Title */}
-                            {(item.title || item.subtitle) && (
-                              <div
-                                style={{
-                                  position: 'absolute',
-                                  bottom: 0,
-                                  left: 0,
-                                  right: 0,
-                                  background: 'linear-gradient(transparent, rgba(0,0,0,0.85))',
-                                  padding: '16px 10px 8px 10px',
-                                  color: '#ffffff',
-                                  display: 'flex',
-                                  alignItems: 'center',
-                                  justifyContent: 'space-between',
-                                  gap: '6px'
-                                }}
-                              >
-                                <div style={{ minWidth: 0, flex: 1 }}>
-                                  {item.title && (
-                                    <div style={{ fontSize: '0.78rem', fontWeight: '800', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                      {item.title}
-                                    </div>
-                                  )}
-                                  {item.subtitle && (
-                                    <div style={{ fontSize: '0.65rem', color: '#86efac', marginTop: '2px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                                      {item.subtitle}
-                                    </div>
-                                  )}
-                                </div>
-                                {item.link && (
-                                  <span style={{ fontSize: '0.65rem', color: '#ffffff', background: '#25d366', padding: '2px 8px', borderRadius: '10px', fontWeight: '700', flexShrink: 0, display: 'flex', alignItems: 'center', gap: '3px' }}>
-                                    View <ExternalLink size={10} />
-                                  </span>
-                                )}
-                              </div>
-                            )}
-                          </div>
-                        ))}
-                      </div>
-
-                      {/* Left / Right Chevron Controls */}
-                      {showcaseItems.length > 1 && (
-                        <>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); handlePrevShowcase(); }}
-                            aria-label="Previous image"
-                            style={{
-                              position: 'absolute',
-                              left: '6px',
-                              top: '50%',
-                              transform: 'translateY(-50%)',
-                              background: 'rgba(0,0,0,0.5)',
-                              border: 'none',
-                              color: '#ffffff',
-                              width: '26px',
-                              height: '26px',
-                              borderRadius: '50%',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              cursor: 'pointer',
-                              zIndex: 2
-                            }}
-                          >
-                            <ChevronLeft size={16} />
-                          </button>
-                          <button
-                            type="button"
-                            onClick={(e) => { e.stopPropagation(); handleNextShowcase(); }}
-                            aria-label="Next image"
-                            style={{
-                              position: 'absolute',
-                              right: '6px',
-                              top: '50%',
-                              transform: 'translateY(-50%)',
-                              background: 'rgba(0,0,0,0.5)',
-                              border: 'none',
-                              color: '#ffffff',
-                              width: '26px',
-                              height: '26px',
-                              borderRadius: '50%',
-                              display: 'flex',
-                              alignItems: 'center',
-                              justifyContent: 'center',
-                              cursor: 'pointer',
-                              zIndex: 2
-                            }}
-                          >
-                            <ChevronRight size={16} />
-                          </button>
-                        </>
-                      )}
-                    </div>
-
-                    {/* Pagination Indicator Dots */}
-                    {showcaseItems.length > 1 && (
-                      <div
-                        style={{
-                          display: 'flex',
-                          justifyContent: 'center',
-                          alignItems: 'center',
-                          gap: '5px',
-                          padding: '5px 0',
-                          background: '#042e28'
-                        }}
-                      >
-                        {showcaseItems.map((_, dotIdx) => (
-                          <span
-                            key={dotIdx}
-                            onClick={() => setCurrentShowcaseIdx(dotIdx)}
-                            style={{
-                              width: currentShowcaseIdx === dotIdx ? '16px' : '6px',
-                              height: '6px',
-                              borderRadius: '3px',
-                              backgroundColor: currentShowcaseIdx === dotIdx ? '#22c55e' : 'rgba(255,255,255,0.4)',
-                              transition: 'all 0.3s ease',
-                              cursor: 'pointer'
+                            onError={(e) => {
+                              e.target.src = '/banners/subi_esevai_banner.png';
                             }}
                           />
-                        ))}
-                      </div>
-                    )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
 

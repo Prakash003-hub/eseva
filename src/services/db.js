@@ -1566,8 +1566,68 @@ Official Website$https://www.tnpsc.gov.in/
       return mergedSettings;
     }
 
-    case "getAnnouncements":
-      return JSON.parse(localStorage.getItem('mock_announcements') || '[]');
+    case "getAnnouncements": {
+      const defaultAnnouncements = [
+        {
+          id: "ann-esevai",
+          title: "தமிழ் நாடு அரசு இ-சேவை விண்ணப்பங்கள்",
+          description: "இனி எளிதாக! சேவைக் கட்டணம் ₹60 மட்டுமே!",
+          content: "வருமானச் சான்றிதழ், சாதிச் சான்றிதழ், இருப்பிடச் சான்றிதழ், பிறப்பிடச் சான்றிதழ் உள்ளிட்ட அனைத்து சேவைகளும்.",
+          img_url: "/banners/subi_esevai_banner.png",
+          button_name: "விண்ணப்பிக்க",
+          button_url: "/user?tab=apply",
+          enabled: "true",
+          created_at: new Date().toISOString()
+        },
+        {
+          id: "ann-ration",
+          title: "ரேஷன் கார்டு சேவைகள் (Smart Ration Card)",
+          description: "குறைந்த கட்டணத்தில் உங்கள் அருகிலேயே எளிய சேவை!",
+          content: "புதிய ரேஷன் கார்டு விண்ணப்பம், பெயர் சேர்த்தல் / நீக்கம், முகவரி மாற்றம், மொபைல் எண் மாற்றம்.",
+          img_url: "/banners/subi_ration_banner.png",
+          button_name: "மேலும் அறிய",
+          button_url: "/user?tab=apply",
+          enabled: "true",
+          created_at: new Date().toISOString()
+        },
+        {
+          id: "ann-voter",
+          title: "வாக்காளர் அட்டை சேவைகள் (Voter ID)",
+          description: "தேர்தல் ஆணையத்தின் அனைத்து சேவைகளும் உடனுக்குடன்!",
+          content: "புதிய வாக்காளர் அட்டை விண்ணப்பம், பெயர் திருத்தம், முகவரி மாற்றம், மொபைல் எண் மாற்றம்.",
+          img_url: "/banners/subi_voter_banner.png",
+          button_name: "விண்ணப்பிக்க",
+          button_url: "/user?tab=apply",
+          enabled: "true",
+          created_at: new Date().toISOString()
+        },
+        {
+          id: "ann-pan",
+          title: "PAN Card Apply",
+          description: "5 நிமிடங்களில் அப்ளை செய்து தரப்படும்!",
+          content: "பெயர் திருத்தம், பிறந்த தேதி திருத்தம், போன் நம்பர் மாற்றம், முகவரி மாற்றம் மற்றும் புதிய பான் கார்டு.",
+          img_url: "/banners/subi_pancard_banner.png",
+          button_name: "அப்ளை செய்ய",
+          button_url: "/user?tab=apply",
+          enabled: "true",
+          created_at: new Date().toISOString()
+        }
+      ];
+
+      const stored = localStorage.getItem('mock_announcements');
+      if (!stored || stored === '[]') {
+        localStorage.setItem('mock_announcements', JSON.stringify(defaultAnnouncements));
+        return defaultAnnouncements;
+      }
+      try {
+        const parsed = JSON.parse(stored);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        localStorage.setItem('mock_announcements', JSON.stringify(defaultAnnouncements));
+        return defaultAnnouncements;
+      } catch (e) {
+        return defaultAnnouncements;
+      }
+    }
       
     case "createAnnouncement": {
       const annList = JSON.parse(localStorage.getItem('mock_announcements') || '[]');

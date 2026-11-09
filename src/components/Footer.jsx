@@ -931,10 +931,10 @@ export default function Footer({ systemSettings, onNavigateTab }) {
         {/* Copyright & Developer Line */}
         <div style={{ borderTop: '1px solid rgba(255, 255, 255, 0.15)', paddingTop: '8px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '8px' }}>
           <div style={{ color: '#ecfdf5' }}>
-            © 2026 <strong>SUBI e-Sevai</strong>. All rights reserved.
+            © 2026 <strong>SUBI e-Sevai</strong>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '4px', color: '#bbf7d0', fontSize: '0.7rem' }}>
-            <span>Designed & Developed By: <strong>J-D / Dechnology</strong></span>
+            <span>Designed & Developed By: <strong>TN TEC Master</strong></span>
             <ExternalLink size={10} />
           </div>
         </div>

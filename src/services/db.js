@@ -1802,7 +1802,7 @@ Official Website$https://www.tnpsc.gov.in/
       saveMockList('mock_tempered_glass', list);
       return { success: true };
     }
-      
+
     default:
       console.warn("Unimplemented mock action: " + action);
       return null;

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bot, ArrowLeft, RefreshCw, MessageCircle, ChevronRight, ChevronLeft, ExternalLink, Share2, Home, Send, Search, X } from 'lucide-react';
+import { Bot, ArrowLeft, RefreshCw, MessageCircle, ChevronRight, ChevronLeft, ExternalLink, Share2, Home, Send, Search, X, ArrowDownToLine } from 'lucide-react';
 import defaultChatbotAds from '../config/chatbotAds.json';
 import { getPublishedFlows } from '../services/chatbotStorage';
 import { playSelectSound } from '../utils/sound';
@@ -29,7 +29,7 @@ const CATEGORY_COLORS = [
   { border: '#6366f1', color: '#4338ca', bg: '#eef2ff', chevron: '#6366f1', dot: '#6366f1' }  // Indigo
 ];
 
-export default function ChatbotPage({ systemSettings }) {
+export default function ChatbotPage({ systemSettings, onInstallApp }) {
   const navigate = useNavigate();
   const [customText, setCustomText] = useState('');
   const [publishedFlows, setPublishedFlows] = useState(() => getPublishedFlows());
@@ -42,6 +42,73 @@ export default function ChatbotPage({ systemSettings }) {
 
   // Custom query state (when user types a message in the input box)
   const [customQuery, setCustomQuery] = useState(null);
+
+  // PWA Install state & detection: Hides the install button if already installed or in standalone mode
+  const [isInstalled, setIsInstalled] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return (
+      window.matchMedia('(display-mode: standalone)').matches ||
+      window.navigator.standalone === true ||
+      window.isAppInstalled === true ||
+      localStorage.getItem('pwa_app_installed') === 'true' ||
+      (typeof document !== 'undefined' && document.referrer.includes('android-app://'))
+    );
+  });
+
+  useEffect(() => {
+    const handleInstalled = () => {
+      setIsInstalled(true);
+      try {
+        localStorage.setItem('pwa_app_installed', 'true');
+      } catch (e) {}
+    };
+
+    window.addEventListener('appinstalled', handleInstalled);
+    window.addEventListener('pwa-installed', handleInstalled);
+
+    let mql;
+    if (typeof window !== 'undefined' && window.matchMedia) {
+      mql = window.matchMedia('(display-mode: standalone)');
+      const handleMql = (e) => {
+        if (e.matches) handleInstalled();
+      };
+      if (mql.addEventListener) {
+        mql.addEventListener('change', handleMql);
+      }
+    }
+
+    return () => {
+      window.removeEventListener('appinstalled', handleInstalled);
+      window.removeEventListener('pwa-installed', handleInstalled);
+      if (mql && mql.removeEventListener) {
+        mql.removeEventListener('change', handleInstalled);
+      }
+    };
+  }, []);
+
+  const handleInstallClick = async () => {
+    playSelectSound();
+    if (onInstallApp) {
+      onInstallApp();
+      return;
+    }
+    let promptEvent = window.deferredPrompt;
+    if (promptEvent) {
+      try {
+        await promptEvent.prompt();
+        const choice = await promptEvent.userChoice;
+        if (choice && choice.outcome === 'accepted') {
+          setIsInstalled(true);
+          try {
+            localStorage.setItem('pwa_app_installed', 'true');
+          } catch (e) {}
+          window.deferredPrompt = null;
+        }
+      } catch (err) {
+        console.error('[PWA] Direct prompt error in chatbot:', err);
+      }
+    }
+  };
 
   // Chatbot Advertisements State (Big Rectangle Ad - Aspect Ratio 2.35 : 1)
   const [showcaseItems, setShowcaseItems] = useState(() => {
@@ -171,7 +238,7 @@ export default function ChatbotPage({ systemSettings }) {
 
   const handleHeaderBack = () => {
     playSelectSound();
-    if (window.history.length > 1) {
+    if (window.history.state && window.history.state.idx > 0) {
       navigate(-1);
     } else {
       navigate('/user');
@@ -364,11 +431,10 @@ export default function ChatbotPage({ systemSettings }) {
             </div>
 
             <div style={{ minWidth: 0, flex: 1 }}>
-              <h3 style={{ margin: 0, fontSize: '0.88rem', fontWeight: '800', color: '#ffffff', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                Subi E-Sevai 2.0 Chatbot
+              <h3 style={{ margin: 0, fontSize: '0.90rem', fontWeight: '800', color: '#ffffff', lineHeight: 1.2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                Subi E sevai 2.0
               </h3>
               <div style={{ fontSize: '0.66rem', color: '#86efac', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '1px' }}>
-
                 <span style={{ whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>Burkitmanagaram</span>
               </div>
             </div>
@@ -376,6 +442,35 @@ export default function ChatbotPage({ systemSettings }) {
 
           {/* Header Right: Official Logos (BIG SIZE) & Reset */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+            {/* PWA App Install Button (Hidden when app is already installed) */}
+            {!isInstalled && (
+              <button
+                id="chatbot-header-install-btn"
+                onClick={handleInstallClick}
+                title="Install Subi e-Sevai App"
+                aria-label="Install App"
+                className="chat-touch-btn"
+                style={{
+                  background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
+                  border: '1.5px solid #86efac',
+                  color: '#ffffff',
+                  width: '32px',
+                  height: '32px',
+                  borderRadius: '50%',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  boxShadow: '0 2px 8px rgba(37, 211, 102, 0.4)',
+                  transition: 'all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                  WebkitTapHighlightColor: 'transparent',
+                  flexShrink: 0
+                }}
+              >
+                <ArrowDownToLine size={18} strokeWidth={2.4} />
+              </button>
+            )}
+
             {/* Official Logos: Tamil Nadu Government Emblem & e-Sevai */}
             <div style={{
               display: 'flex',

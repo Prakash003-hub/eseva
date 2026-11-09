@@ -940,6 +940,28 @@ export const deleteTemperedGlass = async (boxNumber) => {
   return await callApi("deleteTemperedGlass", { id: boxNumber });
 };
 
+// --- CHATBOT LEADS SERVICE ---
+export const saveChatbotLead = async (name, phone, source = 'chatbot') => {
+  const cleanPhone = String(phone || '').replace(/\D/g, '');
+  return await callApi("saveChatbotLead", {
+    payload: {
+      name: (name || '').trim(),
+      phone: cleanPhone,
+      source
+    }
+  });
+};
+
+export const getChatbotLeads = async () => {
+  try {
+    const data = await callApiGet("getChatbotLeads");
+    return Array.isArray(data) ? data : [];
+  } catch (err) {
+    console.error("Error in getChatbotLeads:", err);
+    return [];
+  }
+};
+
 // --- MOCK DATABASE FALLBACK SYSTEM (LOCALSTORAGE) ---
 const callMockFallback = (action, payload) => {
   console.log(`[Offline Mode] Simulating Action: ${action}`, payload);
@@ -1802,6 +1824,24 @@ Official Website$https://www.tnpsc.gov.in/
       saveMockList('mock_tempered_glass', list);
       return { success: true };
     }
+    
+    case "saveChatbotLead": {
+      const leads = JSON.parse(localStorage.getItem('mock_chatbot_leads') || '[]');
+      const p = payload.payload || {};
+      const newLead = {
+        id: `lead-${Date.now()}`,
+        name: p.name || '',
+        phone: p.phone || '',
+        source: p.source || 'chatbot',
+        created_at: new Date().toISOString()
+      };
+      leads.push(newLead);
+      localStorage.setItem('mock_chatbot_leads', JSON.stringify(leads));
+      return newLead;
+    }
+    
+    case "getChatbotLeads":
+      return JSON.parse(localStorage.getItem('mock_chatbot_leads') || '[]');
 
     default:
       console.warn("Unimplemented mock action: " + action);

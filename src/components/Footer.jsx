@@ -105,8 +105,12 @@ export default function Footer({ systemSettings, onNavigateTab }) {
 
   // External contact links
   const whatsappUrl = `https://wa.me/${internationalPhone}`;
-  const instagramUrl = systemSettings?.instagram_url || 'https://instagram.com/';
-  const telegramUrl = systemSettings?.telegram_url || 'https://t.me/';
+  const instagramUrl = (systemSettings?.instagram_url && systemSettings.instagram_url !== 'https://instagram.com/')
+    ? systemSettings.instagram_url
+    : 'https://www.instagram.com/subi_eseva';
+  const telegramUrl = (systemSettings?.telegram_url && systemSettings.telegram_url !== 'https://t.me/')
+    ? systemSettings.telegram_url
+    : 'https://t.me/+919787973615';
   const callUrl = `tel:+${internationalPhone}`;
 
   // Group links

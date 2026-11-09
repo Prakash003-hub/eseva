@@ -138,6 +138,9 @@ function doGet(e) {
       case "getRedirectById":
         responseData = getRedirectByIdAction(e.parameter.id);
         break;
+      case "getChatbotLeads":
+        responseData = getChatbotLeadsAction();
+        break;
       default:
         return jsonResponse({ success: false, error: "Invalid GET Action: " + action }, 400);
     }
@@ -300,6 +303,9 @@ function doPost(e) {
         break;
       case "deleteTemperedGlass":
         responseData = deleteTemperedGlassAction(requestBody.id);
+        break;
+      case "saveChatbotLead":
+        responseData = saveChatbotLeadAction(requestBody.payload);
         break;
         
       default:
@@ -1788,6 +1794,11 @@ function initSpreadsheet() {
   ensureSheetExists("Redirects", [
     "id", "target_url", "title", "description", "img_url", "created_at"
   ]);
+
+  // 12. CHATBOT LEADS SHEET
+  ensureSheetExists("ChatbotLeads", [
+    "id", "name", "phone", "source", "created_at"
+  ]);
   
   // Add initial mockup posts if Posts sheet is empty
   var postsSheet = getSheet("Posts");
@@ -2207,4 +2218,41 @@ function deleteRedirectAction(id) {
   sheet.deleteRow(rowIndex);
   SpreadsheetApp.flush();
   return { id: id, success: true };
+}
+
+// --- 12. CHATBOT LEADS OPERATIONS ---
+function getChatbotLeadsAction() {
+  ensureSheetExists("ChatbotLeads", ["id", "name", "phone", "source", "created_at"]);
+  return getRowsFromSheet("ChatbotLeads");
+}
+
+function saveChatbotLeadAction(leadData) {
+  if (!leadData) throw new Error("Missing lead data payload.");
+  var sheet = ensureSheetExists("ChatbotLeads", ["id", "name", "phone", "source", "created_at"]);
+  var name = (leadData.name || "").toString().trim();
+  var phoneRaw = (leadData.phone || "").toString().trim();
+  var phoneClean = formatNumberString(phoneRaw.replace(/\D/g, ''));
+  
+  if (!phoneClean || phoneClean.length < 10) {
+    throw new Error("Valid 10-digit mobile number is required.");
+  }
+  
+  var id = "lead-" + Date.now();
+  var newLead = {
+    id: id,
+    name: name,
+    phone: "'" + phoneClean, // Force string representation in Sheets to preserve exact digits
+    source: (leadData.source || "chatbot").toString().trim(),
+    created_at: new Date().toISOString()
+  };
+  
+  appendObjectToSheet(sheet, newLead);
+  SpreadsheetApp.flush();
+  return {
+    id: id,
+    name: name,
+    phone: phoneClean,
+    success: true,
+    message: "Lead recorded successfully."
+  };
 }

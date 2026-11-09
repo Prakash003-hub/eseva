@@ -3849,6 +3849,62 @@ export default function AdminPortal() {
                   </span>
                 </form>
 
+                {/* Instagram URL */}
+                <form onSubmit={async (e) => {
+                  e.preventDefault();
+                  try {
+                    const url = (settings.instagram_url || 'https://www.instagram.com/subi_eseva').trim();
+                    await updateSettings({ instagram_url: url });
+                    setSettings((prev) => ({ ...prev, instagram_url: url }));
+                    alert('Instagram URL saved successfully!');
+                  } catch (err) {
+                    alert('Failed to save Instagram URL.');
+                  }
+                }} className="premium-input-group" style={{ margin: 0 }}>
+                  <label className="premium-label">Instagram Page URL</label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input 
+                      type="url" 
+                      value={settings.instagram_url ?? 'https://www.instagram.com/subi_eseva'} 
+                      onChange={(e) => setSettings({ ...settings, instagram_url: e.target.value })} 
+                      placeholder="https://www.instagram.com/subi_eseva"
+                      className="premium-input" 
+                    />
+                    <button type="submit" className="premium-btn premium-btn-primary" style={{ width: 'auto', padding: '0 16px' }}>Update</button>
+                  </div>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-light-muted)', marginTop: '4px', display: 'block' }}>
+                    Official Instagram link shown in footer contact buttons.
+                  </span>
+                </form>
+
+                {/* Telegram URL */}
+                <form onSubmit={async (e) => {
+                  e.preventDefault();
+                  try {
+                    const url = (settings.telegram_url || 'https://t.me/+919787973615').trim();
+                    await updateSettings({ telegram_url: url });
+                    setSettings((prev) => ({ ...prev, telegram_url: url }));
+                    alert('Telegram Channel URL saved successfully!');
+                  } catch (err) {
+                    alert('Failed to save Telegram Channel URL.');
+                  }
+                }} className="premium-input-group" style={{ margin: 0 }}>
+                  <label className="premium-label">Telegram Channel / Support URL</label>
+                  <div style={{ display: 'flex', gap: '8px' }}>
+                    <input 
+                      type="url" 
+                      value={settings.telegram_url ?? 'https://t.me/+919787973615'} 
+                      onChange={(e) => setSettings({ ...settings, telegram_url: e.target.value })} 
+                      placeholder="https://t.me/+919787973615"
+                      className="premium-input" 
+                    />
+                    <button type="submit" className="premium-btn premium-btn-primary" style={{ width: 'auto', padding: '0 16px' }}>Update</button>
+                  </div>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-light-muted)', marginTop: '4px', display: 'block' }}>
+                    Official Telegram link shown in footer contact buttons.
+                  </span>
+                </form>
+
                 {/* Admin Login Code */}
                 <form onSubmit={async (e) => {
                   e.preventDefault();

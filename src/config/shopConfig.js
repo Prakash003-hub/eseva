@@ -2,8 +2,8 @@
 export const SHOP_LOCATION = {
   name: 'SUBI e-Sevai',
   address: 'Burkitmanagaram, Tirunelveli, Tamil Nadu 627351',
-  latitude: 8.753384263928902,
-  longitude: 77.79773010000002,
+  latitude: 8.753201,
+  longitude: 77.797755,
   get coordinatesString() {
     return `${this.latitude},${this.longitude}`;
   },

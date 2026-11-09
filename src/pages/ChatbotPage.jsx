@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Bot, ArrowLeft, RefreshCw, MessageCircle, ChevronRight, ChevronLeft, ExternalLink, Share2, Home, Send, Search, X, ArrowDownToLine } from 'lucide-react';
+import { Bot, ArrowLeft, RefreshCw, MessageCircle, ChevronRight, ChevronLeft, ExternalLink, Share2, Home, Send, Search, X, ArrowDownToLine, User, Phone, CheckCircle2, MapPin } from 'lucide-react';
 import defaultChatbotAds from '../config/chatbotAds.json';
 import { getPublishedFlows } from '../services/chatbotStorage';
 import { playSelectSound } from '../utils/sound';
 import ChatbotContentRenderer, { splitBilingualTitle } from '../components/ChatbotContentRenderer';
 import ChatbotAssistantResponse from '../components/ChatbotAssistantResponse';
 import { processUserQuery, getAllServices } from '../services/chatbotAssistantEngine';
-import { getAnnouncements } from '../services/db';
+import { getAnnouncements, saveChatbotLead } from '../services/db';
+import { SHOP_LOCATION } from '../config/shopConfig';
 
 const getImageUrl = (url) => {
   if (!url) return '';
@@ -42,6 +43,108 @@ export default function ChatbotPage({ systemSettings, onInstallApp }) {
 
   // Custom query state (when user types a message in the input box)
   const [customQuery, setCustomQuery] = useState(null);
+
+  // --- LEAD COLLECTION STATE (Trigger after 3 or more click events) ---
+  const checkIsLeadCollected = () => {
+    if (typeof window === 'undefined') return false;
+    if (localStorage.getItem('chatbot_lead_collected') === 'true') return true;
+    try {
+      const userStr = localStorage.getItem('whatsbro_user');
+      if (userStr) {
+        const u = JSON.parse(userStr);
+        if (u && u.phone && String(u.phone).replace(/\D/g, '').length >= 10) {
+          localStorage.setItem('chatbot_lead_collected', 'true');
+          return true;
+        }
+      }
+    } catch (e) {}
+    return false;
+  };
+
+  const [isLeadCollected, setIsLeadCollected] = useState(checkIsLeadCollected);
+  const [interactionCount, setInteractionCount] = useState(0);
+  const [showLeadModal, setShowLeadModal] = useState(false);
+  const [hasDismissedModal, setHasDismissedModal] = useState(false);
+
+  // Form states for Lead Modal
+  const [leadName, setLeadName] = useState(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem('whatsbro_user') || '{}');
+      return u.name || '';
+    } catch (e) {
+      return '';
+    }
+  });
+  const [leadPhone, setLeadPhone] = useState(() => {
+    try {
+      const u = JSON.parse(localStorage.getItem('whatsbro_user') || '{}');
+      return (u.phone || '').replace(/\D/g, '').slice(-10);
+    } catch (e) {
+      return '';
+    }
+  });
+  const [leadError, setLeadError] = useState('');
+  const [isSubmittingLead, setIsSubmittingLead] = useState(false);
+  const [leadSuccess, setLeadSuccess] = useState(false);
+
+  const recordUserInteraction = () => {
+    if (isLeadCollected || hasDismissedModal) return;
+    setInteractionCount(prev => {
+      const nextCount = prev + 1;
+      if (nextCount >= 3) {
+        setShowLeadModal(true);
+      }
+      return nextCount;
+    });
+  };
+
+  const handleLeadSubmit = async (e) => {
+    if (e) e.preventDefault();
+    setLeadError('');
+
+    const trimmedName = leadName.trim();
+    const cleanPhone = leadPhone.replace(/\D/g, '');
+
+    if (!trimmedName) {
+      setLeadError('தயவுசெய்து உங்கள் பெயரை உள்ளிடவும் (Please enter your name)');
+      return;
+    }
+
+    if (!cleanPhone || cleanPhone.length !== 10) {
+      setLeadError('சரியான 10-இலக்க மொபைல் எண்ணை உள்ளிடவும் (Please enter valid 10-digit mobile number)');
+      return;
+    }
+
+    setIsSubmittingLead(true);
+    try {
+      await saveChatbotLead(trimmedName, cleanPhone, 'chatbot');
+
+      // Mark permanently as collected so next time it is never shown again
+      localStorage.setItem('chatbot_lead_collected', 'true');
+      localStorage.setItem('chatbot_lead_user', JSON.stringify({ name: trimmedName, phone: cleanPhone }));
+
+      setIsLeadCollected(true);
+      setLeadSuccess(true);
+
+      setTimeout(() => {
+        setShowLeadModal(false);
+        setLeadSuccess(false);
+      }, 1200);
+    } catch (err) {
+      console.error('Error saving chatbot lead:', err);
+      // Graceful fallback to local persistence
+      localStorage.setItem('chatbot_lead_collected', 'true');
+      localStorage.setItem('chatbot_lead_user', JSON.stringify({ name: trimmedName, phone: cleanPhone }));
+      setIsLeadCollected(true);
+      setLeadSuccess(true);
+      setTimeout(() => {
+        setShowLeadModal(false);
+        setLeadSuccess(false);
+      }, 1200);
+    } finally {
+      setIsSubmittingLead(false);
+    }
+  };
 
   // PWA Install state & detection: Hides the install button if already installed or in standalone mode
   const [isInstalled, setIsInstalled] = useState(() => {
@@ -247,24 +350,28 @@ export default function ChatbotPage({ systemSettings, onInstallApp }) {
 
   const handleResetToMainMenu = () => {
     playSelectSound();
+    recordUserInteraction();
     setCustomQuery(null);
     setNavHistory([]);
   };
 
   const handleNodeClick = (node) => {
     playSelectSound();
+    recordUserInteraction();
     setCustomQuery(null);
     setNavHistory((prev) => [...prev, node]);
   };
 
   const handleBack = () => {
     playSelectSound();
+    recordUserInteraction();
     setCustomQuery(null);
     setNavHistory((prev) => prev.slice(0, -1));
   };
 
   const handleActionClick = (action) => {
     playSelectSound();
+    recordUserInteraction();
     if (!action) return;
     if (action.type === 'url') {
       if (action.url.startsWith('http://') || action.url.startsWith('https://')) {
@@ -285,6 +392,7 @@ export default function ChatbotPage({ systemSettings, onInstallApp }) {
     if (!queryText || !queryText.trim()) return;
     const query = queryText.trim();
     playSelectSound();
+    recordUserInteraction();
 
     const result = processUserQuery(query);
 
@@ -440,8 +548,39 @@ export default function ChatbotPage({ systemSettings, onInstallApp }) {
             </div>
           </div>
 
-          {/* Header Right: Official Logos (BIG SIZE) & Reset */}
+          {/* Header Right: Location Directions, Install & Official Logos */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexShrink: 0 }}>
+            {/* Location Direction Button (Opens Google Maps Directions to Shop) */}
+            <a
+              id="chatbot-header-location-btn"
+              href={SHOP_LOCATION.directionsUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={playSelectSound}
+              title="Get Directions on Google Maps (இருப்பிடம் & வழித்தடம்)"
+              aria-label="Location Directions"
+              className="chat-touch-btn"
+              style={{
+                background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
+                border: '1.5px solid #86efac',
+                color: '#ffffff',
+                width: '36px',
+                height: '36px',
+                borderRadius: '50%',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer',
+                boxShadow: '0 2px 8px rgba(37, 211, 102, 0.4)',
+                transition: 'all 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275)',
+                WebkitTapHighlightColor: 'transparent',
+                flexShrink: 0,
+                textDecoration: 'none'
+              }}
+            >
+              <MapPin size={21} strokeWidth={2.4} style={{ color: '#ffffff' }} />
+            </a>
+
             {/* PWA App Install Button (Hidden when app is already installed) */}
             {!isInstalled && (
               <button
@@ -454,8 +593,8 @@ export default function ChatbotPage({ systemSettings, onInstallApp }) {
                   background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
                   border: '1.5px solid #86efac',
                   color: '#ffffff',
-                  width: '32px',
-                  height: '32px',
+                  width: '36px',
+                  height: '36px',
                   borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
@@ -467,7 +606,7 @@ export default function ChatbotPage({ systemSettings, onInstallApp }) {
                   flexShrink: 0
                 }}
               >
-                <ArrowDownToLine size={18} strokeWidth={2.4} />
+                <ArrowDownToLine size={20} strokeWidth={2.4} />
               </button>
             )}
 
@@ -515,29 +654,6 @@ export default function ChatbotPage({ systemSettings, onInstallApp }) {
                 }}
               />
             </div>
-
-            <button
-              onClick={handleResetToMainMenu}
-              title="Restart / Main Menu"
-              className="chat-touch-btn"
-              style={{
-                background: 'rgba(255,255,255,0.12)',
-                border: 'none',
-                color: '#ffffff',
-                width: '32px',
-                height: '32px',
-                borderRadius: '50%',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                cursor: 'pointer',
-                transition: 'background 0.2s ease',
-                WebkitTapHighlightColor: 'transparent',
-                flexShrink: 0
-              }}
-            >
-              <RefreshCw size={15} />
-            </button>
           </div>
         </div>
 
@@ -768,6 +884,7 @@ export default function ChatbotPage({ systemSettings, onInstallApp }) {
                         <div
                           key={item.id || idx}
                           onClick={() => {
+                            recordUserInteraction();
                             if (item.link) {
                               if (item.link.startsWith('http')) {
                                 window.open(item.link, '_blank');
@@ -1263,6 +1380,256 @@ export default function ChatbotPage({ systemSettings, onInstallApp }) {
                   )}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* Lead Capture Modal (Triggered on 3+ interactions; permanently hidden once collected) */}
+        {showLeadModal && !isLeadCollected && (
+          <div
+            style={{
+              position: 'fixed',
+              top: 0,
+              left: 0,
+              right: 0,
+              bottom: 0,
+              backgroundColor: 'rgba(0, 0, 0, 0.70)',
+              backdropFilter: 'blur(5px)',
+              WebkitBackdropFilter: 'blur(5px)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              zIndex: 999999,
+              padding: '16px',
+              animation: 'viewFadeIn 0.25s ease-out'
+            }}
+          >
+            <div
+              onClick={(e) => e.stopPropagation()}
+              style={{
+                backgroundColor: '#ffffff',
+                borderRadius: '20px',
+                maxWidth: '420px',
+                width: '100%',
+                boxShadow: '0 25px 50px -12px rgba(0,0,0,0.35)',
+                overflow: 'hidden',
+                position: 'relative',
+                border: '1.5px solid #10b981',
+                animation: 'viewFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1)'
+              }}
+            >
+              {/* Header */}
+              <div style={{
+                background: 'linear-gradient(135deg, #075e54 0%, #128c7e 100%)',
+                color: '#ffffff',
+                padding: '16px 18px',
+                position: 'relative'
+              }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowLeadModal(false);
+                    setHasDismissedModal(true);
+                  }}
+                  title="Close"
+                  style={{
+                    position: 'absolute',
+                    top: '12px',
+                    right: '12px',
+                    background: 'rgba(255,255,255,0.18)',
+                    border: 'none',
+                    color: '#ffffff',
+                    width: '30px',
+                    height: '30px',
+                    borderRadius: '50%',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    cursor: 'pointer',
+                    transition: 'background 0.2s ease'
+                  }}
+                >
+                  <X size={16} />
+                </button>
+
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div style={{
+                    width: '42px',
+                    height: '42px',
+                    borderRadius: '50%',
+                    backgroundColor: '#ffffff',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.18)',
+                    flexShrink: 0
+                  }}>
+                    <Bot size={24} style={{ color: '#075e54' }} />
+                  </div>
+                  <div>
+                    <h3 style={{ margin: 0, fontSize: '1.02rem', fontWeight: '800', lineHeight: 1.25, color: '#ffffff' }}>
+                      உதவி மையம் / Quick Support
+                    </h3>
+                    <p style={{ margin: '3px 0 0 0', fontSize: '0.74rem', color: '#86efac', fontWeight: '600' }}>
+                      Subi E-Sevai 2.0 WhatsApp Helpdesk
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Form Body */}
+              <div style={{ padding: '18px 20px' }}>
+                {leadSuccess ? (
+                  <div style={{
+                    textAlign: 'center',
+                    padding: '24px 10px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    gap: '10px'
+                  }}>
+                    <CheckCircle2 size={46} style={{ color: '#10b981' }} />
+                    <h4 style={{ margin: 0, fontSize: '1.08rem', color: '#065f46', fontWeight: '800' }}>
+                      நன்றி! விபரங்கள் பதிவு செய்யப்பட்டது
+                    </h4>
+                    <p style={{ margin: 0, fontSize: '0.82rem', color: '#64748b' }}>
+                      உங்கள் பெயர் மற்றும் மொபைல் எண் பாதுகாப்பாக பதிவு செய்யப்பட்டது.
+                    </p>
+                  </div>
+                ) : (
+                  <form onSubmit={handleLeadSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                    <p style={{
+                      margin: 0,
+                      fontSize: '0.84rem',
+                      color: '#334155',
+                      lineHeight: 1.45,
+                      fontWeight: '500'
+                    }}>
+                      தங்களுக்கு உடனுக்குடன் சேவை தகவல்கள் & உதவி பெற உங்கள் பெயர் மற்றும் மொபைல் எண்ணை உள்ளிடவும்:
+                    </p>
+
+                    {leadError && (
+                      <div style={{
+                        background: '#fef2f2',
+                        border: '1px solid #fecaca',
+                        borderRadius: '8px',
+                        padding: '8px 12px',
+                        fontSize: '0.78rem',
+                        color: '#b91c1c',
+                        fontWeight: '600'
+                      }}>
+                        ⚠️ {leadError}
+                      </div>
+                    )}
+
+                    {/* Name Input */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.80rem', fontWeight: '700', color: '#1e293b', marginBottom: '6px' }}>
+                        உங்கள் பெயர் / Name <span style={{ color: '#ef4444' }}>*</span>
+                      </label>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        backgroundColor: '#f8fafc',
+                        border: '1.5px solid #cbd5e1',
+                        borderRadius: '10px',
+                        padding: '0 12px'
+                      }}>
+                        <User size={18} style={{ color: '#075e54', marginRight: '8px', flexShrink: 0 }} />
+                        <input
+                          type="text"
+                          required
+                          placeholder="உங்கள் பெயர் (எ.கா: சுந்தர்)"
+                          value={leadName}
+                          onChange={(e) => setLeadName(e.target.value)}
+                          style={{
+                            flex: 1,
+                            padding: '11px 0',
+                            border: 'none',
+                            background: 'transparent',
+                            fontSize: '0.90rem',
+                            fontWeight: '600',
+                            color: '#0f172a',
+                            outline: 'none'
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Phone Input */}
+                    <div>
+                      <label style={{ display: 'block', fontSize: '0.80rem', fontWeight: '700', color: '#1e293b', marginBottom: '6px' }}>
+                        மொபைல் எண் / Mobile Number <span style={{ color: '#ef4444' }}>*</span>
+                      </label>
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        backgroundColor: '#f8fafc',
+                        border: '1.5px solid #cbd5e1',
+                        borderRadius: '10px',
+                        padding: '0 12px'
+                      }}>
+                        <Phone size={18} style={{ color: '#075e54', marginRight: '6px', flexShrink: 0 }} />
+                        <span style={{ fontSize: '0.88rem', fontWeight: '700', color: '#475569', marginRight: '6px' }}>
+                          +91
+                        </span>
+                        <input
+                          type="tel"
+                          required
+                          maxLength={10}
+                          placeholder="10-இலக்க மொபைல் எண்"
+                          value={leadPhone}
+                          onChange={(e) => setLeadPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+                          style={{
+                            flex: 1,
+                            padding: '11px 0',
+                            border: 'none',
+                            background: 'transparent',
+                            fontSize: '0.92rem',
+                            fontWeight: '600',
+                            color: '#0f172a',
+                            outline: 'none',
+                            letterSpacing: '0.5px'
+                          }}
+                        />
+                      </div>
+                    </div>
+
+                    {/* Submit Button */}
+                    <button
+                      type="submit"
+                      disabled={isSubmittingLead}
+                      className="chat-touch-btn"
+                      style={{
+                        marginTop: '4px',
+                        background: 'linear-gradient(135deg, #25D366 0%, #128C7E 100%)',
+                        color: '#ffffff',
+                        border: 'none',
+                        borderRadius: '12px',
+                        padding: '12px',
+                        fontSize: '0.94rem',
+                        fontWeight: '800',
+                        cursor: isSubmittingLead ? 'not-allowed' : 'pointer',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '8px',
+                        boxShadow: '0 4px 12px rgba(18, 140, 126, 0.3)',
+                        opacity: isSubmittingLead ? 0.75 : 1
+                      }}
+                    >
+                      {isSubmittingLead ? (
+                        <span>பதிவு செய்யப்படுகிறது...</span>
+                      ) : (
+                        <>
+                          <span>தொடரவும் / Submit & Continue</span>
+                          <ChevronRight size={18} />
+                        </>
+                      )}
+                    </button>
+                  </form>
+                )}
+              </div>
             </div>
           </div>
         )}
